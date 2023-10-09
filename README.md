@@ -1,0 +1,2 @@
+# nostr.app
+nostr.app
