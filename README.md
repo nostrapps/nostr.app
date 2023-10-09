@@ -13,3 +13,5 @@ A collection of useful apps for various purposes, developed by our talented team
 ## 5. [Base58 Encoder/Decoder](http://base58.nostr.app/)
 
 ## 6. [Braini](http://braini.nostr.app/)
+
+## 7. [Pastebin](http://pastebin.nostr.app/)
