@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookmark App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              lightblue: '#8ecae6',
+              purple: '#9d8df1'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+      }
+      .bookmark-card {
+        transition: all 0.3s ease;
+      }
+      .bookmark-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body class="font-sans">
+    <div id="app" class="container mx-auto px-4 py-8"></div>
+
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      // Import navbar
+      import Navbar from './navbar.js'
+
+      class BookmarkApp extends Component {
+        constructor() {
+          super()
+          this.state = {
+            bookmarks: [],
+            newBookmark: { title: '', url: '' }
+          }
+
+          // Load bookmarks from storage
+          this.loadBookmarks()
+        }
+
+        loadBookmarks() {
+          // Try to load from nosdav first (if available)
+          if (window.nosdav) {
+            // This is a placeholder for nosdav integration
+            // Actual implementation would depend on nosdav API
+            console.log('nosdav available, loading bookmarks...')
+            // For now, fall back to localStorage
+            this.loadFromLocalStorage()
+          } else {
+            // Fall back to localStorage
+            this.loadFromLocalStorage()
+          }
+        }
+
+        loadFromLocalStorage() {
+          const savedBookmarks = localStorage.getItem('bookmarks')
+          if (savedBookmarks) {
+            this.setState({ bookmarks: JSON.parse(savedBookmarks) })
+          }
+        }
+
+        saveBookmarks(bookmarks) {
+          // Try to save to nosdav first (if available)
+          if (window.nosdav) {
+            // This is a placeholder for nosdav integration
+            console.log('nosdav available, saving bookmarks...')
+            // For now, also save to localStorage as fallback
+            localStorage.setItem('bookmarks', JSON.stringify(bookmarks))
+          } else {
+            // Fall back to localStorage
+            localStorage.setItem('bookmarks', JSON.stringify(bookmarks))
+          }
+        }
+
+        handleInputChange = e => {
+          const { name, value } = e.target
+          this.setState({
+            newBookmark: {
+              ...this.state.newBookmark,
+              [name]: value
+            }
+          })
+        }
+
+        addBookmark = e => {
+          e.preventDefault()
+          const { title, url } = this.state.newBookmark
+
+          if (!title || !url) return
+
+          const updatedBookmarks = [
+            ...this.state.bookmarks,
+            {
+              id: Date.now(),
+              title,
+              url: url.startsWith('http') ? url : `https://${url}`
+            }
+          ]
+
+          this.setState({
+            bookmarks: updatedBookmarks,
+            newBookmark: { title: '', url: '' }
+          })
+
+          this.saveBookmarks(updatedBookmarks)
+        }
+
+        removeBookmark = id => {
+          const updatedBookmarks = this.state.bookmarks.filter(
+            bookmark => bookmark.id !== id
+          )
+          this.setState({ bookmarks: updatedBookmarks })
+          this.saveBookmarks(updatedBookmarks)
+        }
+
+        render() {
+          return html`
+            <${Navbar} />
+            <div class="max-w-4xl mx-auto mt-8 text-center">
+              <h1
+                class="text-4xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-lightblue to-purple"
+              >
+                Bookmark Manager
+              </h1>
+
+              <form
+                onSubmit=${this.addBookmark}
+                class="mb-8 p-6 bg-white rounded-lg shadow-md"
+              >
+                <div class="mb-4">
+                  <input
+                    type="text"
+                    name="title"
+                    value=${this.state.newBookmark.title}
+                    onInput=${this.handleInputChange}
+                    placeholder="Website Title"
+                    class="w-full md:w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple focus:border-transparent"
+                  />
+                </div>
+                <div class="mb-4">
+                  <input
+                    type="text"
+                    name="url"
+                    value=${this.state.newBookmark.url}
+                    onInput=${this.handleInputChange}
+                    placeholder="Website URL"
+                    class="w-full md:w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple focus:border-transparent"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  class="px-6 py-2 bg-gradient-to-r from-lightblue to-purple text-white rounded-md hover:opacity-90 transition-opacity"
+                >
+                  Add Bookmark
+                </button>
+              </form>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${this.state.bookmarks.map(
+                  bookmark => html`
+                    <div
+                      key=${bookmark.id}
+                      class="bookmark-card bg-white p-4 rounded-lg shadow-md"
+                    >
+                      <h3 class="text-xl font-semibold mb-2 text-gray-800">
+                        ${bookmark.title}
+                      </h3>
+                      <a
+                        href=${bookmark.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-blue-500 hover:underline block mb-3 truncate"
+                      >
+                        ${bookmark.url}
+                      </a>
+                      <button
+                        onClick=${() => this.removeBookmark(bookmark.id)}
+                        class="px-4 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  `
+                )}
+              </div>
+
+              ${this.state.bookmarks.length === 0 &&
+              html`
+                <div class="mt-8 p-6 bg-white rounded-lg shadow-md">
+                  <p class="text-gray-500">No bookmarks yet. Add some!</p>
+                </div>
+              `}
+            </div>
+          `
+        }
+      }
+
+      // Render the app
+      render(html`<${BookmarkApp} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>

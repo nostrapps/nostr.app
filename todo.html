@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Todo App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background: linear-gradient(135deg, #e0f7fa 0%, #d8b5ff 100%);
+        min-height: 100vh;
+      }
+      .todo-container {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+      }
+      .todo-container:hover {
+        transform: translateY(-5px);
+      }
+      .todo-item {
+        transition: all 0.3s ease;
+      }
+      .todo-item:hover {
+        background: rgba(208, 188, 255, 0.3);
+      }
+    </style>
+  </head>
+  <body class="font-sans">
+    <!-- Add a navbar container -->
+    <div id="navbar"></div>
+    <div id="app"></div>
+
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      // Import navbar properly
+      import Navbar from './navbar.js'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      class TodoApp extends Component {
+        constructor() {
+          super()
+          this.state = {
+            todos: [],
+            newTodo: '',
+            storage: null
+          }
+          this.initStorage()
+        }
+
+        async initStorage() {
+          // Check for available storage options
+          let storage = null
+
+          // Try nosdav if available
+          if (typeof window.nosdav !== 'undefined') {
+            storage = {
+              type: 'nosdav',
+              save: async data => {
+                try {
+                  await window.nosdav.putJson('todos.json', data)
+                  return true
+                } catch (e) {
+                  console.error('Error saving to nosdav:', e)
+                  return false
+                }
+              },
+              load: async () => {
+                try {
+                  return await window.nosdav.getJson('todos.json')
+                } catch (e) {
+                  console.error('Error loading from nosdav:', e)
+                  return null
+                }
+              }
+            }
+
+            // Try to load data from nosdav
+            const data = await storage.load()
+            if (data) {
+              this.setState({ todos: data })
+            }
+          }
+
+          // Fall back to localStorage
+          if (!storage) {
+            storage = {
+              type: 'localStorage',
+              save: data => {
+                try {
+                  localStorage.setItem('todos', JSON.stringify(data))
+                  return true
+                } catch (e) {
+                  console.error('Error saving to localStorage:', e)
+                  return false
+                }
+              },
+              load: () => {
+                try {
+                  const data = localStorage.getItem('todos')
+                  return data ? JSON.parse(data) : null
+                } catch (e) {
+                  console.error('Error loading from localStorage:', e)
+                  return null
+                }
+              }
+            }
+
+            // Try to load data from localStorage
+            const data = storage.load()
+            if (data) {
+              this.setState({ todos: data })
+            }
+          }
+
+          this.setState({ storage })
+          console.log(`Using ${storage.type} for storage`)
+        }
+
+        saveData() {
+          if (this.state.storage) {
+            this.state.storage.save(this.state.todos)
+          }
+        }
+
+        handleInputChange = e => {
+          this.setState({ newTodo: e.target.value })
+        }
+
+        handleSubmit = e => {
+          e.preventDefault()
+          if (!this.state.newTodo.trim()) return
+
+          const newTodos = [
+            ...this.state.todos,
+            {
+              id: Date.now(),
+              text: this.state.newTodo.trim(),
+              completed: false
+            }
+          ]
+
+          this.setState(
+            {
+              todos: newTodos,
+              newTodo: ''
+            },
+            () => this.saveData()
+          )
+        }
+
+        removeTodo = id => {
+          const newTodos = this.state.todos.filter(todo => todo.id !== id)
+          this.setState({ todos: newTodos }, () => this.saveData())
+        }
+
+        toggleTodo = id => {
+          const newTodos = this.state.todos.map(todo =>
+            todo.id === id ? { ...todo, completed: !todo.completed } : todo
+          )
+          this.setState({ todos: newTodos }, () => this.saveData())
+        }
+
+        render() {
+          return html`
+            <div class="container mx-auto px-4 py-8">
+              <div class="todo-container max-w-md mx-auto mt-8 p-6">
+                <h1 class="text-3xl font-bold text-center mb-6 text-purple-700">
+                  Todo App
+                </h1>
+
+                <form onSubmit=${this.handleSubmit} class="mb-6">
+                  <div class="flex">
+                    <input
+                      type="text"
+                      value=${this.state.newTodo}
+                      onInput=${this.handleInputChange}
+                      placeholder="Add a new task..."
+                      class="flex-grow px-4 py-2 rounded-l-lg border-2 border-blue-200 focus:outline-none focus:border-purple-400"
+                    />
+                    <button
+                      type="submit"
+                      class="bg-gradient-to-r from-blue-400 to-purple-500 text-white px-4 py-2 rounded-r-lg hover:opacity-90 transition-opacity"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </form>
+
+                <ul class="space-y-2">
+                  ${this.state.todos.map(
+                    todo => html`
+                      <li
+                        key=${todo.id}
+                        class="todo-item flex items-center justify-between p-3 border border-blue-100 rounded-lg"
+                      >
+                        <div class="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked=${todo.completed}
+                            onChange=${() => this.toggleTodo(todo.id)}
+                            class="mr-3 h-5 w-5 text-purple-500"
+                          />
+                          <span
+                            class=${todo.completed
+                              ? 'line-through text-gray-400'
+                              : 'text-gray-800'}
+                          >
+                            ${todo.text}
+                          </span>
+                        </div>
+                        <button
+                          onClick=${() => this.removeTodo(todo.id)}
+                          class="text-red-500 hover:text-red-700 focus:outline-none"
+                          aria-label="Remove todo"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </li>
+                    `
+                  )}
+                  ${this.state.todos.length === 0
+                    ? html`
+                        <li class="text-center text-gray-500 py-4">
+                          No todos yet. Add one above!
+                        </li>
+                      `
+                    : null}
+                </ul>
+              </div>
+            </div>
+          `
+        }
+      }
+
+      render(html`<${TodoApp} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>

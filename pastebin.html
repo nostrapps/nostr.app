@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minimal Pastebin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add Prism.js for syntax highlighting -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'light-blue': '#8ecae6',
+              blue: '#219ebc',
+              purple: '#a78bfa',
+              'light-purple': '#c4b5fd'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      .gradient-bg {
+        background: linear-gradient(135deg, #8ecae6 0%, #a78bfa 100%);
+      }
+      .paste-container {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .paste-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      }
+      /* Add styles for code highlighting */
+      pre[class*='language-'] {
+        margin: 0;
+        border-radius: 0.25rem;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <div id="app"></div>
+
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      // Remove hooks import
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      // Navbar component
+      import Navbar from './navbar.js'
+
+      // Storage utility
+      const Storage = {
+        async save(data) {
+          // Try nosdav if available (placeholder for actual implementation)
+          if (window.nosdav) {
+            try {
+              await window.nosdav.save('pastebin-data', JSON.stringify(data))
+              return true
+            } catch (e) {
+              console.error('Failed to save to nosdav:', e)
+            }
+          }
+
+          // Fallback to localStorage
+          try {
+            localStorage.setItem('pastebin-data', JSON.stringify(data))
+            return true
+          } catch (e) {
+            console.error('Failed to save to localStorage:', e)
+            return false
+          }
+        },
+
+        async load() {
+          // Try nosdav if available (placeholder for actual implementation)
+          if (window.nosdav) {
+            try {
+              const data = await window.nosdav.load('pastebin-data')
+              return JSON.parse(data)
+            } catch (e) {
+              console.error('Failed to load from nosdav:', e)
+            }
+          }
+
+          // Fallback to localStorage
+          try {
+            const data = localStorage.getItem('pastebin-data')
+            return data ? JSON.parse(data) : []
+          } catch (e) {
+            console.error('Failed to load from localStorage:', e)
+            return []
+          }
+        }
+      }
+
+      // Paste component as a class
+      class Paste extends Component {
+        constructor(props) {
+          super(props)
+          this.state = {
+            content: props.paste.content,
+            title: props.paste.title,
+            isEditing: false,
+            language: props.paste.language || 'text'
+          }
+        }
+
+        componentDidUpdate(prevProps, prevState) {
+          // Highlight code when not in editing mode
+          if (
+            (!this.state.isEditing && prevState.isEditing) ||
+            (!this.state.isEditing &&
+              this.state.content !== prevState.content) ||
+            (!this.state.isEditing &&
+              this.state.language !== prevState.language)
+          ) {
+            if (window.Prism) {
+              window.Prism.highlightAll()
+            }
+          }
+        }
+
+        handleSave = () => {
+          const { title, content, language } = this.state
+          this.props.onUpdate({ ...this.props.paste, title, content, language })
+          this.setState({ isEditing: false })
+        }
+
+        render() {
+          const { paste, onDelete } = this.props
+          const { content, title, isEditing, language } = this.state
+
+          const languages = [
+            { value: 'text', label: 'Plain Text' },
+            { value: 'javascript', label: 'JavaScript' },
+            { value: 'html', label: 'HTML' },
+            { value: 'css', label: 'CSS' },
+            { value: 'python', label: 'Python' },
+            { value: 'java', label: 'Java' },
+            { value: 'csharp', label: 'C#' },
+            { value: 'php', label: 'PHP' },
+            { value: 'ruby', label: 'Ruby' },
+            { value: 'go', label: 'Go' },
+            { value: 'rust', label: 'Rust' },
+            { value: 'json', label: 'JSON' },
+            { value: 'markdown', label: 'Markdown' },
+            { value: 'sql', label: 'SQL' },
+            { value: 'bash', label: 'Bash' }
+          ]
+
+          return html`
+            <div class="paste-container bg-white rounded-lg shadow-md p-4 mb-4">
+              ${isEditing
+                ? html`
+                    <input
+                      type="text"
+                      value=${title}
+                      onChange=${e => this.setState({ title: e.target.value })}
+                      class="w-full mb-2 p-2 border border-gray-300 rounded"
+                      placeholder="Title"
+                    />
+                    <div class="mb-2">
+                      <select
+                        value=${language}
+                        onChange=${e =>
+                          this.setState({ language: e.target.value })}
+                        class="w-full p-2 border border-gray-300 rounded"
+                      >
+                        ${languages.map(
+                          lang => html`
+                            <option value=${lang.value}>${lang.label}</option>
+                          `
+                        )}
+                      </select>
+                    </div>
+                    <textarea
+                      value=${content}
+                      onChange=${e =>
+                        this.setState({ content: e.target.value })}
+                      class="w-full h-40 p-2 border border-gray-300 rounded"
+                      placeholder="Paste content here..."
+                    ></textarea>
+                    <div class="flex justify-end mt-2">
+                      <button
+                        onClick=${() => this.setState({ isEditing: false })}
+                        class="mr-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick=${this.handleSave}
+                        class="px-4 py-2 bg-blue text-white rounded hover:bg-opacity-90 transition"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  `
+                : html`
+                    <div class="flex justify-between items-center mb-2">
+                      <div>
+                        <h3 class="text-xl font-semibold text-blue">
+                          ${title || 'Untitled'}
+                        </h3>
+                        <span class="text-xs text-gray-500"
+                          >${language !== 'text' ? language : ''}</span
+                        >
+                      </div>
+                      <div>
+                        <button
+                          onClick=${() => this.setState({ isEditing: true })}
+                          class="mr-2 text-purple hover:text-opacity-80"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick=${() => onDelete(paste.id)}
+                          class="text-red-500 hover:text-opacity-80"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <pre class="rounded"><code class=${`language-${language}`}>
+${content || 'No content'}
+                    </code></pre>
+                  `}
+            </div>
+          `
+        }
+      }
+
+      // App component as a class
+      class App extends Component {
+        constructor(props) {
+          super(props)
+          this.state = {
+            pastes: [],
+            loading: true
+          }
+        }
+
+        componentDidMount() {
+          this.loadPastes()
+        }
+
+        componentDidUpdate(prevProps, prevState) {
+          if (!this.state.loading && this.state.pastes !== prevState.pastes) {
+            Storage.save(this.state.pastes)
+          }
+        }
+
+        loadPastes = async () => {
+          const savedPastes = await Storage.load()
+          this.setState({ pastes: savedPastes, loading: false })
+        }
+
+        addNewPaste = () => {
+          const newPaste = {
+            id: Date.now(),
+            title: '',
+            content: '',
+            language: 'text',
+            createdAt: new Date().toISOString()
+          }
+          this.setState({ pastes: [newPaste, ...this.state.pastes] })
+        }
+
+        updatePaste = updatedPaste => {
+          this.setState({
+            pastes: this.state.pastes.map(p =>
+              p.id === updatedPaste.id ? updatedPaste : p
+            )
+          })
+        }
+
+        deletePaste = id => {
+          this.setState({
+            pastes: this.state.pastes.filter(p => p.id !== id)
+          })
+        }
+
+        render() {
+          const { pastes, loading } = this.state
+
+          return html`
+            <div>
+              <${Navbar} />
+              <div class="container mx-auto px-4 py-8">
+                <div class="text-center mb-8">
+                  <h2 class="text-3xl font-bold text-gray-800 mb-4">
+                    Your Pastes
+                  </h2>
+                  <p class="text-gray-600 mb-6">
+                    Create, edit, and save your text snippets
+                  </p>
+                  <button
+                    onClick=${this.addNewPaste}
+                    class="gradient-bg text-white px-6 py-3 rounded-lg shadow-lg hover:opacity-90 transition transform hover:scale-105"
+                  >
+                    Add New Paste
+                  </button>
+                </div>
+
+                ${loading
+                  ? html`<div class="text-center py-10">Loading...</div>`
+                  : html`
+                      <div
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                      >
+                        ${pastes.map(
+                          paste => html`
+                            <${Paste}
+                              key=${paste.id}
+                              paste=${paste}
+                              onUpdate=${this.updatePaste}
+                              onDelete=${this.deletePaste}
+                            />
+                          `
+                        )}
+                      </div>
+                      ${pastes.length === 0 &&
+                      html`
+                        <div class="text-center py-10 text-gray-500">
+                          No pastes yet. Create your first one!
+                        </div>
+                      `}
+                    `}
+              </div>
+            </div>
+          `
+        }
+      }
+
+      // Render the app
+      render(html`<${App} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>

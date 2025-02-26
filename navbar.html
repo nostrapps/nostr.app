@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Navbar Component</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .gradient-text {
+        background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        transition: all 0.3s ease;
+      }
+      .gradient-text:hover {
+        text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        transform: scale(1.05);
+      }
+      .navbar-gradient {
+        background: linear-gradient(to right, #f0f4ff, #e0e7ff);
+        box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.1),
+          0 2px 4px -1px rgba(59, 130, 246, 0.06);
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50">
+    <div id="app"></div>
+
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      // Navbar Component
+      function Navbar() {
+        return html`
+          <nav class="navbar-gradient p-4 sticky top-0 z-10">
+            <div class="container mx-auto flex justify-center items-center">
+              <a
+                href="index.html"
+                class="text-xl md:text-2xl font-bold gradient-text px-4 py-2 rounded-lg hover:bg-white/30 transition-all duration-300"
+              >
+                Home
+              </a>
+            </div>
+          </nav>
+        `
+      }
+
+      // Render the Navbar
+      render(html`<${Navbar} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>

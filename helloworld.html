@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hello World - Preact & HTM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              softblue: '#a3c4f3',
+              softpurple: '#cfbaf0'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.9;
+          transform: scale(1.05);
+        }
+      }
+      .gradient-bg {
+        background: linear-gradient(135deg, #a3c4f3, #cfbaf0);
+      }
+      .text-shadow {
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .pulse-animation {
+        animation: pulse 3s infinite ease-in-out;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col gradient-bg">
+    <div id="navbar"></div>
+
+    <div id="app" class="flex-grow flex items-center justify-center"></div>
+
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+      import Navbar from './navbar.js'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      // Initialize the navbar
+      const navbarContainer = document.getElementById('navbar')
+      if (navbarContainer) {
+        render(html`<${Navbar} />`, navbarContainer)
+      }
+
+      // Create a simple Hello World component
+      function HelloWorld() {
+        return html`
+          <div
+            class="text-center p-8 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl shadow-lg max-w-md mx-auto pulse-animation"
+          >
+            <h1
+              class="text-4xl md:text-5xl font-bold mb-4 text-shadow text-white"
+            >
+              Hello, World!
+            </h1>
+            <p class="text-lg md:text-xl text-white opacity-90">
+              Built with Preact & HTM
+            </p>
+          </div>
+        `
+      }
+
+      // Render the component to the DOM
+      render(html`<${HelloWorld} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
