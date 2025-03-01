@@ -35,6 +35,9 @@
       import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
       import Navbar from './navbar.js'
       import './nosdav-shim.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+
+      window.secp256k1 = secp256k1
 
       // Initialize htm with Preact
       const html = htm.bind(h)
