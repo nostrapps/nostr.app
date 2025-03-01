@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nostr Profile</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'light-blue': '#a5c4ff',
+              'light-purple': '#d5c1ff'
+            }
+          }
+        }
+      }
+    </script>
+    <style type="text/tailwindcss">
+      body {
+        @apply bg-gradient-to-br from-white to-light-blue min-h-screen;
+      }
+      .profile-card {
+        @apply bg-white bg-opacity-50 backdrop-blur-sm rounded-xl p-8 shadow-lg;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .profile-card:hover {
+        transform: translateY(-5px);
+        @apply shadow-xl;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Change navbar container to match pastebin.html -->
+    <div id="navbar"></div>
+
+    <!-- Profile container -->
+    <div id="app" class="container mx-auto px-4 py-8"></div>
+
+    <!-- Import navbar directly as in pastebin.html -->
+    <script type="module" src="navbar.js"></script>
+
+    <!-- Import modules -->
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+      // Import NostrTools library
+      import * as NostrTools from 'https://esm.sh/nostr-tools@1.14.0'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      class ProfileApp extends Component {
+        constructor() {
+          super()
+          this.state = {
+            profile: {
+              name: '',
+              picture: '',
+              about: '',
+              nip05: '',
+              pubkey: '',
+              subkeys: ''
+            },
+            subkeysArray: [],
+            showSubkeyInput: false,
+            newSubkey: '',
+            editingIndex: -1,
+            loading: true,
+            error: null
+          }
+
+          this.handleInputChange = this.handleInputChange.bind(this)
+          this.handleSubmit = this.handleSubmit.bind(this)
+          this.addSubkey = this.addSubkey.bind(this)
+        }
+
+        componentDidMount() {
+          // Check for pubkey in localStorage (set during login)
+          const pubkey = localStorage.getItem('nostrPublicKey')
+
+          if (!pubkey) {
+            this.setState({
+              loading: false,
+              error: 'Please login first to view your profile'
+            })
+            return
+          }
+
+          this.fetchProfile(pubkey)
+        }
+
+        async fetchProfile(pubkey) {
+          try {
+            console.log('Fetching profile for pubkey:', pubkey)
+            // Connect to relays using relayInit instead of SimplePool
+            const relays = [
+              'wss://relay.damus.io',
+              'wss://nos.lol' // Add more popular relays
+            ]
+            console.log('Connecting to relays:', relays)
+
+            // Create an array to store events from all relays
+            let allEvents = []
+
+            // Use SimplePool instead of connecting to each relay individually
+            const pool = new NostrTools.SimplePool()
+
+            try {
+              console.log('Fetching events using SimplePool')
+              // Fetch events using SimplePool
+              allEvents = await pool.list(
+                relays,
+                [
+                  {
+                    kinds: [0],
+                    authors: [pubkey],
+                    limit: 10
+                  }
+                ],
+                { timeout: 5000 }
+              )
+
+              console.log('Events from SimplePool:', allEvents)
+            } catch (poolError) {
+              console.error('Error with SimplePool:', poolError)
+            }
+
+            // If SimplePool didn't work, try individual relays as fallback
+            if (!allEvents || allEvents.length === 0) {
+              console.log('No events from SimplePool, trying individual relays')
+              // Process each relay
+              for (const relayUrl of relays) {
+                try {
+                  console.log(`Connecting to relay: ${relayUrl}`)
+                  const relay = NostrTools.relayInit(relayUrl)
+
+                  await relay.connect()
+                  console.log(`Connected to ${relayUrl}`)
+
+                  // Create a promise to handle the subscription
+                  const eventsPromise = new Promise(resolve => {
+                    const events = []
+
+                    // Subscribe to kind 0 events for the pubkey
+                    const sub = relay.sub([
+                      {
+                        kinds: [0],
+                        authors: [pubkey],
+                        limit: 5
+                      }
+                    ])
+
+                    sub.on('event', event => {
+                      console.log(`Received event from ${relayUrl}:`, event)
+                      events.push(event)
+                    })
+
+                    // Resolve the promise when we've received all stored events
+                    sub.on('eose', () => {
+                      console.log(`End of stored events from ${relayUrl}`)
+                      resolve(events)
+                      sub.unsub()
+                    })
+
+                    // Set a timeout in case EOSE never comes
+                    setTimeout(() => {
+                      console.log(`Timeout for ${relayUrl}`)
+                      resolve(events)
+                      sub.unsub()
+                    }, 5000)
+                  })
+
+                  // Wait for events from this relay
+                  const relayEvents = await eventsPromise
+                  allEvents = [...allEvents, ...relayEvents]
+
+                  // Close the connection
+                  relay.close()
+                } catch (relayError) {
+                  console.error(`Error with relay ${relayUrl}:`, relayError)
+                }
+              }
+            }
+
+            // Close the pool
+            pool.close(relays)
+
+            console.log('All events collected:', allEvents)
+
+            if (allEvents && allEvents.length > 0) {
+              // Sort to get the latest event
+              allEvents.sort((a, b) => b.created_at - a.created_at)
+              const profileEvent = allEvents[0]
+              console.log('Latest profile event:', profileEvent)
+
+              try {
+                // Parse the content as JSON
+                const profileData = JSON.parse(profileEvent.content)
+                console.log('Parsed profile data:', profileData)
+
+                // Convert subkeys string to array if it exists
+                const subkeysArray = profileData.subkeys
+                  ? typeof profileData.subkeys === 'string'
+                    ? profileData.subkeys
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(Boolean)
+                    : Array.isArray(profileData.subkeys)
+                    ? profileData.subkeys
+                    : []
+                  : []
+
+                this.setState({
+                  profile: {
+                    name: profileData.name || '',
+                    picture: profileData.picture || '',
+                    about: profileData.about || '',
+                    nip05: profileData.nip05 || '',
+                    pubkey: pubkey,
+                    subkeys: profileData.subkeys || ''
+                  },
+                  subkeysArray,
+                  loading: false
+                })
+              } catch (jsonError) {
+                console.error('Error parsing profile JSON:', jsonError)
+                this.setState({
+                  loading: false,
+                  error: 'Failed to parse profile data'
+                })
+              }
+            } else {
+              console.log('No profile events found for pubkey:', pubkey)
+              // No profile found, but we can still show the form with the pubkey
+              this.setState({
+                profile: {
+                  ...this.state.profile,
+                  pubkey: pubkey
+                },
+                loading: false
+              })
+            }
+          } catch (error) {
+            console.error('Error fetching profile:', error)
+            this.setState({
+              loading: false,
+              error: `Failed to load profile: ${
+                error.message || 'Unknown error'
+              }`
+            })
+          }
+        }
+
+        handleInputChange(event) {
+          const { name, value } = event.target
+          this.setState({
+            profile: {
+              ...this.state.profile,
+              [name]: value
+            }
+          })
+        }
+
+        async handleSubmit(event) {
+          event.preventDefault()
+
+          const pubkey = this.state.profile.pubkey
+          if (!pubkey) {
+            this.setState({ error: 'No public key found' })
+            return
+          }
+
+          try {
+            // Create profile event
+            const profileContent = JSON.stringify({
+              name: this.state.profile.name,
+              picture:
+                this.state.profile.picture ||
+                'https://api.dicebear.com/6.x/personas/svg?seed=nostr',
+              about: this.state.profile.about,
+              nip05: this.state.profile.nip05,
+              subkeys: this.state.subkeysArray.join(',')
+            })
+
+            const eventTemplate = {
+              kind: 0,
+              created_at: Math.floor(Date.now() / 1000),
+              tags: [],
+              content: profileContent,
+              pubkey: pubkey
+            }
+
+            let signedEvent
+
+            // Check if NIP-07 extension is available
+            if (window.nostr) {
+              // Use the extension to sign the event
+              signedEvent = await window.nostr.signEvent(eventTemplate)
+              console.log('Event signed with NIP-07 extension:', signedEvent)
+            } else {
+              // Fallback to private key if available (legacy support)
+              const privateKey = localStorage.getItem('nostrPrivateKey')
+              if (!privateKey) {
+                this.setState({
+                  error:
+                    'No signing method available. Please use a Nostr extension.'
+                })
+                return
+              }
+              signedEvent = NostrTools.finishEvent(eventTemplate, privateKey)
+            }
+
+            // Publish to relays
+            const relays = ['wss://relay.damus.io', 'wss://nos.lol']
+            const pool = new NostrTools.SimplePool()
+
+            const pubs = pool.publish(relays, signedEvent)
+            await Promise.all(pubs)
+
+            alert('Profile updated successfully!')
+
+            // Close connections
+            pool.close(relays)
+          } catch (error) {
+            console.error('Error saving profile:', error)
+            this.setState({
+              error: `Failed to save profile changes: ${error.message}`
+            })
+          }
+        }
+
+        async handleNostrLogin() {
+          try {
+            // Check if NIP-07 extension is available
+            if (!window.nostr) {
+              alert(
+                'Nostr extension not found. Please install a Nostr extension like nos2x or Alby.'
+              )
+              return
+            }
+
+            // Request public key from extension
+            const pubkey = await window.nostr.getPublicKey()
+
+            if (pubkey) {
+              // Store the public key in localStorage
+              localStorage.setItem('nostrPublicKey', pubkey)
+
+              // Fetch profile with the new pubkey
+              this.setState({ loading: true, error: null })
+              this.fetchProfile(pubkey)
+            }
+          } catch (error) {
+            console.error('Login error:', error)
+            this.setState({
+              error:
+                'Failed to login. Please make sure your Nostr extension is unlocked.',
+              loading: false
+            })
+          }
+        }
+
+        handleLogout() {
+          // Clear Nostr-related data from localStorage
+          localStorage.removeItem('nostrPublicKey')
+          localStorage.removeItem('nostrPrivateKey')
+
+          // Update state to show login screen
+          this.setState({
+            profile: {
+              name: '',
+              picture: '',
+              about: '',
+              nip05: '',
+              pubkey: '',
+              subkeys: ''
+            },
+            loading: false,
+            error: 'Please login first to view your profile'
+          })
+        }
+
+        addSubkey() {
+          const { newSubkey, editingIndex, subkeysArray } = this.state
+
+          if (!newSubkey.trim()) return
+
+          let updatedSubkeys
+
+          if (editingIndex >= 0) {
+            // Edit existing subkey
+            updatedSubkeys = [...subkeysArray]
+            updatedSubkeys[editingIndex] = newSubkey.trim()
+          } else {
+            // Add new subkey
+            updatedSubkeys = [...subkeysArray, newSubkey.trim()]
+          }
+
+          // Update both the array and the comma-separated string
+          this.setState({
+            subkeysArray: updatedSubkeys,
+            profile: {
+              ...this.state.profile,
+              subkeys: updatedSubkeys.join(',')
+            },
+            showSubkeyInput: false,
+            newSubkey: '',
+            editingIndex: -1
+          })
+        }
+
+        editSubkey(index) {
+          const subkey = this.state.subkeysArray[index]
+          this.setState({
+            showSubkeyInput: true,
+            newSubkey: subkey,
+            editingIndex: index
+          })
+        }
+
+        deleteSubkey(index) {
+          const updatedSubkeys = [...this.state.subkeysArray]
+          updatedSubkeys.splice(index, 1)
+
+          this.setState({
+            subkeysArray: updatedSubkeys,
+            profile: {
+              ...this.state.profile,
+              subkeys: updatedSubkeys.join(',')
+            }
+          })
+        }
+
+        render() {
+          const { profile, loading, error } = this.state
+
+          if (loading) {
+            return html`
+              <div class="flex justify-center items-center min-h-[70vh]">
+                <div class="text-light-purple text-xl animate-pulse">
+                  Loading profile...
+                </div>
+              </div>
+            `
+          }
+
+          if (error && error.includes('Please login first')) {
+            return html`
+              <div class="flex justify-center items-center min-h-[70vh]">
+                <div class="profile-card max-w-md w-full text-center">
+                  <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                    Login Required
+                  </h2>
+                  <p class="text-gray-600 mb-6">
+                    You need to login with your Nostr account to view and edit
+                    your profile.
+                  </p>
+                  <button
+                    onClick=${this.handleNostrLogin.bind(this)}
+                    class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
+                  >
+                    Login with Nostr
+                  </button>
+                </div>
+              </div>
+            `
+          }
+
+          if (error) {
+            return html`
+              <div class="flex justify-center items-center min-h-[70vh]">
+                <div class="text-red-500 text-xl">
+                  Error loading profile: ${error}
+                </div>
+              </div>
+            `
+          }
+
+          return html`
+            <div class="flex justify-center items-center min-h-[70vh]">
+              <div class="profile-card max-w-md w-full">
+                <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
+                  Edit Nostr Profile
+                </h2>
+                <form class="space-y-4" onSubmit=${this.handleSubmit}>
+                  <div class="flex flex-col items-center mb-6">
+                    <img
+                      src=${profile.picture ||
+                      'https://api.dicebear.com/6.x/personas/svg?seed=nostr'}
+                      alt="Profile"
+                      class="w-32 h-32 rounded-full border-4 border-light-purple shadow-md mb-4"
+                    />
+                    <div class="w-full">
+                      <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Profile Picture URL
+                      </label>
+                      <input
+                        type="text"
+                        name="picture"
+                        value=${profile.picture}
+                        onChange=${this.handleInputChange}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Display Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value=${profile.name}
+                      onChange=${this.handleInputChange}
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      NIP-05 Address
+                    </label>
+                    <input
+                      type="text"
+                      name="nip05"
+                      value=${profile.nip05}
+                      onChange=${this.handleInputChange}
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Public Key
+                    </label>
+                    <input
+                      type="text"
+                      value=${profile.pubkey}
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple bg-gray-100"
+                      readonly
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      About
+                    </label>
+                    <textarea
+                      name="about"
+                      value=${profile.about}
+                      onChange=${this.handleInputChange}
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple h-24"
+                    ></textarea>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                      Subkeys Management
+                    </label>
+                    <div class="border border-gray-300 rounded-md p-3 bg-white">
+                      <div class="space-y-2 mb-3">
+                        ${this.state.subkeysArray &&
+                        this.state.subkeysArray.map(
+                          (subkey, index) => html`
+                            <div
+                              key=${index}
+                              class="flex items-center gap-2 p-2 bg-gray-50 rounded-md group"
+                            >
+                              <span class="flex-grow font-mono text-sm truncate"
+                                >${subkey}</span
+                              >
+                              <button
+                                type="button"
+                                onClick=${() => this.editSubkey(index)}
+                                class="text-gray-500 hover:text-light-purple opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  class="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick=${() => this.deleteSubkey(index)}
+                                class="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  class="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          `
+                        )}
+                        ${this.state.subkeysArray &&
+                        this.state.subkeysArray.length === 0 &&
+                        html`
+                          <div
+                            class="text-gray-500 text-sm italic text-center py-2"
+                          >
+                            No subkeys added yet
+                          </div>
+                        `}
+                      </div>
+
+                      ${this.state.showSubkeyInput
+                        ? html`
+                            <div class="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value=${this.state.newSubkey}
+                                onChange=${e =>
+                                  this.setState({ newSubkey: e.target.value })}
+                                class="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
+                                placeholder="Enter subkey (hex format)"
+                              />
+                              <button
+                                type="button"
+                                onClick=${this.addSubkey.bind(this)}
+                                class="px-3 py-2 bg-light-purple text-white rounded-md hover:bg-opacity-90"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick=${() =>
+                                  this.setState({
+                                    showSubkeyInput: false,
+                                    newSubkey: '',
+                                    editingIndex: -1
+                                  })}
+                                class="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          `
+                        : html`
+                            <button
+                              type="button"
+                              onClick=${() =>
+                                this.setState({
+                                  showSubkeyInput: true,
+                                  newSubkey: ''
+                                })}
+                              class="flex items-center gap-1 text-light-purple hover:text-opacity-80"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
+                              </svg>
+                              Add Subkey
+                            </button>
+                          `}
+                      <p class="text-xs text-gray-500 mt-2">
+                        Add delegation subkeys to use with this profile
+                      </p>
+                    </div>
+                  </div>
+
+                  ${error &&
+                  html`
+                    <div class="text-red-500 text-sm font-medium py-2">
+                      ${error}
+                    </div>
+                  `}
+
+                  <div class="w-full pt-4 border-t border-gray-200">
+                    <div class="flex justify-center gap-4">
+                      <button
+                        type="submit"
+                        class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
+                      >
+                        Save Profile
+                      </button>
+                      <button
+                        type="button"
+                        class="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg shadow hover:shadow-lg transition-all"
+                        onClick=${() => (window.location.href = '/')}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        class="px-6 py-2 bg-red-100 border border-red-300 text-red-700 rounded-lg shadow hover:shadow-lg transition-all"
+                        onClick=${this.handleLogout.bind(this)}
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          `
+        }
+      }
+
+      // Render the app
+      render(html`<${ProfileApp} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>

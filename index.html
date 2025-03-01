@@ -3,154 +3,539 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>App Directory</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              softBlue: '#8BBEE8',
-              softPurple: '#B8A9E1'
-            }
-          }
-        }
+    <title>App Store - Directory</title>
+    <style>
+      :root {
+        --primary: #4a6fa5;
+        --primary-dark: #3a5683;
+        --primary-light: #c5d5e5;
+        --secondary: #8fb8de;
+        --accent: #63c0f5;
+        --text-light: #ffffff;
+        --text-dark: #334155;
+        --card-bg: #f0f7ff;
+        --body-bg: #f8fafc;
+        --sidebar-width: 230px;
+        --header-height: 60px;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --radius-sm: 6px;
+        --radius-md: 12px;
       }
-    </script>
-    <style type="text/tailwindcss">
-      @layer utilities {
-        .text-gradient {
-          background-clip: text;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+
+      body {
+        background-color: var(--body-bg);
+        color: var(--text-dark);
+        line-height: 1.5;
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: var(--text-light);
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 25px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .logo {
+        font-size: 26px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        letter-spacing: -0.5px;
+      }
+
+      .logo-dot {
+        color: var(--accent);
+        font-size: 32px;
+        margin-left: -3px;
+      }
+
+      .search-container {
+        display: flex;
+        align-items: center;
+        background-color: rgba(255, 255, 255, 0.15);
+        border-radius: var(--radius-sm);
+        padding: 6px 15px;
+        width: 350px;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .search-container:focus-within {
+        background-color: rgba(255, 255, 255, 0.25);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+      }
+
+      .search-input {
+        background: transparent;
+        border: none;
+        color: white;
+        width: 100%;
+        padding: 6px;
+        outline: none;
+        font-size: 15px;
+      }
+
+      .search-input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .search-button {
+        background: transparent;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .theme-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .theme-select {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: white;
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: 8px 16px;
+        outline: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .theme-select:hover {
+        background-color: rgba(255, 255, 255, 0.25);
+      }
+
+      .theme-toggle {
+        background: transparent;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 18px;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+      }
+
+      .theme-toggle:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+      }
+
+      .sidebar {
+        background: linear-gradient(180deg, var(--primary-dark), #2d4569);
+        color: var(--text-light);
+        width: var(--sidebar-width);
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        bottom: 0;
+        padding: 25px 0;
+        overflow-y: auto;
+        box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.1);
+      }
+
+      .sidebar-title {
+        padding: 10px 25px;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 5px;
+      }
+
+      .sidebar-menu {
+        list-style: none;
+        margin-top: 5px;
+      }
+
+      .sidebar-item {
+        padding: 12px 25px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        transition: all 0.2s ease;
+        font-size: 15px;
+        border-left: 3px solid transparent;
+      }
+
+      .sidebar-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .sidebar-item.active {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-left: 3px solid var(--accent);
+      }
+
+      .sidebar-item-icon {
+        margin-right: 12px;
+        font-size: 12px;
+        color: var(--accent);
+      }
+
+      .main-content {
+        margin-left: var(--sidebar-width);
+        margin-top: var(--header-height);
+        padding: 35px;
+        min-height: calc(100vh - var(--header-height));
+      }
+
+      .section-title {
+        font-size: 30px;
+        font-weight: 700;
+        margin-bottom: 25px;
+        color: var(--primary-dark);
+        letter-spacing: -0.5px;
+      }
+
+      .category-title {
+        font-size: 22px;
+        font-weight: 600;
+        margin: 35px 0 18px 0;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+      }
+
+      .category-title:before {
+        content: '';
+        display: inline-block;
+        width: 18px;
+        height: 3px;
+        background-color: var(--accent);
+        margin-right: 12px;
+        border-radius: 3px;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+      }
+
+      .card {
+        background-color: var(--card-bg);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        transition: all 0.25s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        border: 1px solid rgba(0, 0, 0, 0.04);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-md);
+        background-color: white;
+        border-color: rgba(99, 192, 245, 0.2);
+      }
+
+      .card-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+      }
+
+      .card-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .card-content {
+        flex: 1;
+      }
+
+      .card-title {
+        font-weight: 600;
+        margin-bottom: 6px;
+        font-size: 17px;
+        color: var(--text-dark);
+      }
+
+      .card-description {
+        font-size: 14px;
+        color: rgba(51, 65, 85, 0.8);
+      }
+
+      @media (max-width: 768px) {
+        .sidebar {
+          width: 0;
+          overflow: hidden;
         }
-        .hover-scale {
-          transition: transform 0.3s ease;
+
+        .main-content {
+          margin-left: 0;
+          padding: 25px;
         }
-        .hover-scale:hover {
-          transform: scale(1.05);
+
+        .card-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .search-container {
+          width: 250px;
         }
       }
     </style>
   </head>
-  <body
-    class="min-h-screen bg-gradient-to-br from-white via-softBlue/10 to-softPurple/20 flex flex-col items-center justify-center p-6"
-  >
-    <div id="navbar" class="fixed top-0 left-0 right-0 z-10"></div>
-
-    <div id="app" class="w-full max-w-3xl"></div>
-
-    <script type="module" src="navbar.js"></script>
+  <body>
+    <div id="app"></div>
 
     <script type="module">
       import {
         h,
         render,
-        Component
-      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
-      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+        Component,
+        Fragment
+      } from 'https://esm.sh/preact@10.13.1'
+      import { useState } from 'https://esm.sh/preact@10.13.1/hooks'
+      import htm from 'https://esm.sh/htm@3.1.1'
 
       // Initialize htm with Preact
       const html = htm.bind(h)
+
+      // App data
+      const sidebarItems = [
+        { id: 1, name: 'All Apps', icon: '▶', active: true },
+        { id: 2, name: 'Tools', icon: '▶' },
+        { id: 3, name: 'Utilities', icon: '▶' }
+      ]
+
+      const popularApps = [
+        {
+          id: 1,
+          name: 'Todo App',
+          description: 'Track your tasks and stay organized',
+          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNEE2RkE1Ii8+PHBhdGggZD0iTTMwIDUwTDQ1IDY1TDcwIDM1IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iNSIvPjwvc3ZnPg==',
+          url: 'todo.html'
+        },
+        {
+          id: 2,
+          name: 'Bookmarks',
+          description: 'Save and organize your favorite links',
+          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjOGZiOGRlIi8+PHBhdGggZD0iTTM1IDI1TDY1IDI1TDY1IDc1TDUwIDYwTDM1IDc1WiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==',
+          url: 'bookmark.html'
+        },
+        {
+          id: 3,
+          name: 'Profile',
+          description: 'Manage your user profile',
+          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjYzVkNWU1Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI0MCIgcj0iMTUiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjUgODVDMjUgNjUgNzUgNjUgNzUgODUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+          url: 'profile.html'
+        }
+      ]
+
+      const utilityApps = [
+        {
+          id: 4,
+          name: 'Hello World',
+          description: 'Simple starter application',
+          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNjNjMGY1Ii8+PHRleHQgeD0iNTAiIHk9IjU1IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiI+SGVsbG88L3RleHQ+PC9zdmc+',
+          url: 'helloworld.html'
+        },
+        {
+          id: 5,
+          name: 'Pastebin',
+          description: 'Share code and text snippets',
+          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjM2E1NjgzIi8+PHBhdGggZD0iTTMwIDMwTDcwIDMwTDcwIDcwTDMwIDcwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiLz48bGluZSB4MT0iNDAiIHkxPSI0MCIgeDI9IjYwIiB5Mj0iNDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjQwIiB5MT0iNTAiIHgyPSI2MCIgeTI9IjUwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSI0MCIgeTE9IjYwIiB4Mj0iNjAiIHkyPSI2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=',
+          url: 'pastebin.html'
+        }
+      ]
+
+      // Header component
+      const Header = ({ user, onLogin, onLogout }) => {
+        return html`
+          <header class="header">
+            <div class="logo">Nostr<span class="logo-dot">.</span>App</div>
+            <div class="search-container">
+              <input
+                type="text"
+                class="search-input"
+                placeholder="Search apps..."
+              />
+              <button class="search-button">🔍</button>
+            </div>
+            <div class="theme-container">
+              ${user
+                ? html`<button onClick=${onLogout} class="theme-select">
+                    Logout
+                  </button>`
+                : html`<button onClick=${onLogin} class="theme-select">
+                    Login with Nostr
+                  </button>`}
+            </div>
+          </header>
+        `
+      }
+
+      // Sidebar component
+      const Sidebar = ({ items }) => {
+        return html`
+          <div class="sidebar">
+            <div class="sidebar-title">App Categories</div>
+            <ul class="sidebar-menu">
+              ${items.map(
+                item => html`
+                  <li class="sidebar-item ${item.active ? 'active' : ''}">
+                    <span class="sidebar-item-icon">${item.icon}</span>
+                    ${item.name}
+                  </li>
+                `
+              )}
+            </ul>
+          </div>
+        `
+      }
+
+      // Card component
+      const Card = ({ app }) => {
+        return html`
+          <a href=${app.url} class="card">
+            <div class="card-icon">
+              <img src=${app.icon} alt=${app.name} />
+            </div>
+            <div class="card-content">
+              <div class="card-title">${app.name}</div>
+              ${app.description &&
+              html`<div class="card-description">${app.description}</div>`}
+            </div>
+          </a>
+        `
+      }
+
+      // Main content component
+      const MainContent = ({ popularApps, utilityApps }) => {
+        return html`
+          <div class="main-content">
+            <h1 class="section-title">App Directory</h1>
+
+            <h2 class="category-title">All Apps</h2>
+            <div class="card-grid">
+              ${popularApps.map(app => html`<${Card} app=${app} />`)}
+            </div>
+
+            <h2 class="category-title">Utilities</h2>
+            <div class="card-grid">
+              ${utilityApps.map(app => html`<${Card} app=${app} />`)}
+            </div>
+          </div>
+        `
+      }
 
       class App extends Component {
         constructor() {
           super()
           this.state = {
-            apps: [],
-            loading: true,
-            error: null
+            user: null,
+            sidebarItems,
+            popularApps,
+            utilityApps
           }
         }
 
         componentDidMount() {
-          // Fetch directory listing or use a predefined list
-          // For demo purposes, we'll simulate fetching apps
-          this.fetchApps()
+          // Check if user is logged in via Nostr
+          this.checkNostrLogin()
         }
 
-        async fetchApps() {
-          try {
-            // In a real app, you might fetch this from a server
-            // For now, we'll simulate with a timeout
-            await new Promise(resolve => setTimeout(resolve, 500))
-
-            // This would normally come from an API or server
-            const apps = [
-              { name: 'Hello World', path: './helloworld.html' },
-              { name: 'Todo App', path: './todo.html' },
-              { name: 'Bookmark App', path: './bookmark.html' },
-              { name: 'Pastebin App', path: './pastebin.html' }
-            ]
-
-            this.setState({ apps, loading: false })
-          } catch (error) {
-            this.setState({ error: 'Failed to load apps', loading: false })
+        checkNostrLogin() {
+          // This would be replaced with actual Nostr login check
+          const storedUser = localStorage.getItem('nostrUser')
+          if (storedUser) {
+            this.setState({ user: JSON.parse(storedUser) })
           }
+        }
+
+        handleLogin = async () => {
+          try {
+            // This would be replaced with actual Nostr login logic
+            if (window.nostr) {
+              const pubkey = await window.nostr.getPublicKey()
+              const user = { pubkey }
+              localStorage.setItem('nostrUser', JSON.stringify(user))
+              this.setState({ user })
+            } else {
+              alert(
+                'Nostr extension not found. Please install a Nostr extension.'
+              )
+            }
+          } catch (error) {
+            console.error('Login error:', error)
+          }
+        }
+
+        handleLogout = () => {
+          localStorage.removeItem('nostrUser')
+          this.setState({ user: null })
         }
 
         render() {
-          const { apps, loading, error } = this.state
-
-          if (loading) {
-            return html`
-              <div class="text-center">
-                <div class="animate-pulse text-2xl text-softPurple">
-                  Loading apps...
-                </div>
-              </div>
-            `
-          }
-
-          if (error) {
-            return html`
-              <div class="text-center text-red-500">
-                <h2 class="text-2xl font-bold mb-4">Error</h2>
-                <p>${error}</p>
-              </div>
-            `
-          }
+          const { user, sidebarItems, popularApps, utilityApps } = this.state
 
           return html`
-            <div class="text-center">
-              <h1
-                class="text-4xl md:text-5xl font-bold mb-8 text-gradient bg-gradient-to-r from-softBlue to-softPurple"
-              >
-                App Directory
-              </h1>
-
-              <p class="text-lg mb-10 text-gray-700">
-                Browse and explore our collection of web applications
-              </p>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                ${apps.map(
-                  app => html`
-                    <a
-                      href=${app.path}
-                      class="hover-scale block p-6 rounded-lg shadow-lg bg-white bg-opacity-80 backdrop-blur-sm
-                                          border border-softPurple/20 transition-all duration-300 hover:shadow-xl"
-                    >
-                      <h2
-                        class="text-xl font-semibold text-gradient bg-gradient-to-r from-softBlue to-softPurple"
-                      >
-                        ${app.name}
-                      </h2>
-                      <div class="mt-2 text-gray-600">Click to open</div>
-                    </a>
-                  `
-                )}
-              </div>
-
-              <footer class="mt-16 text-gray-500 text-sm">
-                Crafted with ❤️ for web enthusiasts
-              </footer>
+            <div>
+              <${Header}
+                user=${user}
+                onLogin=${this.handleLogin}
+                onLogout=${this.handleLogout}
+              />
+              <${Sidebar} items=${sidebarItems} />
+              <${MainContent}
+                popularApps=${popularApps}
+                utilityApps=${utilityApps}
+              />
             </div>
           `
         }
       }
 
-      // Render the app
       render(html`<${App} />`, document.getElementById('app'))
     </script>
   </body>
