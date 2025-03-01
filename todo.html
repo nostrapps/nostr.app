@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Todo App</title>
+    <title>Beautiful Todo App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body {
@@ -13,24 +13,19 @@
       .todo-container {
         background: rgba(255, 255, 255, 0.8);
         backdrop-filter: blur(10px);
-        border-radius: 1rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-      }
-      .todo-container:hover {
-        transform: translateY(-5px);
+        border-radius: 16px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
       }
       .todo-item {
         transition: all 0.3s ease;
       }
       .todo-item:hover {
-        background: rgba(208, 188, 255, 0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
     </style>
   </head>
-  <body class="font-sans">
-    <!-- Add a navbar container -->
-    <div id="navbar"></div>
+  <body>
     <div id="app"></div>
 
     <script type="module">
@@ -40,9 +35,11 @@
         Component
       } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
       import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
-
-      // Import navbar properly
       import Navbar from './navbar.js'
+      import './nosdav-shim.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+
+      window.secp256k1 = secp256k1
 
       // Initialize htm with Preact
       const html = htm.bind(h)
@@ -53,84 +50,108 @@
           this.state = {
             todos: [],
             newTodo: '',
-            storage: null
+            storageType: ''
           }
-          this.initStorage()
         }
 
-        async initStorage() {
-          // Check for available storage options
-          let storage = null
-
-          // Try nosdav if available
-          if (typeof window.nosdav !== 'undefined') {
-            storage = {
-              type: 'nosdav',
-              save: async data => {
-                try {
-                  await window.nosdav.putJson('todos.json', data)
-                  return true
-                } catch (e) {
-                  console.error('Error saving to nosdav:', e)
-                  return false
-                }
-              },
-              load: async () => {
-                try {
-                  return await window.nosdav.getJson('todos.json')
-                } catch (e) {
-                  console.error('Error loading from nosdav:', e)
-                  return null
-                }
-              }
-            }
-
-            // Try to load data from nosdav
-            const data = await storage.load()
-            if (data) {
-              this.setState({ todos: data })
-            }
-          }
-
-          // Fall back to localStorage
-          if (!storage) {
-            storage = {
-              type: 'localStorage',
-              save: data => {
-                try {
-                  localStorage.setItem('todos', JSON.stringify(data))
-                  return true
-                } catch (e) {
-                  console.error('Error saving to localStorage:', e)
-                  return false
-                }
-              },
-              load: () => {
-                try {
-                  const data = localStorage.getItem('todos')
-                  return data ? JSON.parse(data) : null
-                } catch (e) {
-                  console.error('Error loading from localStorage:', e)
-                  return null
-                }
-              }
-            }
-
-            // Try to load data from localStorage
-            const data = storage.load()
-            if (data) {
-              this.setState({ todos: data })
-            }
-          }
-
-          this.setState({ storage })
-          console.log(`Using ${storage.type} for storage`)
+        componentDidMount() {
+          this.initializeStorage()
         }
 
-        saveData() {
-          if (this.state.storage) {
-            this.state.storage.save(this.state.todos)
+        // Storage handling
+        getStorageProvider() {
+          // Use nosdav.net directly as the primary storage solution
+          console.log('Using nosdav.net as primary storage')
+          return {
+            type: 'nosdav',
+            isPrimary: true,
+            save: async data => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return false
+                }
+
+                const url = `https://nosdav.net/${pubkey}/todos.json`
+                const response = await fetch(url, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(data)
+                })
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                console.log('Todos saved to nosdav successfully')
+                return true
+              } catch (e) {
+                console.error('Error saving to nosdav:', e)
+                // Fall back to localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    localStorage.setItem('todos', JSON.stringify(data))
+                    console.log('Todos saved to localStorage as fallback')
+                    return true
+                  } catch (localErr) {
+                    console.error('Error saving to localStorage:', localErr)
+                  }
+                }
+                return false
+              }
+            },
+            load: async () => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return []
+                }
+
+                const url = `https://nosdav.net/${pubkey}/todos.json`
+                const response = await fetch(url)
+
+                if (response.status === 404) {
+                  return []
+                }
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                const todos = await response.json()
+                return todos
+              } catch (e) {
+                console.error('Error loading from nosdav:', e)
+                // Try to load from localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    const data = localStorage.getItem('todos')
+                    if (data) {
+                      console.log('Loaded todos from localStorage as fallback')
+                      return JSON.parse(data)
+                    }
+                  } catch (localErr) {
+                    console.error('Error loading from localStorage:', localErr)
+                  }
+                }
+                return []
+              }
+            }
           }
+        }
+
+        async initializeStorage() {
+          const storage = this.getStorageProvider()
+          const todos = await storage.load()
+          this.setState({
+            todos,
+            storageType: storage.type
+          })
+          console.log(`Todos loaded from ${storage.type}`)
+        }
+
+        async saveTodos(todos) {
+          const storage = this.getStorageProvider()
+          await storage.save(todos)
+          console.log(`Todos saved to ${storage.type}`)
         }
 
         handleInputChange = e => {
@@ -145,111 +166,136 @@
             ...this.state.todos,
             {
               id: Date.now(),
-              text: this.state.newTodo.trim(),
+              text: this.state.newTodo,
               completed: false
             }
           ]
 
-          this.setState(
-            {
-              todos: newTodos,
-              newTodo: ''
-            },
-            () => this.saveData()
-          )
-        }
+          this.setState({
+            todos: newTodos,
+            newTodo: ''
+          })
 
-        removeTodo = id => {
-          const newTodos = this.state.todos.filter(todo => todo.id !== id)
-          this.setState({ todos: newTodos }, () => this.saveData())
+          this.saveTodos(newTodos)
         }
 
         toggleTodo = id => {
           const newTodos = this.state.todos.map(todo =>
             todo.id === id ? { ...todo, completed: !todo.completed } : todo
           )
-          this.setState({ todos: newTodos }, () => this.saveData())
+
+          this.setState({ todos: newTodos })
+          this.saveTodos(newTodos)
+        }
+
+        removeTodo = id => {
+          const newTodos = this.state.todos.filter(todo => todo.id !== id)
+
+          this.setState({ todos: newTodos })
+          this.saveTodos(newTodos)
         }
 
         render() {
           return html`
-            <div class="container mx-auto px-4 py-8">
-              <div class="todo-container max-w-md mx-auto mt-8 p-6">
-                <h1 class="text-3xl font-bold text-center mb-6 text-purple-700">
-                  Todo App
-                </h1>
+            <div class="min-h-screen flex flex-col">
+              <${Navbar} />
 
-                <form onSubmit=${this.handleSubmit} class="mb-6">
-                  <div class="flex">
-                    <input
-                      type="text"
-                      value=${this.state.newTodo}
-                      onInput=${this.handleInputChange}
-                      placeholder="Add a new task..."
-                      class="flex-grow px-4 py-2 rounded-l-lg border-2 border-blue-200 focus:outline-none focus:border-purple-400"
-                    />
-                    <button
-                      type="submit"
-                      class="bg-gradient-to-r from-blue-400 to-purple-500 text-white px-4 py-2 rounded-r-lg hover:opacity-90 transition-opacity"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </form>
+              <div
+                class="container mx-auto px-4 py-8 flex-grow flex flex-col items-center"
+              >
+                <div class="todo-container w-full max-w-md p-6 my-8">
+                  <h1
+                    class="text-3xl font-bold text-center mb-8 text-purple-700"
+                  >
+                    Beautiful Todo List
+                  </h1>
 
-                <ul class="space-y-2">
-                  ${this.state.todos.map(
-                    todo => html`
-                      <li
-                        key=${todo.id}
-                        class="todo-item flex items-center justify-between p-3 border border-blue-100 rounded-lg"
+                  <form onSubmit=${this.handleSubmit} class="mb-6">
+                    <div class="flex items-center">
+                      <input
+                        type="text"
+                        value=${this.state.newTodo}
+                        onInput=${this.handleInputChange}
+                        placeholder="Add a new task..."
+                        class="flex-grow p-3 border border-blue-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      />
+                      <button
+                        type="submit"
+                        class="bg-gradient-to-r from-blue-400 to-purple-500 text-white p-3 rounded-r-lg hover:opacity-90 transition-opacity"
                       >
-                        <div class="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked=${todo.completed}
-                            onChange=${() => this.toggleTodo(todo.id)}
-                            class="mr-3 h-5 w-5 text-purple-500"
-                          />
-                          <span
-                            class=${todo.completed
-                              ? 'line-through text-gray-400'
-                              : 'text-gray-800'}
-                          >
-                            ${todo.text}
-                          </span>
-                        </div>
-                        <button
-                          onClick=${() => this.removeTodo(todo.id)}
-                          class="text-red-500 hover:text-red-700 focus:outline-none"
-                          aria-label="Remove todo"
+                        Add
+                      </button>
+                    </div>
+                  </form>
+
+                  <div class="space-y-3">
+                    ${this.state.todos.length === 0
+                      ? html`<p class="text-center text-gray-500">
+                          No tasks yet. Add one above!
+                        </p>`
+                      : this.state.todos.map(
+                          todo => html`
+                            <div
+                              key=${todo.id}
+                              class="todo-item flex items-center justify-between p-3 bg-white rounded-lg border-l-4 ${todo.completed
+                                ? 'border-green-400'
+                                : 'border-blue-400'}"
+                            >
+                              <div class="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked=${todo.completed}
+                                  onChange=${() => this.toggleTodo(todo.id)}
+                                  class="mr-3 h-5 w-5 text-purple-500 rounded focus:ring-purple-400"
+                                />
+                                <span
+                                  class=${todo.completed
+                                    ? 'line-through text-gray-400'
+                                    : 'text-gray-800'}
+                                >
+                                  ${todo.text}
+                                </span>
+                              </div>
+                              <button
+                                onClick=${() => this.removeTodo(todo.id)}
+                                class="text-red-500 hover:text-red-700 focus:outline-none"
+                                aria-label="Delete todo"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  class="h-5 w-5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          `
+                        )}
+                  </div>
+
+                  <div class="mt-6 text-center text-sm text-gray-500">
+                    ${this.state.storageType === 'nosdav'
+                      ? html`<div
+                          class="text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-5 w-5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </li>
-                    `
-                  )}
-                  ${this.state.todos.length === 0
-                    ? html`
-                        <li class="text-center text-gray-500 py-4">
-                          No todos yet. Add one above!
-                        </li>
-                      `
-                    : null}
-                </ul>
+                          Using nosdav cloud storage
+                        </div>`
+                      : html`<div
+                          class="text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block"
+                        >
+                          Using ${this.state.storageType} storage (nosdav not
+                          available)
+                        </div>`}
+                  </div>
+                </div>
               </div>
             </div>
           `
