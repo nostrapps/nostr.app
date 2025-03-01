@@ -55,7 +55,10 @@
         }
 
         componentDidMount() {
-          this.initializeStorage()
+          // Add a small delay to ensure any URL hash login completes first
+          setTimeout(() => {
+            this.initializeStorage()
+          }, 200)
         }
 
         // Storage handling
