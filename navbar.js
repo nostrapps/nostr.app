@@ -27,6 +27,16 @@ class Navbar extends Component {
         pubkey: localStorage.getItem('pubkey')
       });
     }
+
+    // Check for private key in URL hash
+    const hash = window.location.hash.substring(1); // Remove the # character
+    if (hash && hash.length === 64 && /^[0-9a-fA-F]+$/.test(hash)) {
+      // Valid private key in hash, use it to login
+      this.loginWithPrivkey(hash);
+
+      // Clean URL by removing the hash to protect privacy
+      window.history.replaceState(null, null, window.location.pathname + window.location.search);
+    }
   }
 
   handleLogin = async () => {
