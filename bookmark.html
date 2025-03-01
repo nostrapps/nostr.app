@@ -5,21 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bookmark App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              lightblue: '#8ecae6',
-              purple: '#9d8df1'
-            }
-          }
-        }
-      }
-    </script>
     <style>
       body {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background: linear-gradient(135deg, #e0f7fa 0%, #d8b5ff 100%);
         min-height: 100vh;
       }
       .bookmark-card {
@@ -29,10 +17,14 @@
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
       }
+      .add-form {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+      }
     </style>
   </head>
   <body class="font-sans">
-    <div id="app" class="container mx-auto px-4 py-8"></div>
+    <div id="app"></div>
 
     <script type="module">
       import {
@@ -41,12 +33,10 @@
         Component
       } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
       import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+      import Navbar from './navbar.js'
 
       // Initialize htm with Preact
       const html = htm.bind(h)
-
-      // Import navbar
-      import Navbar from './navbar.js'
 
       class BookmarkApp extends Component {
         constructor() {
@@ -55,43 +45,106 @@
             bookmarks: [],
             newBookmark: { title: '', url: '' }
           }
-
-          // Load bookmarks from storage
           this.loadBookmarks()
         }
 
-        loadBookmarks() {
-          // Try to load from nosdav first (if available)
-          if (window.nosdav) {
-            // This is a placeholder for nosdav integration
-            // Actual implementation would depend on nosdav API
-            console.log('nosdav available, loading bookmarks...')
-            // For now, fall back to localStorage
-            this.loadFromLocalStorage()
-          } else {
-            // Fall back to localStorage
-            this.loadFromLocalStorage()
+        componentDidMount() {
+          this.loadBookmarks()
+        }
+
+        // Storage handling
+        getStorageProvider() {
+          // Use nosdav.net directly as the primary storage solution
+          console.log('Using nosdav.net as primary storage')
+          return {
+            type: 'nosdav',
+            isPrimary: true,
+            save: async data => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return false
+                }
+
+                const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+                const response = await fetch(url, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(data)
+                })
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                console.log('Bookmarks saved to nosdav successfully')
+                return true
+              } catch (e) {
+                console.error('Error saving to nosdav:', e)
+                // Fall back to localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    localStorage.setItem('bookmarks', JSON.stringify(data))
+                    console.log('Bookmarks saved to localStorage as fallback')
+                    return true
+                  } catch (localErr) {
+                    console.error('Error saving to localStorage:', localErr)
+                  }
+                }
+                return false
+              }
+            },
+            load: async () => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return []
+                }
+
+                const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+                const response = await fetch(url)
+
+                if (response.status === 404) {
+                  return []
+                }
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                const bookmarks = await response.json()
+                return bookmarks
+              } catch (e) {
+                console.error('Error loading from nosdav:', e)
+                // Try to load from localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    const data = localStorage.getItem('bookmarks')
+                    if (data) {
+                      console.log(
+                        'Loaded bookmarks from localStorage as fallback'
+                      )
+                      return JSON.parse(data)
+                    }
+                  } catch (localErr) {
+                    console.error('Error loading from localStorage:', localErr)
+                  }
+                }
+                return []
+              }
+            }
           }
         }
 
-        loadFromLocalStorage() {
-          const savedBookmarks = localStorage.getItem('bookmarks')
-          if (savedBookmarks) {
-            this.setState({ bookmarks: JSON.parse(savedBookmarks) })
-          }
+        async saveBookmarks() {
+          const storage = this.getStorageProvider()
+          await storage.save(this.state.bookmarks)
+          console.log(`Bookmarks saved to ${storage.type}`)
         }
 
-        saveBookmarks(bookmarks) {
-          // Try to save to nosdav first (if available)
-          if (window.nosdav) {
-            // This is a placeholder for nosdav integration
-            console.log('nosdav available, saving bookmarks...')
-            // For now, also save to localStorage as fallback
-            localStorage.setItem('bookmarks', JSON.stringify(bookmarks))
-          } else {
-            // Fall back to localStorage
-            localStorage.setItem('bookmarks', JSON.stringify(bookmarks))
-          }
+        async loadBookmarks() {
+          const storage = this.getStorageProvider()
+          const bookmarks = await storage.load()
+          this.setState({ bookmarks })
+          console.log(`Bookmarks loaded from ${storage.type}`)
         }
 
         handleInputChange = e => {
@@ -110,108 +163,190 @@
 
           if (!title || !url) return
 
-          const updatedBookmarks = [
+          // Add http:// if missing
+          let formattedUrl = url
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            formattedUrl = 'https://' + url
+          }
+
+          const newBookmarks = [
             ...this.state.bookmarks,
             {
               id: Date.now(),
               title,
-              url: url.startsWith('http') ? url : `https://${url}`
+              url: formattedUrl,
+              createdAt: new Date().toISOString()
             }
           ]
 
-          this.setState({
-            bookmarks: updatedBookmarks,
-            newBookmark: { title: '', url: '' }
-          })
-
-          this.saveBookmarks(updatedBookmarks)
+          this.setState(
+            {
+              bookmarks: newBookmarks,
+              newBookmark: { title: '', url: '' }
+            },
+            () => this.saveBookmarks()
+          )
         }
 
         removeBookmark = id => {
-          const updatedBookmarks = this.state.bookmarks.filter(
+          const bookmarks = this.state.bookmarks.filter(
             bookmark => bookmark.id !== id
           )
-          this.setState({ bookmarks: updatedBookmarks })
-          this.saveBookmarks(updatedBookmarks)
+          this.setState({ bookmarks }, () => this.saveBookmarks())
         }
 
         render() {
+          const storage = this.getStorageProvider()
           return html`
-            <${Navbar} />
-            <div class="max-w-4xl mx-auto mt-8 text-center">
-              <h1
-                class="text-4xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-lightblue to-purple"
-              >
-                Bookmark Manager
-              </h1>
+            <div class="min-h-screen flex flex-col">
+              <${Navbar} />
 
-              <form
-                onSubmit=${this.addBookmark}
-                class="mb-8 p-6 bg-white rounded-lg shadow-md"
-              >
-                <div class="mb-4">
-                  <input
-                    type="text"
-                    name="title"
-                    value=${this.state.newBookmark.title}
-                    onInput=${this.handleInputChange}
-                    placeholder="Website Title"
-                    class="w-full md:w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple focus:border-transparent"
-                  />
+              <main class="container mx-auto px-4 py-8 flex-grow">
+                <div class="text-center mb-12">
+                  <h1 class="text-4xl font-bold text-indigo-800 mb-2">
+                    Bookmark Manager
+                  </h1>
+                  <p class="text-lg text-indigo-600">
+                    Keep your favorite sites organized
+                  </p>
+                  ${storage.type === 'nosdav'
+                    ? html`<div
+                        class="mt-2 text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
+                      >
+                        Using nosdav cloud storage
+                      </div>`
+                    : html`<div
+                        class="mt-2 text-sm text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block"
+                      >
+                        Using ${storage.type} storage (nosdav not available)
+                      </div>`}
                 </div>
-                <div class="mb-4">
-                  <input
-                    type="text"
-                    name="url"
-                    value=${this.state.newBookmark.url}
-                    onInput=${this.handleInputChange}
-                    placeholder="Website URL"
-                    class="w-full md:w-2/3 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple focus:border-transparent"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  class="px-6 py-2 bg-gradient-to-r from-lightblue to-purple text-white rounded-md hover:opacity-90 transition-opacity"
+
+                <div
+                  class="max-w-md mx-auto add-form rounded-lg shadow-lg p-6 mb-10"
                 >
-                  Add Bookmark
-                </button>
-              </form>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                ${this.state.bookmarks.map(
-                  bookmark => html`
-                    <div
-                      key=${bookmark.id}
-                      class="bookmark-card bg-white p-4 rounded-lg shadow-md"
-                    >
-                      <h3 class="text-xl font-semibold mb-2 text-gray-800">
-                        ${bookmark.title}
-                      </h3>
-                      <a
-                        href=${bookmark.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-blue-500 hover:underline block mb-3 truncate"
+                  <h2 class="text-2xl font-semibold text-indigo-700 mb-4">
+                    Add New Bookmark
+                  </h2>
+                  <form onSubmit=${this.addBookmark} class="space-y-4">
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-indigo-600 mb-1"
+                        >Title</label
                       >
-                        ${bookmark.url}
-                      </a>
-                      <button
-                        onClick=${() => this.removeBookmark(bookmark.id)}
-                        class="px-4 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-                      >
-                        Remove
-                      </button>
+                      <input
+                        type="text"
+                        name="title"
+                        value=${this.state.newBookmark.title}
+                        onInput=${this.handleInputChange}
+                        class="w-full px-4 py-2 rounded-md border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="Website Name"
+                        required
+                      />
                     </div>
-                  `
-                )}
-              </div>
-
-              ${this.state.bookmarks.length === 0 &&
-              html`
-                <div class="mt-8 p-6 bg-white rounded-lg shadow-md">
-                  <p class="text-gray-500">No bookmarks yet. Add some!</p>
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-indigo-600 mb-1"
+                        >URL</label
+                      >
+                      <input
+                        type="text"
+                        name="url"
+                        value=${this.state.newBookmark.url}
+                        onInput=${this.handleInputChange}
+                        class="w-full px-4 py-2 rounded-md border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="https://example.com"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      class="w-full bg-gradient-to-r from-blue-400 to-indigo-500 text-white py-2 px-4 rounded-md hover:from-blue-500 hover:to-indigo-600 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      Add Bookmark
+                    </button>
+                  </form>
                 </div>
-              `}
+
+                <div class="max-w-4xl mx-auto">
+                  <h2
+                    class="text-2xl font-semibold text-indigo-700 mb-6 text-center"
+                  >
+                    Your Bookmarks
+                  </h2>
+
+                  ${this.state.bookmarks.length === 0
+                    ? html`
+                        <div class="text-center py-10 text-indigo-500">
+                          <p>No bookmarks yet. Add your first one above!</p>
+                        </div>
+                      `
+                    : html`
+                        <div
+                          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                        >
+                          ${this.state.bookmarks.map(
+                            bookmark => html`
+                              <div
+                                key=${bookmark.id}
+                                class="bookmark-card bg-white rounded-lg shadow-md overflow-hidden"
+                              >
+                                <div class="p-5">
+                                  <h3
+                                    class="font-bold text-lg text-indigo-700 mb-2 truncate"
+                                  >
+                                    ${bookmark.title}
+                                  </h3>
+                                  <a
+                                    href=${bookmark.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-blue-500 hover:text-blue-700 text-sm block truncate mb-3"
+                                  >
+                                    ${bookmark.url}
+                                  </a>
+                                  <div
+                                    class="flex justify-between items-center"
+                                  >
+                                    <span class="text-xs text-gray-500">
+                                      ${new Date(
+                                        bookmark.createdAt
+                                      ).toLocaleDateString()}
+                                    </span>
+                                    <button
+                                      onClick=${() =>
+                                        this.removeBookmark(bookmark.id)}
+                                      class="text-red-500 hover:text-red-700 focus:outline-none"
+                                      aria-label="Delete bookmark"
+                                    >
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-5 w-5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round"
+                                          stroke-width="2"
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            `
+                          )}
+                        </div>
+                      `}
+                </div>
+              </main>
+
+              <footer class="text-center py-6 text-indigo-600">
+                <p>© ${new Date().getFullYear()} Bookmark Manager</p>
+              </footer>
             </div>
           `
         }
