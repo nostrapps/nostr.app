@@ -165,10 +165,11 @@
           e.preventDefault()
           if (!this.state.newTodo.trim()) return
 
+          const now = Date.now()
           const newTodos = [
             ...this.state.todos,
             {
-              id: Date.now(),
+              '@id': `#${Math.floor(now / 1000)}.${now % 1000}`,
               text: this.state.newTodo,
               completed: false
             }
@@ -196,6 +197,16 @@
 
           this.setState({ todos: newTodos })
           this.saveTodos(newTodos)
+        }
+
+        openStorageFile = () => {
+          const pubkey = localStorage.getItem('pubkey')
+          if (pubkey) {
+            const url = `https://nosdav.net/${pubkey}/todos.json`
+            window.open(url, '_blank')
+          } else {
+            alert('No pubkey found. Cannot open storage file.')
+          }
         }
 
         render() {
@@ -290,6 +301,13 @@
                           class="text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
                         >
                           Using nosdav cloud storage
+                          <button
+                            onClick=${this.openStorageFile}
+                            class="ml-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full px-2 py-0.5 text-xs"
+                            title="Open storage file in new tab"
+                          >
+                            View File
+                          </button>
                         </div>`
                       : html`<div
                           class="text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block"
