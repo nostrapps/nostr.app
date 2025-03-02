@@ -170,6 +170,7 @@
             ...this.state.todos,
             {
               '@id': `#${Math.floor(now / 1000)}.${now % 1000}`,
+              '@type': 'Task',
               text: this.state.newTodo,
               completed: false
             }
