@@ -185,7 +185,7 @@
 
         toggleTodo = id => {
           const newTodos = this.state.todos.map(todo =>
-            todo.id === id ? { ...todo, completed: !todo.completed } : todo
+            todo['@id'] === id ? { ...todo, completed: !todo.completed } : todo
           )
 
           this.setState({ todos: newTodos })
@@ -193,7 +193,7 @@
         }
 
         removeTodo = id => {
-          const newTodos = this.state.todos.filter(todo => todo.id !== id)
+          const newTodos = this.state.todos.filter(todo => todo['@id'] !== id)
 
           this.setState({ todos: newTodos })
           this.saveTodos(newTodos)
@@ -250,7 +250,7 @@
                       : this.state.todos.map(
                           todo => html`
                             <div
-                              key=${todo.id}
+                              key=${todo['@id']}
                               class="todo-item flex items-center justify-between p-3 bg-white rounded-lg border-l-4 ${todo.completed
                                 ? 'border-green-400'
                                 : 'border-blue-400'}"
@@ -259,7 +259,7 @@
                                 <input
                                   type="checkbox"
                                   checked=${todo.completed}
-                                  onChange=${() => this.toggleTodo(todo.id)}
+                                  onChange=${() => this.toggleTodo(todo['@id'])}
                                   class="mr-3 h-5 w-5 text-purple-500 rounded focus:ring-purple-400"
                                 />
                                 <span
@@ -268,10 +268,39 @@
                                     : 'text-gray-800'}
                                 >
                                   ${todo.text}
+                                  <a
+                                    href=${`https://mindstr.org?map=https://nosdav.net/${localStorage.getItem(
+                                      'pubkey'
+                                    )}/mm/${
+                                      todo['@id']
+                                        ? todo['@id'].substring(1)
+                                        : ''
+                                    }.mm&title=${encodeURIComponent(
+                                      todo.text
+                                    )}`}
+                                    target="_blank"
+                                    class="ml-2 text-blue-500 hover:text-blue-700"
+                                    title="Open in Mindstr"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      class="h-4 w-4 inline"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                      />
+                                    </svg>
+                                  </a>
                                 </span>
                               </div>
                               <button
-                                onClick=${() => this.removeTodo(todo.id)}
+                                onClick=${() => this.removeTodo(todo['@id'])}
                                 class="text-red-500 hover:text-red-700 focus:outline-none"
                                 aria-label="Delete todo"
                               >
