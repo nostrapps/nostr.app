@@ -147,8 +147,20 @@
         async loadBookmarks() {
           const storage = this.getStorageProvider()
           const bookmarks = await storage.load()
-          this.setState({ bookmarks })
+
+          // Ensure all bookmarks have the @type property
+          const updatedBookmarks = bookmarks.map(bookmark => ({
+            ...bookmark,
+            '@type': bookmark['@type'] || 'Bookmark'
+          }))
+
+          this.setState({ bookmarks: updatedBookmarks })
           console.log(`Bookmarks loaded from ${storage.type}`)
+
+          // Save if any bookmarks were updated with @type
+          if (JSON.stringify(bookmarks) !== JSON.stringify(updatedBookmarks)) {
+            this.saveBookmarks()
+          }
         }
 
         handleInputChange = e => {
@@ -180,7 +192,8 @@
               title,
               url: formattedUrl,
               createdAt: new Date().toISOString(),
-              read: false
+              read: false,
+              '@type': 'Bookmark'
             }
           ]
 
@@ -244,38 +257,30 @@
                   </h2>
                   <form onSubmit=${this.addBookmark} class="space-y-4">
                     <div>
-                      <label
-                        class="block text-sm font-medium text-indigo-600 mb-1"
-                        >Title</label
-                      >
                       <input
                         type="text"
                         name="title"
                         value=${this.state.newBookmark.title}
                         onInput=${this.handleInputChange}
-                        class="w-full px-4 py-2 rounded-md border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Website Name"
+                        class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                        placeholder="Website Title"
                         required
                       />
                     </div>
                     <div>
-                      <label
-                        class="block text-sm font-medium text-indigo-600 mb-1"
-                        >URL</label
-                      >
                       <input
                         type="text"
                         name="url"
                         value=${this.state.newBookmark.url}
                         onInput=${this.handleInputChange}
-                        class="w-full px-4 py-2 rounded-md border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="https://example.com"
+                        class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                        placeholder="Website URL"
                         required
                       />
                     </div>
                     <button
                       type="submit"
-                      class="w-full bg-gradient-to-r from-blue-400 to-indigo-500 text-white py-2 px-4 rounded-md hover:from-blue-500 hover:to-indigo-600 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      class="w-full bg-indigo-500 text-white py-3 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       Add Bookmark
                     </button>
