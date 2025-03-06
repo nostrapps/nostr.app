@@ -21,10 +21,128 @@ styleElement.textContent = `
     --text-dark: #334155;
     --card-bg: #f0f7ff;
     --body-bg: #f8fafc;
+    --sidebar-width: 230px;
+    --header-height: 60px;
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
     --radius-sm: 6px;
     --radius-md: 12px;
+  }
+  
+  .header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: var(--text-light);
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 25px;
+    position: relative;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+    width: 100%;
+  }
+
+  .logo {
+    font-size: 26px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    letter-spacing: -0.5px;
+    color: var(--text-light);
+    text-decoration: none;
+  }
+
+  .logo-dot {
+    color: var(--accent);
+    font-size: 32px;
+    margin-left: -3px;
+  }
+
+  .theme-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .theme-select {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    outline: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .theme-select:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .theme-toggle {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 20px;
+  }
+
+  .nav-link {
+    color: var(--text-light);
+    text-decoration: none;
+    font-weight: 500;
+    opacity: 0.9;
+    transition: all 0.2s ease;
+    padding: 5px 0;
+    position: relative;
+  }
+
+  .nav-link:hover {
+    opacity: 1;
+  }
+
+  .nav-link:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: var(--accent);
+    transition: width 0.2s ease;
+  }
+
+  .nav-link:hover:after {
+    width: 100%;
+  }
+
+  .nav-link.active:after {
+    width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    .nav-links {
+      display: none;
+    }
   }
 `;
 document.head.appendChild(styleElement);
@@ -225,31 +343,28 @@ class Navbar extends Component {
 
   render () {
     const { isLoggedIn, pubkey } = this.state;
-    const displayText = isLoggedIn && pubkey ? pubkey.substring(0, 8) : 'Login';
+    const displayText = pubkey ? pubkey.substring(0, 8) : 'Login with Nostr';
 
     return html`
-      <nav class="w-full py-4 bg-gradient-to-r from-primary to-primary-dark shadow-md" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--text-light);">
-        <div class="container mx-auto px-4">
-          <div class="flex justify-between items-center">
-            <a 
-              href="index.html" 
-              class="text-xl font-semibold text-white"
-              style="font-size: 26px; font-weight: bold; letter-spacing: -0.5px;"
-            >
-              Nostr<span style="color: var(--accent); font-size: 32px; margin-left: -3px;">.</span>App
-            </a>
-            <button
-              onClick=${isLoggedIn ? this.handleLogout : this.handleLogin}
-              class="px-4 py-2 rounded-md text-white"
-              style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-sm); padding: 8px 16px; font-weight: 500; transition: all 0.2s ease;"
-              onMouseOver=${e => e.target.style.backgroundColor = "rgba(255, 255, 255, 0.25)"}
-              onMouseOut=${e => e.target.style.backgroundColor = "rgba(255, 255, 255, 0.15)"}
-            >
-              ${isLoggedIn ? `Logout (${displayText})` : 'Login with Nostr'}
-            </button>
-          </div>
+      <header class="header">
+        <a href="index.html" class="logo">Nostr<span class="logo-dot">.</span>App</a>
+        
+        <div class="nav-links">
+          <a href="todo.html" class="nav-link">Todo</a>
+          <a href="bookmark.html" class="nav-link">Bookmark</a>
+          <a href="pastebin.html" class="nav-link">Pastebin</a>
         </div>
-      </nav>
+        
+        <div class="theme-container">
+          ${isLoggedIn
+        ? html`<button onClick=${this.handleLogout} class="theme-select">
+                Logout (${displayText})
+              </button>`
+        : html`<button onClick=${this.handleLogin} class="theme-select">
+                Login with Nostr
+              </button>`}
+        </div>
+      </header>
     `;
   }
 }
