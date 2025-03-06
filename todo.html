@@ -144,8 +144,17 @@
         async initializeStorage() {
           const storage = this.getStorageProvider()
           const todos = await storage.load()
+
+          // Add backward compatibility for todos with 'text' property
+          const updatedTodos = todos.map(todo => {
+            if (todo.text && !todo.title) {
+              return { ...todo, title: todo.text }
+            }
+            return todo
+          })
+
           this.setState({
-            todos,
+            todos: updatedTodos,
             storageType: storage.type
           })
           console.log(`Todos loaded from ${storage.type}`)
@@ -171,8 +180,9 @@
             {
               '@id': `#${Math.floor(now / 1000)}.${now % 1000}`,
               '@type': 'Task',
-              text: this.state.newTodo,
-              completed: false
+              title: this.state.newTodo,
+              completed: false,
+              created: new Date().toISOString()
             }
           ]
 
@@ -248,7 +258,7 @@
                       ? html`<p class="text-center text-gray-500">
                           No tasks yet. Add one above!
                         </p>`
-                      : this.state.todos.map(
+                      : [...this.state.todos].reverse().map(
                           todo => html`
                             <div
                               key=${todo['@id']}
@@ -268,16 +278,16 @@
                                     ? 'line-through text-gray-400'
                                     : 'text-gray-800'}
                                 >
-                                  ${todo.text}
+                                  ${todo.title || todo.text}
                                   <a
-                                    href=${`https://mindstr.org?map=https://nosdav.net/${localStorage.getItem(
+                                    href=${`./mindstr.html?map=https://nosdav.net/${localStorage.getItem(
                                       'pubkey'
                                     )}/mm/${
                                       todo['@id']
                                         ? todo['@id'].substring(1)
                                         : ''
                                     }.mm&title=${encodeURIComponent(
-                                      todo.text
+                                      todo.title || todo.text
                                     )}`}
                                     target="_blank"
                                     class="ml-2 text-blue-500 hover:text-blue-700"
@@ -298,6 +308,18 @@
                                       />
                                     </svg>
                                   </a>
+                                  ${todo.created
+                                    ? html`
+                                        <span
+                                          class="ml-2 text-xs text-gray-400"
+                                          title="Creation date"
+                                        >
+                                          ${new Date(
+                                            todo.created
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      `
+                                    : ''}
                                 </span>
                               </div>
                               <button
