@@ -11,7 +11,12 @@
           extend: {
             colors: {
               'light-blue': '#8ecae6',
-              blue: '#219ebc',
+              blue: '#4a6fa5',
+              primary: '#4a6fa5',
+              'primary-dark': '#3a5683',
+              'primary-light': '#c5d5e5',
+              secondary: '#8fb8de',
+              accent: '#63c0f5',
               purple: '#a78bfa',
               'light-purple': '#c4b5fd'
             }
@@ -21,7 +26,11 @@
     </script>
     <style>
       .gradient-bg {
-        background: linear-gradient(135deg, #8ecae6 0%, #a78bfa 100%);
+        background: linear-gradient(
+          135deg,
+          var(--primary-light, #c5d5e5) 0%,
+          var(--primary, #4a6fa5) 100%
+        );
       }
       .paste-container {
         transition: all 0.3s ease;
@@ -31,14 +40,14 @@
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
           0 4px 6px -2px rgba(0, 0, 0, 0.05);
       }
-      /* Add navbar styling */
-      nav {
+      /* Remove old navbar styling */
+      /* nav {
         background-color: #219ebc;
         color: white;
       }
       nav a {
         color: white;
-      }
+      } */
     </style>
   </head>
   <body class="bg-gray-50 min-h-screen">
@@ -79,7 +88,7 @@
           return html`
             <div class="paste-container bg-white rounded-lg shadow-md p-4 mb-4">
               <textarea
-                class="w-full h-32 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-light-purple"
+                class="w-full h-32 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-light"
                 value=${content}
                 onInput=${this.handleChange}
                 placeholder="Enter your text here..."
@@ -259,7 +268,7 @@
                       </div>`}
                   <button
                     onClick=${this.addPaste}
-                    class="bg-gradient-to-r from-light-blue to-purple text-white px-6 py-2 rounded-full hover:opacity-90 transition-opacity shadow-md"
+                    class="bg-gradient-to-r from-primary-light to-primary text-white px-6 py-2 rounded-full hover:opacity-90 transition-opacity shadow-md"
                   >
                     Add New Paste
                   </button>
