@@ -8,6 +8,27 @@ import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/
 // Initialize htm with Preact
 const html = htm.bind(h);
 
+// Add CSS variables to match index.html
+const styleElement = document.createElement('style');
+styleElement.textContent = `
+  :root {
+    --primary: #4a6fa5;
+    --primary-dark: #3a5683;
+    --primary-light: #c5d5e5;
+    --secondary: #8fb8de;
+    --accent: #63c0f5;
+    --text-light: #ffffff;
+    --text-dark: #334155;
+    --card-bg: #f0f7ff;
+    --body-bg: #f8fafc;
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --radius-sm: 6px;
+    --radius-md: 12px;
+  }
+`;
+document.head.appendChild(styleElement);
+
 // Navbar component
 class Navbar extends Component {
   constructor (props) {
@@ -207,20 +228,24 @@ class Navbar extends Component {
     const displayText = isLoggedIn && pubkey ? pubkey.substring(0, 8) : 'Login';
 
     return html`
-      <nav class="w-full py-4 bg-gradient-to-r from-blue-100 to-purple-100 shadow-md">
+      <nav class="w-full py-4 bg-gradient-to-r from-primary to-primary-dark shadow-md" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--text-light);">
         <div class="container mx-auto px-4">
           <div class="flex justify-between items-center">
             <a 
               href="index.html" 
-              class="text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-600 hover:from-purple-500 hover:to-blue-600 transition-all duration-300 transform hover:scale-105"
+              class="text-xl font-semibold text-white"
+              style="font-size: 26px; font-weight: bold; letter-spacing: -0.5px;"
             >
-              Home
+              Nostr<span style="color: var(--accent); font-size: 32px; margin-left: -3px;">.</span>App
             </a>
             <button
               onClick=${isLoggedIn ? this.handleLogout : this.handleLogin}
-              class="px-4 py-2 rounded-md bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium hover:from-purple-500 hover:to-blue-600 transition-all duration-300 transform hover:scale-105"
+              class="px-4 py-2 rounded-md text-white"
+              style="background-color: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-sm); padding: 8px 16px; font-weight: 500; transition: all 0.2s ease;"
+              onMouseOver=${e => e.target.style.backgroundColor = "rgba(255, 255, 255, 0.25)"}
+              onMouseOut=${e => e.target.style.backgroundColor = "rgba(255, 255, 255, 0.15)"}
             >
-              ${isLoggedIn ? `Logout (${displayText})` : 'Login'}
+              ${isLoggedIn ? `Logout (${displayText})` : 'Login with Nostr'}
             </button>
           </div>
         </div>

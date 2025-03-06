@@ -6,22 +6,74 @@
     <title>Todo App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      :root {
+        --primary: #4a6fa5;
+        --primary-dark: #3a5683;
+        --primary-light: #c5d5e5;
+        --secondary: #8fb8de;
+        --accent: #63c0f5;
+        --text-light: #ffffff;
+        --text-dark: #334155;
+        --card-bg: #f0f7ff;
+        --body-bg: #f8fafc;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --radius-sm: 6px;
+        --radius-md: 12px;
+      }
+
       body {
-        background: linear-gradient(135deg, #e0f7fa 0%, #d8b5ff 100%);
+        background: linear-gradient(
+          135deg,
+          var(--primary-light) 0%,
+          var(--secondary) 100%
+        );
         min-height: 100vh;
+        color: var(--text-dark);
       }
+
       .todo-container {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(10px);
-        border-radius: 16px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        background-color: var(--card-bg);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(0, 0, 0, 0.04);
       }
+
       .todo-item {
         transition: all 0.3s ease;
+        border-radius: var(--radius-sm);
       }
+
       .todo-item:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-sm);
+        background-color: white;
+        border-color: rgba(99, 192, 245, 0.2);
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: var(--text-light);
+        padding: 1rem 1.5rem;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .btn-primary {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: var(--text-light);
+        transition: all 0.2s ease;
+      }
+
+      .btn-primary:hover {
+        opacity: 0.9;
       }
     </style>
   </head>
@@ -230,7 +282,8 @@
               >
                 <div class="todo-container w-full max-w-md p-6 my-8">
                   <h1
-                    class="text-3xl font-bold text-center mb-8 text-purple-700"
+                    class="text-3xl font-bold text-center mb-8 text-primary-dark"
+                    style="color: var(--primary-dark);"
                   >
                     Todo List
                   </h1>
@@ -242,11 +295,12 @@
                         value=${this.state.newTodo}
                         onInput=${this.handleInputChange}
                         placeholder="Add a new task..."
-                        class="flex-grow p-3 border border-blue-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        class="flex-grow p-3 border border-secondary rounded-l-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                        style="border-color: var(--secondary); --tw-ring-color: var(--accent);"
                       />
                       <button
                         type="submit"
-                        class="bg-gradient-to-r from-blue-400 to-purple-500 text-white p-3 rounded-r-lg hover:opacity-90 transition-opacity"
+                        class="btn-primary p-3 rounded-r-lg"
                       >
                         Add
                       </button>
@@ -262,16 +316,18 @@
                           todo => html`
                             <div
                               key=${todo['@id']}
-                              class="todo-item flex items-center justify-between p-3 bg-white rounded-lg border-l-4 ${todo.completed
-                                ? 'border-green-400'
-                                : 'border-blue-400'}"
+                              class="todo-item flex items-center justify-between p-3 bg-white rounded-lg border-l-4"
+                              style="border-left-color: ${todo.completed
+                                ? 'var(--accent)'
+                                : 'var(--primary)'}"
                             >
                               <div class="flex items-center">
                                 <input
                                   type="checkbox"
                                   checked=${todo.completed}
                                   onChange=${() => this.toggleTodo(todo['@id'])}
-                                  class="mr-3 h-5 w-5 text-purple-500 rounded focus:ring-purple-400"
+                                  class="mr-3 h-5 w-5 rounded focus:ring-primary"
+                                  style="--tw-ring-color: var(--primary); accent-color: var(--primary);"
                                 />
                                 <span
                                   class=${todo.completed
@@ -290,7 +346,8 @@
                                       todo.title || todo.text
                                     )}`}
                                     target="_blank"
-                                    class="ml-2 text-blue-500 hover:text-blue-700"
+                                    class="ml-2 hover:text-primary-dark"
+                                    style="color: var(--accent);"
                                     title="Open in Mindstr"
                                   >
                                     <svg
@@ -350,19 +407,22 @@
                   <div class="mt-6 text-center text-sm text-gray-500">
                     ${this.state.storageType === 'nosdav'
                       ? html`<div
-                          class="text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
+                          class="rounded-full px-3 py-1 inline-block"
+                          style="background-color: rgba(99, 192, 245, 0.1); color: var(--primary);"
                         >
                           Using nosdav cloud storage
                           <button
                             onClick=${this.openStorageFile}
-                            class="ml-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full px-2 py-0.5 text-xs"
+                            class="ml-2 text-white rounded-full px-2 py-0.5 text-xs"
+                            style="background-color: var(--primary);"
                             title="Open storage file in new tab"
                           >
                             View File
                           </button>
                         </div>`
                       : html`<div
-                          class="text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block"
+                          class="rounded-full px-3 py-1 inline-block"
+                          style="background-color: rgba(255, 193, 7, 0.1); color: #b45309;"
                         >
                           Using ${this.state.storageType} storage (nosdav not
                           available)
