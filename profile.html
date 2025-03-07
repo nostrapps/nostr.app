@@ -18,6 +18,13 @@
         }
       }
     </script>
+    <!-- Add SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Add secp256k1 for private key handling -->
+    <script type="module">
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+      window.secp256k1 = secp256k1
+    </script>
     <style type="text/tailwindcss">
       body {
         @apply bg-gradient-to-br from-white to-light-blue min-h-screen;
@@ -48,6 +55,8 @@
       import * as NostrTools from 'https://esm.sh/nostr-tools@1.14.0'
       // Import Navbar component
       import Navbar from './navbar.js'
+      // Import secp256k1 for private key handling
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
 
       // Initialize htm with Preact
       const html = htm.bind(h)
@@ -79,7 +88,7 @@
 
         componentDidMount() {
           // Check for pubkey in localStorage (set during login)
-          const pubkey = localStorage.getItem('nostrPublicKey')
+          const pubkey = localStorage.getItem('pubkey')
 
           if (!pubkey) {
             this.setState({
@@ -302,7 +311,7 @@
               console.log('Event signed with NIP-07 extension:', signedEvent)
             } else {
               // Fallback to private key if available (legacy support)
-              const privateKey = localStorage.getItem('nostrPrivateKey')
+              const privateKey = localStorage.getItem('nostr:privkey')
               if (!privateKey) {
                 this.setState({
                   error:
@@ -320,25 +329,112 @@
             const pubs = pool.publish(relays, signedEvent)
             await Promise.all(pubs)
 
-            alert('Profile updated successfully!')
+            Swal.fire({
+              title: 'Success!',
+              text: 'Profile updated successfully!',
+              icon: 'success',
+              timer: 2000,
+              showConfirmButton: false
+            })
 
             // Close connections
             pool.close(relays)
           } catch (error) {
             console.error('Error saving profile:', error)
-            this.setState({
-              error: `Failed to save profile changes: ${error.message}`
+            Swal.fire({
+              title: 'Error',
+              text: `Failed to save profile changes: ${error.message}`,
+              icon: 'error',
+              timer: 2000,
+              showConfirmButton: false
             })
           }
         }
 
         async handleNostrLogin() {
+          const { value: loginMethod } = await Swal.fire({
+            title: 'Login',
+            html: `
+              <button id="extensionLogin" class="swal2-confirm swal2-styled" style="display:block; width:100%; margin:10px auto;">Sign in with Nostr extension</button>
+              <input id="privkeyInput" type="text" placeholder="Or enter your 64-character hex private key" class="swal2-input" style="display:block; width:100%; margin:10px auto;">
+              <p style="margin-top: 10px; font-size: 0.9em;"><a href="https://nostrapps.github.io/extensions/" target="_blank">What is a Nostr extension?</a></p>
+            `,
+            showConfirmButton: false,
+            showCloseButton: true,
+            focusConfirm: false,
+            didOpen: () => {
+              const extensionButton =
+                Swal.getPopup().querySelector('#extensionLogin')
+              const privkeyInput =
+                Swal.getPopup().querySelector('#privkeyInput')
+
+              extensionButton.addEventListener('click', () => {
+                Swal.clickConfirm()
+              })
+
+              privkeyInput.addEventListener('keyup', e => {
+                if (e.key === 'Enter') {
+                  Swal.clickConfirm()
+                }
+              })
+
+              // Add paste event listener
+              privkeyInput.addEventListener('paste', e => {
+                setTimeout(() => {
+                  if (
+                    privkeyInput.value.length === 64 &&
+                    /^[0-9a-fA-F]+$/.test(privkeyInput.value)
+                  ) {
+                    Swal.clickConfirm()
+                  }
+                }, 0)
+              })
+            },
+            preConfirm: () => {
+              const privkey =
+                Swal.getPopup().querySelector('#privkeyInput').value
+              if (
+                privkey &&
+                (privkey.length !== 64 || !/^[0-9a-fA-F]+$/.test(privkey))
+              ) {
+                Swal.showValidationMessage(
+                  'Invalid private key format. Please enter a 64-character hex string.'
+                )
+                return false
+              }
+              return {
+                loginMethod: privkey ? 'privkey' : 'extension',
+                privkey
+              }
+            }
+          })
+
+          if (loginMethod) {
+            if (loginMethod.loginMethod === 'privkey') {
+              this.loginWithPrivkey(loginMethod.privkey)
+            } else {
+              // Check for localStorage privkey first
+              const storedPrivkey = localStorage.getItem('nostr:privkey')
+              if (storedPrivkey) {
+                this.loginWithPrivkey(storedPrivkey)
+              } else {
+                this.loginWithExtension()
+              }
+            }
+          }
+        }
+
+        async loginWithExtension() {
           try {
             // Check if NIP-07 extension is available
             if (!window.nostr) {
-              alert(
-                'Nostr extension not found. Please install a Nostr extension like nos2x or Alby.'
-              )
+              Swal.fire({
+                title: 'Extension Not Found',
+                text: 'Nostr extension not found. Please install a Nostr browser extension.',
+                icon: 'warning',
+                timer: 2000,
+                showConfirmButton: false
+              })
               return
             }
 
@@ -347,7 +443,16 @@
 
             if (pubkey) {
               // Store the public key in localStorage
-              localStorage.setItem('nostrPublicKey', pubkey)
+              localStorage.setItem('loggedIn', 'true')
+              localStorage.setItem('pubkey', pubkey)
+
+              Swal.fire({
+                title: 'Logged in!',
+                text: 'You have successfully logged in with your Nostr extension.',
+                icon: 'success',
+                timer: 1000,
+                showConfirmButton: false
+              })
 
               // Fetch profile with the new pubkey
               this.setState({ loading: true, error: null })
@@ -355,18 +460,63 @@
             }
           } catch (error) {
             console.error('Login error:', error)
-            this.setState({
-              error:
-                'Failed to login. Please make sure your Nostr extension is unlocked.',
-              loading: false
+            Swal.fire({
+              title: 'Login Failed',
+              text: 'There was an error logging in with your Nostr extension.',
+              icon: 'error',
+              timer: 2000,
+              showConfirmButton: false
+            })
+          }
+        }
+
+        async loginWithPrivkey(privkey) {
+          try {
+            const pubkey = secp256k1.utils.bytesToHex(
+              secp256k1.schnorr.getPublicKey(privkey)
+            )
+
+            // Store keys in localStorage
+            localStorage.setItem('loggedIn', 'true')
+            localStorage.setItem('pubkey', pubkey)
+            localStorage.setItem('nostr:privkey', privkey)
+
+            Swal.fire({
+              title: 'Logged in!',
+              text: 'You have successfully logged in with your private key.',
+              icon: 'success',
+              timer: 1000,
+              showConfirmButton: false
+            })
+
+            // Fetch profile with the new pubkey
+            this.setState({ loading: true, error: null })
+            this.fetchProfile(pubkey)
+          } catch (error) {
+            console.error('Login failed:', error)
+            Swal.fire({
+              title: 'Login Failed',
+              text: 'There was an error generating the public key from the provided private key.',
+              icon: 'error',
+              timer: 2000,
+              showConfirmButton: false
             })
           }
         }
 
         handleLogout() {
           // Clear Nostr-related data from localStorage
-          localStorage.removeItem('nostrPublicKey')
-          localStorage.removeItem('nostrPrivateKey')
+          localStorage.setItem('loggedIn', 'false')
+          localStorage.removeItem('pubkey')
+          localStorage.removeItem('nostr:privkey')
+
+          Swal.fire({
+            title: 'Logged out!',
+            text: 'You have successfully logged out.',
+            icon: 'success',
+            timer: 1000,
+            showConfirmButton: false
+          })
 
           // Update state to show login screen
           this.setState({
