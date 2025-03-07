@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nostr Key Generator</title>
+    <style>
+      :root {
+        --primary: #f59d63;
+        --primary-dark: #e67e22;
+        --primary-light: #fad7b6;
+        --secondary: #8fb8de;
+        --accent: #63c0f5;
+        --text-light: #ffffff;
+        --text-dark: #334155;
+        --card-bg: #f0f7ff;
+        --body-bg: #f8fafc;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --radius-sm: 6px;
+        --radius-md: 12px;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+
+      body {
+        background-color: var(--body-bg);
+        color: var(--text-dark);
+        line-height: 1.5;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 30px;
+      }
+
+      .logo-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-sm);
+        background-color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 20px;
+      }
+
+      .logo-icon svg {
+        width: 35px;
+        height: 35px;
+        fill: white;
+      }
+
+      .title {
+        flex: 1;
+      }
+
+      h1 {
+        font-size: 28px;
+        color: var(--primary-dark);
+        margin-bottom: 5px;
+      }
+
+      .subtitle {
+        color: #64748b;
+        font-size: 16px;
+      }
+
+      .section {
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .section:last-child {
+        border-bottom: none;
+      }
+
+      h2 {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: var(--primary-dark);
+      }
+
+      p {
+        margin-bottom: 15px;
+        color: #475569;
+      }
+
+      .btn {
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: var(--radius-sm);
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .btn:hover {
+        background-color: var(--primary-dark);
+        transform: translateY(-2px);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .btn-secondary {
+        background-color: #e2e8f0;
+        color: #475569;
+      }
+
+      .btn-secondary:hover {
+        background-color: #cbd5e1;
+      }
+
+      .key-display {
+        background-color: var(--card-bg);
+        padding: 15px;
+        border-radius: var(--radius-sm);
+        margin: 15px 0;
+        word-break: break-all;
+        font-family: monospace;
+        font-size: 14px;
+        position: relative;
+        display: none;
+      }
+
+      .key-display.visible {
+        display: block;
+      }
+
+      .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border: none;
+        border-radius: 4px;
+        padding: 5px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .copy-btn:hover {
+        background-color: white;
+      }
+
+      .alert {
+        padding: 15px;
+        border-radius: var(--radius-sm);
+        margin: 15px 0;
+        background-color: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        color: #92400e;
+      }
+
+      .alert-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      .back-link:hover {
+        text-decoration: underline;
+      }
+
+      .qr-container {
+        display: flex;
+        justify-content: center;
+        margin: 20px 0;
+        display: none;
+      }
+
+      .qr-container.visible {
+        display: flex;
+      }
+
+      .tab-container {
+        display: flex;
+        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+      }
+
+      .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+      }
+
+      .tab.active {
+        border-bottom: 2px solid var(--primary);
+        color: var(--primary-dark);
+        font-weight: 500;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M7 14C7 11.2386 9.23858 9 12 9C14.7614 9 17 11.2386 17 14"
+              stroke="white"
+              stroke-width="2"
+              fill="none"
+            />
+            <circle cx="7" cy="14" r="2" fill="white" />
+            <rect x="14" y="14" width="2" height="5" fill="white" />
+          </svg>
+        </div>
+        <div class="title">
+          <h1>Nostr Key Generator</h1>
+          <div class="subtitle">Create a new Nostr identity and key pair</div>
+        </div>
+      </div>
+
+      <div class="tab-container">
+        <div class="tab active" data-tab="generate">Generate New Keys</div>
+        <div class="tab" data-tab="import">Import Existing Keys</div>
+      </div>
+
+      <div class="tab-content active" id="generate-tab">
+        <div class="section">
+          <h2>What is a Nostr Key Pair?</h2>
+          <p>
+            A Nostr key pair consists of a private key and a public key. The
+            private key is like your password - keep it secret and secure. The
+            public key is your identity on the Nostr network.
+          </p>
+          <p>
+            With your key pair, you can sign messages, create content, and
+            interact with other Nostr users across the decentralized network.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2>Generate New Keys</h2>
+          <p>
+            Click the button below to generate a new random key pair. This will
+            create a completely new Nostr identity.
+          </p>
+          <button id="generate-btn" class="btn">Generate New Key Pair</button>
+
+          <div id="keys-container" style="display: none">
+            <div class="alert">
+              <div class="alert-title">⚠️ Important Security Warning</div>
+              <p>
+                Your private key is the only way to access your Nostr account.
+                Store it securely and never share it with anyone. If you lose
+                it, you will lose access to your account permanently.
+              </p>
+            </div>
+
+            <h3>Your Public Key (npub)</h3>
+            <div id="public-key-display" class="key-display visible">
+              <button class="copy-btn" data-copy="public">Copy</button>
+              <div id="public-key"></div>
+            </div>
+
+            <h3>Your Private Key (nsec)</h3>
+            <div id="private-key-display" class="key-display visible">
+              <button class="copy-btn" data-copy="private">Copy</button>
+              <div id="private-key"></div>
+            </div>
+
+            <h3>Your Private Key (hex)</h3>
+            <div id="private-key-hex-display" class="key-display visible">
+              <button class="copy-btn" data-copy="private-hex">Copy</button>
+              <div id="private-key-hex"></div>
+            </div>
+
+            <div class="button-group">
+              <button id="save-keys-btn" class="btn">
+                Save Keys to Browser
+              </button>
+              <button id="download-btn" class="btn btn-secondary">
+                Download as Text File
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="import-tab">
+        <div class="section">
+          <h2>Import Existing Keys</h2>
+          <p>
+            If you already have a Nostr private key, you can import it here to
+            use with this app.
+          </p>
+          <p>Enter your private key (nsec or hex format) in the field below:</p>
+          <input
+            type="text"
+            id="import-key-input"
+            placeholder="nsec1... or hex private key"
+            style="
+              width: 100%;
+              padding: 12px;
+              margin: 10px 0;
+              border-radius: var(--radius-sm);
+              border: 1px solid #e2e8f0;
+            "
+          />
+          <button id="import-btn" class="btn">Import Key</button>
+
+          <div id="import-result" style="display: none; margin-top: 20px">
+            <h3>Imported Public Key (npub)</h3>
+            <div id="imported-public-key" class="key-display visible">
+              <button class="copy-btn" data-copy="imported-public">Copy</button>
+              <div id="imported-public-key-text"></div>
+            </div>
+
+            <h3>Imported Private Key (hex)</h3>
+            <div id="imported-private-key-hex" class="key-display visible">
+              <button class="copy-btn" data-copy="imported-private-hex">
+                Copy
+              </button>
+              <div id="imported-private-key-hex-text"></div>
+            </div>
+
+            <div class="button-group">
+              <button id="save-imported-keys-btn" class="btn">
+                Save Keys to Browser
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <a href="index.html" class="back-link">← Back to App Directory</a>
+    </div>
+
+    <script type="module">
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+      import { bech32 } from 'https://cdn.jsdelivr.net/npm/@scure/base@1.1.1/+esm'
+
+      // Function to generate random bytes for key generation
+      function getRandomBytes(length) {
+        const array = new Uint8Array(length)
+        crypto.getRandomValues(array)
+        return array
+      }
+
+      // Convert hex to Uint8Array
+      function hexToBytes(hex) {
+        if (hex.startsWith('0x')) hex = hex.substring(2)
+        const bytes = new Uint8Array(hex.length / 2)
+        for (let i = 0; i < bytes.length; i++) {
+          bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16)
+        }
+        return bytes
+      }
+
+      // Convert Uint8Array to hex
+      function bytesToHex(bytes) {
+        return Array.from(bytes)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+      }
+
+      // Bech32 encode for Nostr keys
+      function encodeBech32(prefix, data) {
+        const words = bech32.toWords(data)
+        return bech32.encode(prefix, words)
+      }
+
+      // Bech32 decode for Nostr keys
+      function decodeBech32(str) {
+        const { prefix, words } = bech32.decode(str)
+        const data = bech32.fromWords(words)
+        return { prefix, data: new Uint8Array(data) }
+      }
+
+      // Generate a new key pair
+      async function generateKeyPair() {
+        const privateKeyBytes = getRandomBytes(32)
+        const privateKeyHex = bytesToHex(privateKeyBytes)
+        const publicKeyBytes = secp256k1.schnorr.getPublicKey(privateKeyHex)
+
+        return {
+          privateKeyHex,
+          privateKeyBytes,
+          publicKeyHex: bytesToHex(publicKeyBytes),
+          publicKeyBytes
+        }
+      }
+
+      // Format keys in bech32 format
+      function formatKeys(keyPair) {
+        const nsec = encodeBech32('nsec', keyPair.privateKeyBytes)
+        const npub = encodeBech32('npub', keyPair.publicKeyBytes)
+
+        return {
+          nsec,
+          npub,
+          privateKeyHex: keyPair.privateKeyHex,
+          publicKeyHex: keyPair.publicKeyHex
+        }
+      }
+
+      // Save keys to localStorage
+      function saveKeysToLocalStorage(keys) {
+        localStorage.setItem('nostr:pubkey', keys.publicKeyHex)
+        localStorage.setItem('nostr:privkey', keys.privateKeyHex)
+        localStorage.setItem('loggedIn', 'true')
+      }
+
+      // Download keys as a text file
+      function downloadKeysAsFile(keys) {
+        const content = `NOSTR KEY BACKUP - KEEP THIS FILE SECURE
+        
+Public Key (npub): ${keys.npub}
+Public Key (hex): ${keys.publicKeyHex}
+
+Private Key (nsec): ${keys.nsec}
+Private Key (hex): ${keys.privateKeyHex}
+
+IMPORTANT: Your private key is the only way to access your Nostr account. 
+Store it securely and never share it with anyone.
+Created: ${new Date().toISOString()}
+`
+
+        const blob = new Blob([content], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'nostr-key-backup.txt'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
+
+      // Copy text to clipboard
+      function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(
+          () => {
+            alert('Copied to clipboard!')
+          },
+          err => {
+            console.error('Could not copy text: ', err)
+          }
+        )
+      }
+
+      // Process an imported key
+      async function processImportedKey(keyString) {
+        try {
+          let privateKeyHex
+
+          // Handle nsec format
+          if (keyString.startsWith('nsec')) {
+            const { data } = decodeBech32(keyString)
+            privateKeyHex = bytesToHex(data)
+          }
+          // Handle hex format
+          else if (/^[0-9a-fA-F]{64}$/.test(keyString)) {
+            privateKeyHex = keyString.toLowerCase()
+          } else {
+            throw new Error('Invalid key format')
+          }
+
+          // Derive public key
+          const publicKeyBytes = secp256k1.schnorr.getPublicKey(privateKeyHex)
+          const publicKeyHex = bytesToHex(publicKeyBytes)
+
+          return {
+            privateKeyHex,
+            privateKeyBytes: hexToBytes(privateKeyHex),
+            publicKeyHex,
+            publicKeyBytes
+          }
+        } catch (error) {
+          console.error('Error processing key:', error)
+          alert(
+            'Invalid key format. Please enter a valid nsec or hex private key.'
+          )
+          return null
+        }
+      }
+
+      // Initialize the app
+      document.addEventListener('DOMContentLoaded', () => {
+        // Tab switching
+        const tabs = document.querySelectorAll('.tab')
+        tabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            // Remove active class from all tabs and contents
+            document
+              .querySelectorAll('.tab')
+              .forEach(t => t.classList.remove('active'))
+            document
+              .querySelectorAll('.tab-content')
+              .forEach(c => c.classList.remove('active'))
+
+            // Add active class to clicked tab
+            tab.classList.add('active')
+
+            // Show corresponding content
+            const tabName = tab.getAttribute('data-tab')
+            document.getElementById(`${tabName}-tab`).classList.add('active')
+          })
+        })
+
+        // Generate button
+        const generateBtn = document.getElementById('generate-btn')
+        generateBtn.addEventListener('click', async () => {
+          const keyPair = await generateKeyPair()
+          const formattedKeys = formatKeys(keyPair)
+
+          // Display keys
+          document.getElementById('public-key').textContent = formattedKeys.npub
+          document.getElementById('private-key').textContent =
+            formattedKeys.nsec
+          document.getElementById('private-key-hex').textContent =
+            formattedKeys.privateKeyHex
+          document.getElementById('keys-container').style.display = 'block'
+
+          // Save keys button
+          document
+            .getElementById('save-keys-btn')
+            .addEventListener('click', () => {
+              saveKeysToLocalStorage(formattedKeys)
+              alert('Keys saved to browser storage!')
+            })
+
+          // Download button
+          document
+            .getElementById('download-btn')
+            .addEventListener('click', () => {
+              downloadKeysAsFile(formattedKeys)
+            })
+        })
+
+        // Import button
+        const importBtn = document.getElementById('import-btn')
+        importBtn.addEventListener('click', async () => {
+          const keyInput = document
+            .getElementById('import-key-input')
+            .value.trim()
+          if (!keyInput) {
+            alert('Please enter a private key')
+            return
+          }
+
+          const keyPair = await processImportedKey(keyInput)
+          if (keyPair) {
+            const formattedKeys = formatKeys(keyPair)
+
+            // Display public key
+            document.getElementById('imported-public-key-text').textContent =
+              formattedKeys.npub
+            document.getElementById(
+              'imported-private-key-hex-text'
+            ).textContent = formattedKeys.privateKeyHex
+            document.getElementById('import-result').style.display = 'block'
+
+            // Save imported keys button
+            document
+              .getElementById('save-imported-keys-btn')
+              .addEventListener('click', () => {
+                saveKeysToLocalStorage(formattedKeys)
+                alert('Keys saved to browser storage!')
+              })
+          }
+        })
+
+        // Copy buttons
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const type = btn.getAttribute('data-copy')
+            let text
+
+            if (type === 'public') {
+              text = document.getElementById('public-key').textContent
+            } else if (type === 'private') {
+              text = document.getElementById('private-key').textContent
+            } else if (type === 'imported-public') {
+              text = document.getElementById(
+                'imported-public-key-text'
+              ).textContent
+            } else if (type === 'private-hex') {
+              text = document.getElementById('private-key-hex').textContent
+            } else if (type === 'imported-private-hex') {
+              text = document.getElementById(
+                'imported-private-key-hex-text'
+              ).textContent
+            }
+
+            if (text) {
+              copyToClipboard(text)
+            }
+          })
+        })
+      })
+    </script>
+  </body>
+</html>
