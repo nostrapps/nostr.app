@@ -304,22 +304,25 @@
 
             let signedEvent
 
-            // Check if NIP-07 extension is available
-            if (window.nostr) {
+            // Check if private key is available in localStorage first
+            const privateKey = localStorage.getItem('nostr:privkey')
+            if (privateKey) {
+              // Use the stored private key to sign the event
+              signedEvent = NostrTools.finishEvent(eventTemplate, privateKey)
+              console.log('Event signed with stored private key')
+            }
+            // Fall back to NIP-07 extension if available
+            else if (window.nostr) {
               // Use the extension to sign the event
               signedEvent = await window.nostr.signEvent(eventTemplate)
               console.log('Event signed with NIP-07 extension:', signedEvent)
             } else {
-              // Fallback to private key if available (legacy support)
-              const privateKey = localStorage.getItem('nostr:privkey')
-              if (!privateKey) {
-                this.setState({
-                  error:
-                    'No signing method available. Please use a Nostr extension.'
-                })
-                return
-              }
-              signedEvent = NostrTools.finishEvent(eventTemplate, privateKey)
+              // No signing method available
+              this.setState({
+                error:
+                  'No signing method available. Please use a Nostr extension or login with a private key.'
+              })
+              return
             }
 
             // Publish to relays
