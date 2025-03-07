@@ -125,6 +125,7 @@
           this.addPaste = this.addPaste.bind(this)
           this.updatePaste = this.updatePaste.bind(this)
           this.savePastes = this.savePastes.bind(this)
+          this.openStorageFile = this.openStorageFile.bind(this)
         }
 
         componentDidMount() {
@@ -256,6 +257,16 @@
           )
         }
 
+        openStorageFile() {
+          const pubkey = localStorage.getItem('pubkey')
+          if (pubkey) {
+            const url = `https://nosdav.net/${pubkey}/pastes.json`
+            window.open(url, '_blank')
+          } else {
+            alert('No pubkey found. Cannot open storage file.')
+          }
+        }
+
         render() {
           const storage = this.getStorageProvider()
           return html`
@@ -276,6 +287,13 @@
                         class="mt-2 text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block mb-3"
                       >
                         Using nosdav cloud storage
+                        <button
+                          onClick=${this.openStorageFile}
+                          class="ml-2 text-white rounded-full px-2 py-0.5 text-xs bg-primary hover:bg-primary-dark transition-colors"
+                          title="Open storage file in new tab"
+                        >
+                          View File
+                        </button>
                       </div>`
                     : html`<div
                         class="mt-2 text-sm text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block mb-3"
