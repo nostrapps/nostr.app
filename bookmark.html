@@ -240,6 +240,16 @@
           this.setState({ bookmarks }, () => this.saveBookmarks())
         }
 
+        openStorageFile = () => {
+          const pubkey = localStorage.getItem('pubkey')
+          if (pubkey) {
+            const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+            window.open(url, '_blank')
+          } else {
+            alert('No pubkey found. Cannot open storage file.')
+          }
+        }
+
         render() {
           const storage = this.getStorageProvider()
           return html`
@@ -265,6 +275,14 @@
                         class="mt-2 text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
                       >
                         Using nosdav cloud storage
+                        <button
+                          onClick=${this.openStorageFile}
+                          class="ml-2 text-white rounded-full px-2 py-0.5 text-xs"
+                          style="background-color: var(--primary);"
+                          title="Open storage file in new tab"
+                        >
+                          View File
+                        </button>
                       </div>`
                     : html`<div
                         class="mt-2 text-sm text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block"
