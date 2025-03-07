@@ -452,12 +452,15 @@
           generateBtn.insertAdjacentElement('afterend', statusElement)
         }
 
-        statusElement.innerHTML = `<div class="alert-title">Generating vanity address...</div><p>Looking for a public key starting with "${prefix}"</p><p>Attempts: 0</p>`
+        // Make prefix lowercase for consistent comparison
+        prefix = prefix.toLowerCase()
+
+        statusElement.innerHTML = `<div class="alert-title">Generating vanity address...</div><p>Looking for a public key starting with prefix: <strong>"${prefix}"</strong></p><p>Attempts: 0</p>`
         statusElement.style.display = 'block'
 
         // Update status every 100ms
         const updateInterval = setInterval(() => {
-          statusElement.innerHTML = `<div class="alert-title">Generating vanity address...</div><p>Looking for a public key starting with "${prefix}"</p><p>Attempts: ${attempts} (${Math.floor(
+          statusElement.innerHTML = `<div class="alert-title">Generating vanity address...</div><p>Looking for a public key starting with prefix: <strong>"${prefix}"</strong></p><p>Attempts: ${attempts} (${Math.floor(
             attempts / ((Date.now() - startTime) / 1000)
           )} keys/sec)</p>`
         }, 100)
@@ -469,7 +472,7 @@
           // Check if the hex representation of the public key starts with the desired prefix
           if (keyPair.publicKeyHex.startsWith(prefix)) {
             clearInterval(updateInterval)
-            statusElement.innerHTML = `<div class="alert-title">✅ Success!</div><p>Found a key with prefix "${prefix}" after ${attempts} attempts (${Math.floor(
+            statusElement.innerHTML = `<div class="alert-title">✅ Success!</div><p>Found a key with prefix <strong>"${prefix}"</strong> after ${attempts} attempts (${Math.floor(
               attempts / ((Date.now() - startTime) / 1000)
             )} keys/sec)</p>`
             return keyPair
@@ -578,6 +581,73 @@ Created: ${new Date().toISOString()}
 
       // Initialize the app
       document.addEventListener('DOMContentLoaded', () => {
+        // Parse URL query parameters to get custom prefix
+        function getQueryParam(param) {
+          const urlParams = new URLSearchParams(window.location.search)
+          return urlParams.get(param)
+        }
+
+        // Get prefix from URL or use default
+        const defaultPrefix = 'aa1'
+        let customPrefix = getQueryParam('prefix') || defaultPrefix
+
+        // Validate prefix (must be 1-3 characters and valid hex)
+        if (!/^[0-9a-fA-F]{1,3}$/.test(customPrefix)) {
+          console.warn(
+            `Invalid prefix "${customPrefix}", using default "${defaultPrefix}"`
+          )
+          customPrefix = defaultPrefix
+        }
+
+        // Update the UI to show the current prefix
+        const generateSection = document.querySelector(
+          '.section:nth-of-type(2)'
+        )
+        const prefixInfo = document.createElement('div')
+        prefixInfo.className = 'alert'
+        prefixInfo.innerHTML = `<div class="alert-title">Vanity Address Generation</div>
+          <p>Keys will be generated with public keys starting with prefix: <strong>${customPrefix}</strong></p>
+          <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+            <label for="prefix-input">Change prefix:</label>
+            <input type="text" id="prefix-input" value="${customPrefix}" 
+              style="padding: 5px; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); width: 80px;" 
+              maxlength="3" placeholder="1-3 hex chars">
+            <button id="update-prefix-btn" class="btn btn-secondary" style="padding: 5px 10px; font-size: 14px;">Update</button>
+          </div>
+          <p><small>Prefix must be 1-3 hex characters (0-9, a-f)</small></p>`
+        generateSection.insertBefore(
+          prefixInfo,
+          document.getElementById('generate-btn')
+        )
+
+        // Add event listener for the update prefix button
+        document
+          .getElementById('update-prefix-btn')
+          .addEventListener('click', () => {
+            const newPrefix = document
+              .getElementById('prefix-input')
+              .value.trim()
+
+            // Validate the new prefix
+            if (!/^[0-9a-fA-F]{1,3}$/.test(newPrefix)) {
+              alert(
+                'Invalid prefix. Please enter 1-3 hex characters (0-9, a-f)'
+              )
+              return
+            }
+
+            // Update URL with the new prefix
+            const url = new URL(window.location)
+            url.searchParams.set('prefix', newPrefix)
+            window.history.pushState({}, '', url)
+
+            // Reload the page to apply the new prefix
+            window.location.reload()
+          })
+
+        // Update page title to reflect the custom prefix
+        document.title = `Nostr Key Generator - Prefix: ${customPrefix}`
+
         // Tab switching
         const tabs = document.querySelectorAll('.tab')
         tabs.forEach(tab => {
@@ -606,8 +676,8 @@ Created: ${new Date().toISOString()}
           generateBtn.textContent = 'Generating...'
 
           try {
-            // Generate a vanity key pair that starts with "aa1"
-            const keyPair = await generateVanityKeyPair('aa1')
+            // Generate a vanity key pair with the custom prefix
+            const keyPair = await generateVanityKeyPair(customPrefix)
             const formattedKeys = formatKeys(keyPair)
 
             // Display keys
@@ -654,6 +724,11 @@ Created: ${new Date().toISOString()}
           if (keyPair) {
             const formattedKeys = formatKeys(keyPair)
 
+            // Check if the imported key matches the specified prefix
+            const prefixMatch = formattedKeys.publicKeyHex.startsWith(
+              customPrefix.toLowerCase()
+            )
+
             // Display public key
             document.getElementById('imported-public-key-text').textContent =
               formattedKeys.npub
@@ -661,6 +736,31 @@ Created: ${new Date().toISOString()}
               'imported-private-key-hex-text'
             ).textContent = formattedKeys.privateKeyHex
             document.getElementById('import-result').style.display = 'block'
+
+            // Add prefix match notification
+            let prefixNotice = document.getElementById('prefix-match-notice')
+            if (!prefixNotice) {
+              prefixNotice = document.createElement('div')
+              prefixNotice.id = 'prefix-match-notice'
+              prefixNotice.className = 'alert'
+              document.getElementById('import-result').prepend(prefixNotice)
+            }
+
+            if (prefixMatch) {
+              prefixNotice.innerHTML = `<div class="alert-title">✅ Prefix Match</div>
+                <p>This key's public key starts with the specified prefix: <strong>${customPrefix}</strong></p>`
+              prefixNotice.style.borderLeftColor = '#4ade80' // Green color
+              prefixNotice.style.backgroundColor = '#f0fdf4'
+            } else {
+              prefixNotice.innerHTML = `<div class="alert-title">⚠️ Prefix Mismatch</div>
+                <p>This key's public key does not start with the specified prefix: <strong>${customPrefix}</strong></p>
+                <p>Actual prefix: <strong>${formattedKeys.publicKeyHex.substring(
+                  0,
+                  customPrefix.length
+                )}</strong></p>`
+              prefixNotice.style.borderLeftColor = '#f97316' // Orange color
+              prefixNotice.style.backgroundColor = '#fff7ed'
+            }
 
             // Save imported keys button
             document
