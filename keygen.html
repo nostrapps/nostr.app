@@ -6,9 +6,9 @@
     <title>Nostr Key Generator</title>
     <style>
       :root {
-        --primary: #f59d63;
-        --primary-dark: #e67e22;
-        --primary-light: #fad7b6;
+        --primary: #4a6fa5;
+        --primary-dark: #3a5683;
+        --primary-light: #c5d5e5;
         --secondary: #8fb8de;
         --accent: #63c0f5;
         --text-light: #ffffff;
@@ -43,19 +43,28 @@
         background-color: white;
         border-radius: var(--radius-md);
         box-shadow: var(--shadow-md);
+        border: 1px solid rgba(99, 192, 245, 0.1);
       }
 
       .header {
         display: flex;
         align-items: center;
         margin-bottom: 30px;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        padding: 20px;
+        border-radius: var(--radius-md);
+        color: var(--text-light);
       }
 
       .logo-icon {
         width: 60px;
         height: 60px;
         border-radius: var(--radius-sm);
-        background-color: var(--primary);
+        background-color: rgba(255, 255, 255, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -74,12 +83,12 @@
 
       h1 {
         font-size: 28px;
-        color: var(--primary-dark);
+        color: var(--text-light);
         margin-bottom: 5px;
       }
 
       .subtitle {
-        color: #64748b;
+        color: rgba(255, 255, 255, 0.85);
         font-size: 16px;
       }
 
@@ -171,9 +180,9 @@
         padding: 15px;
         border-radius: var(--radius-sm);
         margin: 15px 0;
-        background-color: #fef3c7;
-        border-left: 4px solid #f59e0b;
-        color: #92400e;
+        background-color: #e1f0ff;
+        border-left: 4px solid var(--primary);
+        color: var(--primary-dark);
       }
 
       .alert-title {
