@@ -33,14 +33,8 @@
     </style>
   </head>
   <body>
-    <!-- Change navbar container to match pastebin.html -->
-    <div id="navbar"></div>
-
     <!-- Profile container -->
-    <div id="app" class="container mx-auto px-4 py-8"></div>
-
-    <!-- Import navbar directly as in pastebin.html -->
-    <script type="module" src="navbar.js"></script>
+    <div id="app" class="min-h-screen flex flex-col"></div>
 
     <!-- Import modules -->
     <script type="module">
@@ -52,6 +46,8 @@
       import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
       // Import NostrTools library
       import * as NostrTools from 'https://esm.sh/nostr-tools@1.14.0'
+      // Import Navbar component
+      import Navbar from './navbar.js'
 
       // Initialize htm with Preact
       const html = htm.bind(h)
@@ -441,295 +437,327 @@
         render() {
           const { profile, loading, error } = this.state
 
-          if (loading) {
-            return html`
-              <div class="flex justify-center items-center min-h-[70vh]">
-                <div class="text-light-purple text-xl animate-pulse">
-                  Loading profile...
-                </div>
-              </div>
-            `
-          }
-
-          if (error && error.includes('Please login first')) {
-            return html`
-              <div class="flex justify-center items-center min-h-[70vh]">
-                <div class="profile-card max-w-md w-full text-center">
-                  <h2 class="text-2xl font-bold text-gray-800 mb-6">
-                    Login Required
-                  </h2>
-                  <p class="text-gray-600 mb-6">
-                    You need to login with your Nostr account to view and edit
-                    your profile.
-                  </p>
-                  <button
-                    onClick=${this.handleNostrLogin.bind(this)}
-                    class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
-                  >
-                    Login with Nostr
-                  </button>
-                </div>
-              </div>
-            `
-          }
-
-          if (error) {
-            return html`
-              <div class="flex justify-center items-center min-h-[70vh]">
-                <div class="text-red-500 text-xl">
-                  Error loading profile: ${error}
-                </div>
-              </div>
-            `
-          }
-
           return html`
-            <div class="flex justify-center items-center min-h-[70vh]">
-              <div class="profile-card max-w-md w-full">
-                <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
-                  Edit Nostr Profile
-                </h2>
-                <form class="space-y-4" onSubmit=${this.handleSubmit}>
-                  <div class="flex flex-col items-center mb-6">
-                    <img
-                      src=${profile.picture ||
-                      'https://api.dicebear.com/6.x/personas/svg?seed=nostr'}
-                      alt="Profile"
-                      class="w-32 h-32 rounded-full border-4 border-light-purple shadow-md mb-4"
-                    />
-                    <div class="w-full">
-                      <label
-                        class="block text-sm font-medium text-gray-700 mb-1"
+            <div class="min-h-screen flex flex-col">
+              <${Navbar} />
+
+              <div class="container mx-auto px-4 py-8 flex-grow">
+                ${loading
+                  ? html`
+                      <div
+                        class="flex justify-center items-center min-h-[70vh]"
                       >
-                        Profile Picture URL
-                      </label>
-                      <input
-                        type="text"
-                        name="picture"
-                        value=${profile.picture}
-                        onChange=${this.handleInputChange}
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Display Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value=${profile.name}
-                      onChange=${this.handleInputChange}
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
-                    />
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      NIP-05 Address
-                    </label>
-                    <input
-                      type="text"
-                      name="nip05"
-                      value=${profile.nip05}
-                      onChange=${this.handleInputChange}
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
-                    />
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Public Key
-                    </label>
-                    <input
-                      type="text"
-                      value=${profile.pubkey}
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple bg-gray-100"
-                      readonly
-                    />
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      About
-                    </label>
-                    <textarea
-                      name="about"
-                      value=${profile.about}
-                      onChange=${this.handleInputChange}
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple h-24"
-                    ></textarea>
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                      Subkeys Management
-                    </label>
-                    <div class="border border-gray-300 rounded-md p-3 bg-white">
-                      <div class="space-y-2 mb-3">
-                        ${this.state.subkeysArray &&
-                        this.state.subkeysArray.map(
-                          (subkey, index) => html`
-                            <div
-                              key=${index}
-                              class="flex items-center gap-2 p-2 bg-gray-50 rounded-md group"
-                            >
-                              <span class="flex-grow font-mono text-sm truncate"
-                                >${subkey}</span
-                              >
-                              <button
-                                type="button"
-                                onClick=${() => this.editSubkey(index)}
-                                class="text-gray-500 hover:text-light-purple opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  class="h-4 w-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                  />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick=${() => this.deleteSubkey(index)}
-                                class="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  class="h-4 w-4"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          `
-                        )}
-                        ${this.state.subkeysArray &&
-                        this.state.subkeysArray.length === 0 &&
-                        html`
-                          <div
-                            class="text-gray-500 text-sm italic text-center py-2"
-                          >
-                            No subkeys added yet
-                          </div>
-                        `}
+                        <div class="text-light-purple text-xl animate-pulse">
+                          Loading profile...
+                        </div>
                       </div>
+                    `
+                  : error && error.includes('Please login first')
+                  ? html`
+                      <div
+                        class="flex justify-center items-center min-h-[70vh]"
+                      >
+                        <div class="profile-card max-w-md w-full text-center">
+                          <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                            Login Required
+                          </h2>
+                          <p class="text-gray-600 mb-6">
+                            You need to login with your Nostr account to view
+                            and edit your profile.
+                          </p>
+                          <button
+                            onClick=${this.handleNostrLogin.bind(this)}
+                            class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
+                          >
+                            Login with Nostr
+                          </button>
+                        </div>
+                      </div>
+                    `
+                  : error
+                  ? html`
+                      <div
+                        class="flex justify-center items-center min-h-[70vh]"
+                      >
+                        <div class="text-red-500 text-xl">
+                          Error loading profile: ${error}
+                        </div>
+                      </div>
+                    `
+                  : html`
+                      <div
+                        class="flex justify-center items-center min-h-[70vh]"
+                      >
+                        <div class="profile-card max-w-md w-full">
+                          <h2
+                            class="text-2xl font-bold text-center text-gray-800 mb-6"
+                          >
+                            Edit Nostr Profile
+                          </h2>
+                          <form class="space-y-4" onSubmit=${this.handleSubmit}>
+                            <div class="flex flex-col items-center mb-6">
+                              <img
+                                src=${profile.picture ||
+                                'https://api.dicebear.com/6.x/personas/svg?seed=nostr'}
+                                alt="Profile"
+                                class="w-32 h-32 rounded-full border-4 border-light-purple shadow-md mb-4"
+                              />
+                              <div class="w-full">
+                                <label
+                                  class="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                  Profile Picture URL
+                                </label>
+                                <input
+                                  type="text"
+                                  name="picture"
+                                  value=${profile.picture}
+                                  onChange=${this.handleInputChange}
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
+                                />
+                              </div>
+                            </div>
 
-                      ${this.state.showSubkeyInput
-                        ? html`
-                            <div class="flex items-center gap-2">
+                            <div>
+                              <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                              >
+                                Display Name
+                              </label>
                               <input
                                 type="text"
-                                value=${this.state.newSubkey}
-                                onChange=${e =>
-                                  this.setState({ newSubkey: e.target.value })}
-                                class="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
-                                placeholder="Enter subkey (hex format)"
+                                name="name"
+                                value=${profile.name}
+                                onChange=${this.handleInputChange}
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
                               />
-                              <button
-                                type="button"
-                                onClick=${this.addSubkey.bind(this)}
-                                class="px-3 py-2 bg-light-purple text-white rounded-md hover:bg-opacity-90"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick=${() =>
-                                  this.setState({
-                                    showSubkeyInput: false,
-                                    newSubkey: '',
-                                    editingIndex: -1
-                                  })}
-                                class="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                              >
-                                Cancel
-                              </button>
                             </div>
-                          `
-                        : html`
-                            <button
-                              type="button"
-                              onClick=${() =>
-                                this.setState({
-                                  showSubkeyInput: true,
-                                  newSubkey: ''
-                                })}
-                              class="flex items-center gap-1 text-light-purple hover:text-opacity-80"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                class="h-5 w-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
+
+                            <div>
+                              <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
                               >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                />
-                              </svg>
-                              Add Subkey
-                            </button>
-                          `}
-                      <p class="text-xs text-gray-500 mt-2">
-                        Add delegation subkeys to use with this profile
-                      </p>
-                    </div>
-                  </div>
+                                NIP-05 Address
+                              </label>
+                              <input
+                                type="text"
+                                name="nip05"
+                                value=${profile.nip05}
+                                onChange=${this.handleInputChange}
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
+                              />
+                            </div>
 
-                  ${error &&
-                  html`
-                    <div class="text-red-500 text-sm font-medium py-2">
-                      ${error}
-                    </div>
-                  `}
+                            <div>
+                              <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                              >
+                                Public Key
+                              </label>
+                              <input
+                                type="text"
+                                value=${profile.pubkey}
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple bg-gray-100"
+                                readonly
+                              />
+                            </div>
 
-                  <div class="w-full pt-4 border-t border-gray-200">
-                    <div class="flex justify-center gap-4">
-                      <button
-                        type="submit"
-                        class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
-                      >
-                        Save Profile
-                      </button>
-                      <button
-                        type="button"
-                        class="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg shadow hover:shadow-lg transition-all"
-                        onClick=${() => (window.location.href = '/')}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        class="px-6 py-2 bg-red-100 border border-red-300 text-red-700 rounded-lg shadow hover:shadow-lg transition-all"
-                        onClick=${this.handleLogout.bind(this)}
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                </form>
+                            <div>
+                              <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                              >
+                                About
+                              </label>
+                              <textarea
+                                name="about"
+                                value=${profile.about}
+                                onChange=${this.handleInputChange}
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple h-24"
+                              ></textarea>
+                            </div>
+
+                            <div>
+                              <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                              >
+                                Subkeys Management
+                              </label>
+                              <div
+                                class="border border-gray-300 rounded-md p-3 bg-white"
+                              >
+                                <div class="space-y-2 mb-3">
+                                  ${this.state.subkeysArray &&
+                                  this.state.subkeysArray.map(
+                                    (subkey, index) => html`
+                                      <div
+                                        key=${index}
+                                        class="flex items-center gap-2 p-2 bg-gray-50 rounded-md group"
+                                      >
+                                        <span
+                                          class="flex-grow font-mono text-sm truncate"
+                                          >${subkey}</span
+                                        >
+                                        <button
+                                          type="button"
+                                          onClick=${() =>
+                                            this.editSubkey(index)}
+                                          class="text-gray-500 hover:text-light-purple opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                          <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-4 w-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              stroke-linecap="round"
+                                              stroke-linejoin="round"
+                                              stroke-width="2"
+                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                            />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick=${() =>
+                                            this.deleteSubkey(index)}
+                                          class="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                          <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-4 w-4"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              stroke-linecap="round"
+                                              stroke-linejoin="round"
+                                              stroke-width="2"
+                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                            />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    `
+                                  )}
+                                  ${this.state.subkeysArray &&
+                                  this.state.subkeysArray.length === 0 &&
+                                  html`
+                                    <div
+                                      class="text-gray-500 text-sm italic text-center py-2"
+                                    >
+                                      No subkeys added yet
+                                    </div>
+                                  `}
+                                </div>
+
+                                ${this.state.showSubkeyInput
+                                  ? html`
+                                      <div class="flex items-center gap-2">
+                                        <input
+                                          type="text"
+                                          value=${this.state.newSubkey}
+                                          onChange=${e =>
+                                            this.setState({
+                                              newSubkey: e.target.value
+                                            })}
+                                          class="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
+                                          placeholder="Enter subkey (hex format)"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick=${this.addSubkey.bind(this)}
+                                          class="px-3 py-2 bg-light-purple text-white rounded-md hover:bg-opacity-90"
+                                        >
+                                          Save
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick=${() =>
+                                            this.setState({
+                                              showSubkeyInput: false,
+                                              newSubkey: '',
+                                              editingIndex: -1
+                                            })}
+                                          class="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    `
+                                  : html`
+                                      <button
+                                        type="button"
+                                        onClick=${() =>
+                                          this.setState({
+                                            showSubkeyInput: true,
+                                            newSubkey: ''
+                                          })}
+                                        class="flex items-center gap-1 text-light-purple hover:text-opacity-80"
+                                      >
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          class="h-5 w-5"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                          />
+                                        </svg>
+                                        Add Subkey
+                                      </button>
+                                    `}
+                                <p class="text-xs text-gray-500 mt-2">
+                                  Add delegation subkeys to use with this
+                                  profile
+                                </p>
+                              </div>
+                            </div>
+
+                            ${error &&
+                            html`
+                              <div
+                                class="text-red-500 text-sm font-medium py-2"
+                              >
+                                ${error}
+                              </div>
+                            `}
+
+                            <div class="w-full pt-4 border-t border-gray-200">
+                              <div class="flex justify-center gap-4">
+                                <button
+                                  type="submit"
+                                  class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
+                                >
+                                  Save Profile
+                                </button>
+                                <button
+                                  type="button"
+                                  class="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg shadow hover:shadow-lg transition-all"
+                                  onClick=${() => (window.location.href = '/')}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  class="px-6 py-2 bg-red-100 border border-red-300 text-red-700 rounded-lg shadow hover:shadow-lg transition-all"
+                                  onClick=${this.handleLogout.bind(this)}
+                                >
+                                  Logout
+                                </button>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    `}
               </div>
             </div>
           `
