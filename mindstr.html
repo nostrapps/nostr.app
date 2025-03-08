@@ -374,6 +374,11 @@
             this.saveData()
           }
 
+          if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault() // Prevent the browser's reload
+            this.reloadMap()
+          }
+
           if (e.key === 'Delete' && this.state.selectedNode !== null) {
             const nodeToDelete = this.state.selectedNode
 
@@ -430,6 +435,46 @@
               }
             } catch (error) {
               alert('Error saving data: ' + error.message)
+            }
+          } else {
+            alert('No map URL provided in query string.')
+          }
+        }
+
+        async reloadMap() {
+          const urlParams = new URLSearchParams(window.location.search)
+          const mapFile = urlParams.get('map')
+          if (mapFile) {
+            try {
+              console.log('Reloading map from:', mapFile)
+              const response = await fetch(mapFile)
+              if (response.ok) {
+                const data = await response.json()
+                console.log('Map data loaded successfully:', data)
+
+                // Update the data island
+                const dataElement = document.getElementById('initialData')
+                dataElement.textContent = JSON.stringify(data)
+
+                // Update the component state
+                this.setState(
+                  {
+                    nodes: data.nodes || [],
+                    connections: data.connections || [],
+                    selectedNode:
+                      data.selectedNode !== undefined ? data.selectedNode : 0
+                  },
+                  () => {
+                    this.redraw()
+                    new Audio('./audio/reload.ogg').play() // Optional: play a sound
+                    console.log('Map reloaded successfully!')
+                  }
+                )
+              } else {
+                alert('Error reloading map: ' + response.statusText)
+              }
+            } catch (error) {
+              alert('Error reloading map: ' + error.message)
             }
           } else {
             alert('No map URL provided in query string.')
@@ -639,6 +684,7 @@
             { key: 'Ctrl+M', action: 'Add link to selected node' },
             { key: 'Delete', action: 'Delete selected node' },
             { key: 'Ctrl+S', action: 'Save mind map' },
+            { key: 'Ctrl+R', action: 'Reload mind map from storage' },
             {
               key: 'Ctrl+Shift+K',
               action: 'Open map in new window (pastebin)'
@@ -914,6 +960,12 @@
                       }}
                     >
                       💾
+                    </button>
+                    <button
+                      class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                      onClick=${() => this.reloadMap()}
+                    >
+                      🔄
                     </button>
                     <!-- Commenting out Share button
                     <button
