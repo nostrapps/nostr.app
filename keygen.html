@@ -310,6 +310,12 @@
               <div id="public-key"></div>
             </div>
 
+            <h3>Your Public Key (hex)</h3>
+            <div id="public-key-hex-display" class="key-display visible">
+              <button class="copy-btn" data-copy="public-hex">Copy</button>
+              <div id="public-key-hex"></div>
+            </div>
+
             <h3>Your Private Key (nsec)</h3>
             <div id="private-key-display" class="key-display visible">
               <button class="copy-btn" data-copy="private">Copy</button>
@@ -361,6 +367,14 @@
             <div id="imported-public-key" class="key-display visible">
               <button class="copy-btn" data-copy="imported-public">Copy</button>
               <div id="imported-public-key-text"></div>
+            </div>
+
+            <h3>Imported Public Key (hex)</h3>
+            <div id="imported-public-key-hex" class="key-display visible">
+              <button class="copy-btn" data-copy="imported-public-hex">
+                Copy
+              </button>
+              <div id="imported-public-key-hex-text"></div>
             </div>
 
             <h3>Imported Private Key (hex)</h3>
@@ -683,6 +697,8 @@ Created: ${new Date().toISOString()}
             // Display keys
             document.getElementById('public-key').textContent =
               formattedKeys.npub
+            document.getElementById('public-key-hex').textContent =
+              formattedKeys.publicKeyHex
             document.getElementById('private-key').textContent =
               formattedKeys.nsec
             document.getElementById('private-key-hex').textContent =
@@ -732,6 +748,9 @@ Created: ${new Date().toISOString()}
             // Display public key
             document.getElementById('imported-public-key-text').textContent =
               formattedKeys.npub
+            document.getElementById(
+              'imported-public-key-hex-text'
+            ).textContent = formattedKeys.publicKeyHex
             document.getElementById(
               'imported-private-key-hex-text'
             ).textContent = formattedKeys.privateKeyHex
@@ -788,9 +807,15 @@ Created: ${new Date().toISOString()}
               ).textContent
             } else if (type === 'private-hex') {
               text = document.getElementById('private-key-hex').textContent
+            } else if (type === 'public-hex') {
+              text = document.getElementById('public-key-hex').textContent
             } else if (type === 'imported-private-hex') {
               text = document.getElementById(
                 'imported-private-key-hex-text'
+              ).textContent
+            } else if (type === 'imported-public-hex') {
+              text = document.getElementById(
+                'imported-public-key-hex-text'
               ).textContent
             }
 
