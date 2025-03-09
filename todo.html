@@ -117,20 +117,30 @@
 
         // Storage handling
         getStorageProvider() {
+          // Check if a custom todos URL is provided in the query string
+          const urlParams = new URLSearchParams(window.location.search)
+          const customTodosUrl = urlParams.get('uri')
+
           // Use nosdav.net directly as the primary storage solution
           console.log('Using nosdav.net as primary storage')
           return {
             type: 'nosdav',
             isPrimary: true,
+            customUrl: customTodosUrl,
             save: async data => {
               try {
-                const pubkey = localStorage.getItem('pubkey')
-                if (!pubkey) {
-                  console.error('No pubkey found for nosdav storage')
-                  return false
+                let url
+                if (customTodosUrl) {
+                  url = customTodosUrl
+                } else {
+                  const pubkey = localStorage.getItem('pubkey')
+                  if (!pubkey) {
+                    console.error('No pubkey found for nosdav storage')
+                    return false
+                  }
+                  url = `https://nosdav.net/${pubkey}/todos.json`
                 }
 
-                const url = `https://nosdav.net/${pubkey}/todos.json`
                 const response = await fetch(url, {
                   method: 'PUT',
                   headers: {
@@ -159,13 +169,19 @@
             },
             load: async () => {
               try {
-                const pubkey = localStorage.getItem('pubkey')
-                if (!pubkey) {
-                  console.error('No pubkey found for nosdav storage')
-                  return []
+                let url
+                if (customTodosUrl) {
+                  url = customTodosUrl
+                  console.log(`Using URI from query string: ${url}`)
+                } else {
+                  const pubkey = localStorage.getItem('pubkey')
+                  if (!pubkey) {
+                    console.error('No pubkey found for nosdav storage')
+                    return []
+                  }
+                  url = `https://nosdav.net/${pubkey}/todos.json`
                 }
 
-                const url = `https://nosdav.net/${pubkey}/todos.json`
                 const response = await fetch(url)
 
                 if (response.status === 404) {
@@ -305,12 +321,19 @@
         }
 
         openStorageFile = () => {
-          const pubkey = localStorage.getItem('pubkey')
-          if (pubkey) {
-            const url = `https://nosdav.net/${pubkey}/todos.json`
-            window.open(url, '_blank')
+          const urlParams = new URLSearchParams(window.location.search)
+          const customTodosUrl = urlParams.get('uri')
+
+          if (customTodosUrl) {
+            window.open(customTodosUrl, '_blank')
           } else {
-            alert('No pubkey found. Cannot open storage file.')
+            const pubkey = localStorage.getItem('pubkey')
+            if (pubkey) {
+              const url = `https://nosdav.net/${pubkey}/todos.json`
+              window.open(url, '_blank')
+            } else {
+              alert('No pubkey found. Cannot open storage file.')
+            }
           }
         }
 
@@ -373,6 +396,11 @@
           )
           const listTitle =
             tracker && tracker.title ? tracker.title : 'Todo List'
+
+          // Check if using custom URL
+          const urlParams = new URLSearchParams(window.location.search)
+          const customTodosUrl = urlParams.get('uri')
+          const isUsingCustomUrl = !!customTodosUrl
 
           return html`
             <div class="min-h-screen flex flex-col">
@@ -466,15 +494,38 @@
                                 >
                                   ${todo.title || todo.text}
                                   <a
-                                    href=${`./mindstr.html?map=https://nosdav.net/${localStorage.getItem(
-                                      'pubkey'
-                                    )}/mm/${
-                                      todo['@id']
-                                        ? todo['@id'].substring(1)
-                                        : ''
-                                    }.json&title=${encodeURIComponent(
-                                      todo.title || todo.text
-                                    )}`}
+                                    href=${(() => {
+                                      const urlParams = new URLSearchParams(
+                                        window.location.search
+                                      )
+                                      const customTodosUrl =
+                                        urlParams.get('uri')
+                                      let basePath
+
+                                      if (customTodosUrl) {
+                                        // Extract the base path from the custom URL
+                                        const urlObj = new URL(customTodosUrl)
+                                        const pathParts =
+                                          urlObj.pathname.split('/')
+                                        // Remove the last part (todos.json)
+                                        pathParts.pop()
+                                        basePath = `${
+                                          urlObj.origin
+                                        }${pathParts.join('/')}`
+                                      } else {
+                                        const pubkey =
+                                          localStorage.getItem('pubkey')
+                                        basePath = `https://nosdav.net/${pubkey}`
+                                      }
+
+                                      return `./mindstr.html?map=${basePath}/mm/${
+                                        todo['@id']
+                                          ? todo['@id'].substring(1)
+                                          : ''
+                                      }.json&title=${encodeURIComponent(
+                                        todo.title || todo.text
+                                      )}`
+                                    })()}
                                     target="_blank"
                                     class="ml-2 hover:text-primary-dark"
                                     style="color: var(--accent);"
@@ -540,7 +591,14 @@
                           class="rounded-full px-3 py-1 inline-block"
                           style="background-color: rgba(99, 192, 245, 0.1); color: var(--primary);"
                         >
-                          Using nosdav cloud storage
+                          ${isUsingCustomUrl
+                            ? html`Using custom URI
+                                <span
+                                  class="text-xs opacity-70"
+                                  title="${customTodosUrl}"
+                                  >(hover to see URI)</span
+                                >`
+                            : `Using nosdav cloud storage`}
                           <button
                             onClick=${this.openStorageFile}
                             class="ml-2 text-white rounded-full px-2 py-0.5 text-xs"
