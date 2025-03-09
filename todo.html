@@ -102,7 +102,9 @@
           this.state = {
             todos: [],
             newTodo: '',
-            storageType: ''
+            storageType: '',
+            isEditingTitle: false,
+            editedTitle: ''
           }
         }
 
@@ -205,6 +207,22 @@
             return todo
           })
 
+          // Check if we have a Tracker item with @id "#this", if not create one
+          const hasTracker = updatedTodos.some(
+            todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
+          )
+
+          if (!hasTracker) {
+            updatedTodos.push({
+              '@id': '#this',
+              '@type': 'Tracker',
+              title: 'My Personal Todo List',
+              created: new Date().toISOString()
+            })
+            // Save the todos with the new Tracker
+            await this.saveTodos(updatedTodos)
+          }
+
           this.setState({
             todos: updatedTodos,
             storageType: storage.type
@@ -213,8 +231,25 @@
         }
 
         async saveTodos(todos) {
+          // Update the Tracker item with current statistics
+          const taskItems = todos.filter(todo => todo['@type'] === 'Task')
+          const completedTasks = taskItems.filter(todo => todo.completed).length
+
+          // Find and update the Tracker item
+          const updatedTodos = todos.map(todo => {
+            if (todo['@type'] === 'Tracker' && todo['@id'] === '#this') {
+              return {
+                ...todo,
+                taskCount: taskItems.length,
+                completedCount: completedTasks,
+                lastUpdated: new Date().toISOString()
+              }
+            }
+            return todo
+          })
+
           const storage = this.getStorageProvider()
-          await storage.save(todos)
+          await storage.save(updatedTodos)
           console.log(`Todos saved to ${storage.type}`)
         }
 
@@ -247,15 +282,22 @@
         }
 
         toggleTodo = id => {
-          const newTodos = this.state.todos.map(todo =>
-            todo['@id'] === id ? { ...todo, completed: !todo.completed } : todo
-          )
+          // Only toggle items with @type 'Task'
+          const newTodos = this.state.todos.map(todo => {
+            if (todo['@id'] === id && todo['@type'] === 'Task') {
+              return { ...todo, completed: !todo.completed }
+            }
+            return todo
+          })
 
           this.setState({ todos: newTodos })
           this.saveTodos(newTodos)
         }
 
         removeTodo = id => {
+          // Don't remove the Tracker item
+          if (id === '#this') return
+
           const newTodos = this.state.todos.filter(todo => todo['@id'] !== id)
 
           this.setState({ todos: newTodos })
@@ -272,7 +314,66 @@
           }
         }
 
+        startEditingTitle = () => {
+          const tracker = this.state.todos.find(
+            todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
+          )
+          if (tracker) {
+            this.setState({
+              isEditingTitle: true,
+              editedTitle: tracker.title || 'My Personal Todo List'
+            })
+          }
+        }
+
+        handleTitleChange = e => {
+          this.setState({ editedTitle: e.target.value })
+        }
+
+        saveTitle = () => {
+          if (!this.state.editedTitle.trim()) {
+            this.setState({ isEditingTitle: false })
+            return
+          }
+
+          const newTodos = this.state.todos.map(todo => {
+            if (todo['@type'] === 'Tracker' && todo['@id'] === '#this') {
+              return { ...todo, title: this.state.editedTitle.trim() }
+            }
+            return todo
+          })
+
+          this.setState({
+            todos: newTodos,
+            isEditingTitle: false
+          })
+
+          this.saveTodos(newTodos)
+        }
+
+        handleTitleKeyDown = e => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            this.saveTitle()
+          } else if (e.key === 'Escape') {
+            this.setState({ isEditingTitle: false })
+          }
+        }
+
         render() {
+          // Filter todos to only display items with @type "Task"
+          const taskItems = this.state.todos.filter(
+            todo => todo['@type'] === 'Task'
+          )
+          const completedTasks = taskItems.filter(todo => todo.completed).length
+
+          // Find the Tracker item to get its title
+          const tracker = this.state.todos.find(
+            todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
+          )
+          const listTitle =
+            tracker && tracker.title ? tracker.title : 'Todo List'
+
           return html`
             <div class="min-h-screen flex flex-col">
               <${Navbar} />
@@ -281,12 +382,41 @@
                 class="container mx-auto px-4 py-8 flex-grow flex flex-col items-center"
               >
                 <div class="todo-container w-full max-w-md p-6 my-8">
-                  <h1
-                    class="text-3xl font-bold text-center mb-8 text-primary-dark"
-                    style="color: var(--primary-dark);"
-                  >
-                    Todo List
-                  </h1>
+                  ${this.state.isEditingTitle
+                    ? html`
+                        <div class="flex items-center justify-center mb-8">
+                          <input
+                            type="text"
+                            value=${this.state.editedTitle}
+                            onInput=${this.handleTitleChange}
+                            onKeyDown=${this.handleTitleKeyDown}
+                            onBlur=${this.saveTitle}
+                            autofocus
+                            class="text-3xl font-bold text-center p-2 border-b-2 focus:outline-none focus:border-accent w-full"
+                            style="color: var(--primary-dark); border-color: var(--primary-light);"
+                          />
+                        </div>
+                      `
+                    : html`
+                        <h1
+                          class="text-3xl font-bold text-center mb-8 text-primary-dark cursor-pointer hover:opacity-80"
+                          style="color: var(--primary-dark);"
+                          onClick=${this.startEditingTitle}
+                          title="Click to edit title"
+                        >
+                          ${listTitle}
+                          <span class="ml-2 text-xs opacity-50">✏️</span>
+                        </h1>
+                      `}
+
+                  <div class="mb-4 text-center">
+                    <div
+                      class="rounded-full px-3 py-1 inline-block text-sm"
+                      style="background-color: rgba(99, 192, 245, 0.1); color: var(--primary);"
+                    >
+                      ${completedTasks} of ${taskItems.length} tasks completed
+                    </div>
+                  </div>
 
                   <form onSubmit=${this.handleSubmit} class="mb-6">
                     <div class="flex items-center">
@@ -308,11 +438,11 @@
                   </form>
 
                   <div class="space-y-3">
-                    ${this.state.todos.length === 0
+                    ${taskItems.length === 0
                       ? html`<p class="text-center text-gray-500">
                           No tasks yet. Add one above!
                         </p>`
-                      : [...this.state.todos].reverse().map(
+                      : [...taskItems].reverse().map(
                           todo => html`
                             <div
                               key=${todo['@id']}
