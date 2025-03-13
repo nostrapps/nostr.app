@@ -1,0 +1,31 @@
+{
+  "name": "nostr-app",
+  "version": "0.0.1",
+  "description": "nostr app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "nostr-app": "./bin/serve.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nostrapps/nostr.app.git"
+  },
+  "keywords": [
+    "nostr"
+  ],
+  "author": "Melvin Carvalho",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/nostrapps/nostr.app/issues"
+  },
+  "homepage": "https://github.com/nostrapps/nostr.app#readme",
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "http": "^0.0.1-security",
+    "path": "^0.12.7",
+    "url": "^0.11.4"
+  }
+}
