@@ -307,10 +307,47 @@
         font-size: 0.9em;
         color: #6a737d;
       }
+
+      /* Image upload indicator */
+      .image-upload-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 1000;
+        display: none;
+      }
+
+      /* Drag and drop styles */
+      .drag-highlight {
+        border: 2px dashed #008cba !important;
+        background-color: rgba(0, 140, 186, 0.1) !important;
+      }
+
+      #dropMessage {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        z-index: 100;
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
+    <div class="image-upload-indicator" id="imageUploadIndicator">
+      Uploading image...
+    </div>
+    <div id="dropMessage">Drop image to upload</div>
 
     <script type="module">
       // Import from CDN instead of local files
@@ -366,7 +403,7 @@
         smartypants: true, // Use "smart" typographic punctuation
         highlight: function (code, lang) {
           // Use highlight.js for syntax highlighting
-          if (lang && window.hljs) {
+          if (code && lang && window.hljs) {
             try {
               if (window.hljs.getLanguage(lang)) {
                 console.log(`Highlighting code block with language: ${lang}`)
@@ -379,7 +416,7 @@
               console.error('Highlight.js error:', err)
             }
           }
-          return code // Return the code without highlighting if there's an issue
+          return code || '' // Return the code without highlighting if there's an issue and ensure it's not undefined
         }
       })
 
@@ -388,6 +425,9 @@
 
       // Override the code block renderer to ensure language classes are properly added
       renderer.code = function (code, language) {
+        // Ensure code is not undefined
+        code = code || ''
+
         // Check if hljs is available
         if (!window.hljs) {
           console.warn('highlight.js not available during code rendering')
@@ -464,11 +504,18 @@
             markdownOutput: '',
             isDualView: false,
             isLoggedIn: localStorage.getItem('loggedIn') === 'true',
-            pubkey: localStorage.getItem('pubkey') || null
+            pubkey: localStorage.getItem('pubkey') || null,
+            isUploadingImage: false,
+            isDraggingOver: false
           }
 
           // Bind methods
           this.applyHighlighting = this.applyHighlighting.bind(this)
+          this.handlePaste = this.handlePaste.bind(this)
+          this.handleDragOver = this.handleDragOver.bind(this)
+          this.handleDragEnter = this.handleDragEnter.bind(this)
+          this.handleDragLeave = this.handleDragLeave.bind(this)
+          this.handleDrop = this.handleDrop.bind(this)
         }
 
         // Add a dedicated method for applying syntax highlighting
@@ -484,29 +531,32 @@
               return
             }
 
-            const codeBlocks = document.querySelectorAll('#preview pre code')
-            if (codeBlocks.length > 0) {
-              console.log(
-                'Applying highlighting to',
-                codeBlocks.length,
-                'code blocks'
-              )
-              codeBlocks.forEach(block => {
-                try {
-                  // Use highlightBlock which is more reliable
-                  window.hljs.highlightBlock(block)
-                } catch (e) {
-                  console.error('Error highlighting code block:', e)
-                  // Fallback to the newer API if the old one fails
+            try {
+              const codeBlocks = document.querySelectorAll('#preview pre code')
+              if (codeBlocks && codeBlocks.length > 0) {
+                console.log(
+                  'Applying highlighting to',
+                  codeBlocks.length,
+                  'code blocks'
+                )
+                codeBlocks.forEach(block => {
                   try {
-                    window.hljs.highlightElement(block)
-                  } catch (e2) {
-                    console.error('Both highlighting methods failed:', e2)
+                    // Use highlightBlock which is more reliable
+                    window.hljs.highlightBlock(block)
+                  } catch (e) {
+                    console.error('Error with highlightBlock:', e)
+                    try {
+                      window.hljs.highlightElement(block)
+                    } catch (e2) {
+                      console.error('Both highlighting methods failed:', e2)
+                    }
                   }
-                }
-              })
-            } else {
-              console.log('No code blocks found to highlight')
+                })
+              } else {
+                console.log('No code blocks found to highlight')
+              }
+            } catch (error) {
+              console.error('Error in applyHighlighting:', error)
             }
           }, 100)
         }
@@ -600,6 +650,11 @@ function hello() {
 
 ![Image Alt Text](https://avatars.githubusercontent.com/u/131810998?s=96&v=4)
 
+## Paste Images
+
+You can paste images directly from your clipboard into the editor!
+You can also drag and drop images from your file system.
+
 ## Footnotes
 
 Here's a sentence with a footnote.[^1]
@@ -629,6 +684,18 @@ Try editing this content to see the live preview!
               null,
               window.location.pathname + window.location.search
             )
+          }
+
+          // Add paste event listener to the textarea
+          const textarea = document.getElementById('markdownInput')
+          if (textarea) {
+            textarea.addEventListener('paste', this.handlePaste)
+
+            // Add drag and drop event listeners
+            textarea.addEventListener('dragover', this.handleDragOver)
+            textarea.addEventListener('dragenter', this.handleDragEnter)
+            textarea.addEventListener('dragleave', this.handleDragLeave)
+            textarea.addEventListener('drop', this.handleDrop)
           }
         }
 
@@ -981,6 +1048,266 @@ Try editing this content to see the live preview!
           })
         }
 
+        // Handle paste events
+        handlePaste(e) {
+          // Check if we're logged in
+          if (!this.state.isLoggedIn) {
+            Swal.fire({
+              title: 'Login Required',
+              text: 'You need to login with Nostr to upload images.',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: 'Login Now',
+              cancelButtonText: 'Cancel'
+            }).then(result => {
+              if (result.isConfirmed) {
+                this.handleLogin()
+              }
+            })
+            return
+          }
+
+          // Check if the clipboard has images
+          const items = e.clipboardData.items
+          if (!items) return
+
+          let imageFile = null
+
+          // Find the first image in the clipboard
+          for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+              imageFile = items[i].getAsFile()
+              break
+            }
+          }
+
+          if (!imageFile) return // No image found
+
+          // Prevent the default paste behavior for images
+          e.preventDefault()
+
+          // Upload the image
+          this.uploadImage(imageFile)
+        }
+
+        // Upload an image file
+        uploadImage(file) {
+          // Show upload indicator
+          this.setState({ isUploadingImage: true })
+          document.getElementById('imageUploadIndicator').style.display =
+            'block'
+
+          // Generate a unique filename
+          const timestamp = Date.now()
+          const fileExtension = file.name
+            ? file.name.split('.').pop() || 'png'
+            : 'png'
+          const filename = `image_${timestamp}.${fileExtension}`
+
+          // Create a FileReader to read the image
+          const reader = new FileReader()
+          reader.onload = async event => {
+            try {
+              // Get the image data
+              const imageData = event.target.result
+
+              // Get the pubkey for the upload path
+              const pubkey = this.state.pubkey
+              if (!pubkey) {
+                throw new Error('No public key available')
+              }
+
+              // Create the upload URL
+              const uploadUrl = `https://nosdav.net/${pubkey}/images/${filename}`
+
+              // Upload the image
+              const response = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': file.type
+                },
+                body: file.type.includes('image/png')
+                  ? this.dataURItoBlob(imageData)
+                  : file
+              })
+
+              if (!response.ok) {
+                throw new Error(
+                  `Failed to upload: ${response.status} ${response.statusText}`
+                )
+              }
+
+              // Insert the markdown image link at cursor position
+              const altText = file.name
+                ? file.name.split('.')[0]
+                : 'Pasted Image'
+              this.insertImageLinkAtCursor(uploadUrl, altText)
+
+              // Hide upload indicator
+              this.setState({ isUploadingImage: false })
+              document.getElementById('imageUploadIndicator').style.display =
+                'none'
+
+              // Show success message
+              Swal.fire({
+                title: 'Image Uploaded',
+                text: 'Image has been uploaded and linked in the document.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+              })
+            } catch (error) {
+              console.error('Error uploading image:', error)
+
+              // Hide upload indicator
+              this.setState({ isUploadingImage: false })
+              document.getElementById('imageUploadIndicator').style.display =
+                'none'
+
+              // Show error message
+              Swal.fire({
+                title: 'Upload Failed',
+                text: `Failed to upload image: ${error.message}`,
+                icon: 'error'
+              })
+            }
+          }
+
+          // Read the image as data URL
+          reader.readAsDataURL(file)
+        }
+
+        // Convert data URI to Blob
+        dataURItoBlob(dataURI) {
+          const byteString = atob(dataURI.split(',')[1])
+          const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
+
+          const ab = new ArrayBuffer(byteString.length)
+          const ia = new Uint8Array(ab)
+
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i)
+          }
+
+          return new Blob([ab], { type: mimeString })
+        }
+
+        // Insert image link at cursor position
+        insertImageLinkAtCursor(imageUrl, altText) {
+          const textarea = document.getElementById('markdownInput')
+          if (!textarea) return
+
+          const startPos = textarea.selectionStart
+          const endPos = textarea.selectionEnd
+
+          const markdownLink = `![${altText}](${imageUrl})`
+          const newValue =
+            textarea.value.substring(0, startPos) +
+            markdownLink +
+            textarea.value.substring(endPos)
+
+          // Update the textarea value
+          this.setState(
+            {
+              markdownInput: newValue
+            },
+            this.updateOutput
+          )
+
+          // Set the cursor position after the inserted text
+          setTimeout(() => {
+            textarea.focus()
+            textarea.selectionStart = startPos + markdownLink.length
+            textarea.selectionEnd = startPos + markdownLink.length
+          }, 0)
+        }
+
+        // Drag and drop event handlers
+        handleDragOver(e) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
+
+        handleDragEnter(e) {
+          e.preventDefault()
+          e.stopPropagation()
+
+          // Add highlight class to the textarea
+          e.target.classList.add('drag-highlight')
+
+          // Show drop message
+          const dropMessage = document.getElementById('dropMessage')
+          if (dropMessage) {
+            dropMessage.style.display = 'block'
+          }
+
+          this.setState({ isDraggingOver: true })
+        }
+
+        handleDragLeave(e) {
+          e.preventDefault()
+          e.stopPropagation()
+
+          // Remove highlight class from the textarea
+          e.target.classList.remove('drag-highlight')
+
+          // Hide drop message
+          const dropMessage = document.getElementById('dropMessage')
+          if (dropMessage) {
+            dropMessage.style.display = 'none'
+          }
+
+          this.setState({ isDraggingOver: false })
+        }
+
+        handleDrop(e) {
+          e.preventDefault()
+          e.stopPropagation()
+
+          // Remove highlight class from the textarea
+          e.target.classList.remove('drag-highlight')
+
+          // Hide drop message
+          const dropMessage = document.getElementById('dropMessage')
+          if (dropMessage) {
+            dropMessage.style.display = 'none'
+          }
+
+          this.setState({ isDraggingOver: false })
+
+          // Check if we're logged in
+          if (!this.state.isLoggedIn) {
+            Swal.fire({
+              title: 'Login Required',
+              text: 'You need to login with Nostr to upload images.',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: 'Login Now',
+              cancelButtonText: 'Cancel'
+            }).then(result => {
+              if (result.isConfirmed) {
+                this.handleLogin()
+              }
+            })
+            return
+          }
+
+          // Get the dropped files
+          const files = e.dataTransfer.files
+          if (!files || files.length === 0) return
+
+          // Process each image file
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i]
+
+            // Check if the file is an image
+            if (!file.type.startsWith('image/')) continue
+
+            // Upload the image
+            this.uploadImage(file)
+          }
+        }
+
         render(props, state) {
           const viewClass = state.isDualView ? 'dual-view' : 'single-view'
           const toggleButtonText = state.isDualView
@@ -1030,6 +1357,7 @@ Try editing this content to see the live preview!
                   onInput=${this.onInputChange}
                   style="width: 100%; height: 100vh"
                   value=${state.markdownInput}
+                  placeholder="Type or paste markdown here. You can also paste images directly!"
                 ></textarea>
               </div>
               <div
@@ -1061,21 +1389,29 @@ Try editing this content to see the live preview!
 
             // Apply highlighting to any existing code blocks
             setTimeout(() => {
-              const codeBlocks = document.querySelectorAll('pre code')
-              console.log('Found', codeBlocks.length, 'code blocks at startup')
-              if (codeBlocks.length > 0) {
-                codeBlocks.forEach(block => {
-                  try {
-                    window.hljs.highlightBlock(block)
-                  } catch (e) {
-                    console.error('Error with highlightBlock:', e)
+              try {
+                const codeBlocks = document.querySelectorAll('pre code')
+                console.log(
+                  'Found',
+                  codeBlocks.length,
+                  'code blocks at startup'
+                )
+                if (codeBlocks && codeBlocks.length > 0) {
+                  codeBlocks.forEach(block => {
                     try {
-                      window.hljs.highlightElement(block)
-                    } catch (e2) {
-                      console.error('Both highlighting methods failed:', e2)
+                      window.hljs.highlightBlock(block)
+                    } catch (e) {
+                      console.error('Error with highlightBlock:', e)
+                      try {
+                        window.hljs.highlightElement(block)
+                      } catch (e2) {
+                        console.error('Both highlighting methods failed:', e2)
+                      }
                     }
-                  }
-                })
+                  })
+                }
+              } catch (error) {
+                console.error('Error applying highlighting at startup:', error)
               }
             }, 500)
           }
@@ -1084,23 +1420,27 @@ Try editing this content to see the live preview!
           console.log('highlight.js is available at DOMContentLoaded')
           // Make sure highlighting is applied to any existing code blocks
           setTimeout(() => {
-            const codeBlocks = document.querySelectorAll('pre code')
-            console.log('Found', codeBlocks.length, 'code blocks at startup')
-            if (codeBlocks.length > 0) {
-              codeBlocks.forEach(block => {
-                try {
-                  // Try the older API first
-                  window.hljs.highlightBlock(block)
-                } catch (e) {
-                  console.error('Error with highlightBlock:', e)
-                  // Fall back to the newer API
+            try {
+              const codeBlocks = document.querySelectorAll('pre code')
+              console.log('Found', codeBlocks.length, 'code blocks at startup')
+              if (codeBlocks && codeBlocks.length > 0) {
+                codeBlocks.forEach(block => {
                   try {
-                    window.hljs.highlightElement(block)
-                  } catch (e2) {
-                    console.error('Both highlighting methods failed:', e2)
+                    // Try the older API first
+                    window.hljs.highlightBlock(block)
+                  } catch (e) {
+                    console.error('Error with highlightBlock:', e)
+                    // Fall back to the newer API
+                    try {
+                      window.hljs.highlightElement(block)
+                    } catch (e2) {
+                      console.error('Both highlighting methods failed:', e2)
+                    }
                   }
-                }
-              })
+                })
+              }
+            } catch (error) {
+              console.error('Error applying highlighting at startup:', error)
             }
           }, 500)
         }
