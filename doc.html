@@ -11,12 +11,21 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Import secp256k1 for cryptographic operations -->
     <script src="https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/lib/index.browser.js"></script>
+    <!-- Import highlight.js for code syntax highlighting -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.js"></script>
+    <!-- Import DOMPurify for sanitizing HTML -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.1/dist/purify.min.js"></script>
 
     <style>
       body {
         font-family: 'Arial', sans-serif;
         background-color: #f0f0f0;
         color: #333;
+        line-height: 1.6;
       }
       #editor,
       #preview {
@@ -156,6 +165,147 @@
         margin-left: 20px;
         font-size: 14px;
       }
+
+      /* Enhanced markdown styling */
+      #preview {
+        overflow-x: auto;
+      }
+
+      #preview h1,
+      #preview h2,
+      #preview h3,
+      #preview h4,
+      #preview h5,
+      #preview h6 {
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+        font-weight: 600;
+        line-height: 1.25;
+        border-bottom: 1px solid #eaecef;
+        padding-bottom: 0.3em;
+      }
+
+      #preview h1 {
+        font-size: 2em;
+      }
+
+      #preview h2 {
+        font-size: 1.5em;
+      }
+
+      #preview h3 {
+        font-size: 1.25em;
+      }
+
+      #preview blockquote {
+        padding: 0 1em;
+        color: #6a737d;
+        border-left: 0.25em solid #dfe2e5;
+        margin: 0 0 16px 0;
+      }
+
+      #preview pre {
+        background-color: #f6f8fa;
+        border-radius: 3px;
+        padding: 16px;
+        overflow: auto;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
+          monospace;
+        font-size: 85%;
+        line-height: 1.45;
+      }
+
+      #preview code {
+        background-color: rgba(27, 31, 35, 0.05);
+        border-radius: 3px;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
+          monospace;
+        font-size: 85%;
+        padding: 0.2em 0.4em;
+      }
+
+      #preview pre code {
+        background-color: transparent;
+        padding: 0;
+      }
+
+      #preview table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0 0 16px 0;
+        display: block;
+        overflow-x: auto;
+      }
+
+      #preview table th,
+      #preview table td {
+        padding: 6px 13px;
+        border: 1px solid #dfe2e5;
+      }
+
+      #preview table tr {
+        background-color: #fff;
+        border-top: 1px solid #c6cbd1;
+      }
+
+      #preview table tr:nth-child(2n) {
+        background-color: #f6f8fa;
+      }
+
+      #preview table th {
+        background-color: #f6f8fa;
+        font-weight: 600;
+      }
+
+      #preview img {
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      #preview hr {
+        height: 0.25em;
+        padding: 0;
+        margin: 24px 0;
+        background-color: #e1e4e8;
+        border: 0;
+      }
+
+      #preview ul,
+      #preview ol {
+        padding-left: 2em;
+        margin-bottom: 16px;
+      }
+
+      #preview .task-list-item {
+        list-style-type: none;
+      }
+
+      #preview .task-list-item-checkbox {
+        margin: 0 0.2em 0.25em -1.6em;
+        vertical-align: middle;
+      }
+
+      /* Footnotes styling */
+      #preview .footnote-ref {
+        font-size: 0.8em;
+        vertical-align: super;
+        line-height: 0;
+      }
+
+      #preview .footnotes {
+        border-top: 1px solid #e1e4e8;
+        margin-top: 2em;
+        padding-top: 1em;
+      }
+
+      #preview .footnotes ol {
+        padding-left: 1em;
+      }
+
+      #preview .footnotes li {
+        font-size: 0.9em;
+        color: #6a737d;
+      }
     </style>
   </head>
   <body>
@@ -177,6 +327,66 @@
 
       window.secp256k1 = secp256k1
 
+      // Make sure highlight.js is available globally
+      const hljs = window.hljs
+
+      // Configure marked with options
+      marked.setOptions({
+        gfm: true, // GitHub Flavored Markdown
+        breaks: true, // Convert line breaks to <br>
+        pedantic: false,
+        smartLists: true,
+        smartypants: true, // Use "smart" typographic punctuation
+        highlight: function (code, lang) {
+          // Use highlight.js for syntax highlighting
+          if (lang && hljs && hljs.getLanguage && hljs.getLanguage(lang)) {
+            try {
+              return hljs.highlight(lang, code).value
+            } catch (err) {
+              console.error('Highlight.js error:', err)
+            }
+          }
+          return code // Return the code without highlighting if there's an issue
+        }
+      })
+
+      // Add support for task lists
+      const renderer = new marked.Renderer()
+
+      // Override the list item renderer to support task lists
+      const originalListItem = renderer.listitem
+      renderer.listitem = function (text) {
+        // Check if this is a task list item
+        const taskRegex = /^\s*\[(x| )\]\s*/i
+        const matches = text.match(taskRegex)
+
+        if (matches) {
+          const checked = matches[1].toLowerCase() === 'x'
+          const newText = text.replace(taskRegex, '')
+          return `<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" ${
+            checked ? 'checked' : ''
+          } disabled> ${newText}</li>`
+        }
+
+        // Use the original renderer for non-task list items
+        return originalListItem.call(this, text)
+      }
+
+      // Override the link renderer to open external links in a new tab
+      renderer.link = function (href, title, text) {
+        const isExternal =
+          href &&
+          href.startsWith('http') &&
+          !href.includes(window.location.hostname)
+        const target = isExternal
+          ? ' target="_blank" rel="noopener noreferrer"'
+          : ''
+        title = title ? ` title="${title}"` : ''
+        return `<a href="${href}"${title}${target}>${text}</a>`
+      }
+
+      marked.use({ renderer })
+
       class MarkdownEditor extends Component {
         constructor() {
           super()
@@ -194,6 +404,74 @@
         componentDidMount() {
           if (this.state.uri) {
             this.fetchMarkdown(this.state.uri)
+          } else {
+            // Set a default markdown example if no URI is provided
+            const defaultMarkdown = `# Welcome to the Markdown Editor
+
+This is a **powerful** markdown editor with support for many features:
+
+## Basic Formatting
+
+*Italic* and **bold** text
+~~Strikethrough~~ text
+
+## Lists
+
+### Unordered Lists
+- Item 1
+- Item 2
+  - Nested item
+
+### Ordered Lists
+1. First item
+2. Second item
+   1. Nested item
+
+### Task Lists
+- [x] Completed task
+- [ ] Incomplete task
+
+## Code Blocks
+
+Inline \`code\` looks like this.
+
+\`\`\`javascript
+// Code block with syntax highlighting
+function hello() {
+  console.log('Hello, world!');
+}
+\`\`\`
+
+## Tables
+
+| Header 1 | Header 2 | Header 3 |
+|----------|:--------:|---------:|
+| Left     | Center   | Right    |
+| Cell     | Cell     | Cell     |
+
+## Blockquotes
+
+> This is a blockquote.
+> It can span multiple lines.
+
+## Links and Images
+
+[Link to Google](https://www.google.com)
+
+![Image Alt Text](https://via.placeholder.com/150)
+
+## Footnotes
+
+Here's a sentence with a footnote.[^1]
+
+[^1]: This is the footnote content.
+
+Try editing this content to see the live preview!
+`
+            this.setState({
+              markdownInput: defaultMarkdown,
+              markdownOutput: this.renderMarkdown(defaultMarkdown)
+            })
           }
 
           // Check if user is already logged in
@@ -385,7 +663,7 @@
             this.setState({
               uri,
               markdownInput,
-              markdownOutput: marked(markdownInput)
+              markdownOutput: this.renderMarkdown(markdownInput)
             })
           } catch (error) {
             console.error('Error fetching markdown:', error)
@@ -490,9 +768,24 @@
           }
         }
 
+        renderMarkdown(text) {
+          try {
+            // Process the markdown and sanitize the output
+            const rawHtml = marked.parse(text || '')
+            const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
+              ADD_ATTR: ['target', 'rel', 'checked', 'disabled'],
+              ADD_TAGS: ['iframe']
+            })
+            return sanitizedHtml
+          } catch (error) {
+            console.error('Error rendering markdown:', error)
+            return `<p>Error rendering markdown: ${error.message}</p>`
+          }
+        }
+
         updateOutput = () => {
           this.setState({
-            markdownOutput: marked(this.state.markdownInput)
+            markdownOutput: this.renderMarkdown(this.state.markdownInput)
           })
         }
 
@@ -509,7 +802,7 @@
           const target = e.target
           if (target.tagName.toLowerCase() === 'a') {
             const href = target.getAttribute('href')
-            if (href.endsWith('.md')) {
+            if (href && href.endsWith('.md')) {
               e.preventDefault()
               const newUrl = new URL(window.location.href)
               const currentUri = new URL(
@@ -545,7 +838,7 @@
             <div id="currentUri">
               <input
                 type="url"
-                value=${state.uri}
+                value=${state.uri || ''}
                 onInput=${e => this.setState({ uri: e.target.value })}
                 placeholder="Enter the URI here"
               />
@@ -591,6 +884,13 @@
           `
         }
       }
+
+      // Initialize highlight.js
+      document.addEventListener('DOMContentLoaded', () => {
+        if (window.hljs) {
+          window.hljs.highlightAll()
+        }
+      })
 
       render(html`<${MarkdownEditor} />`, document.getElementById('app'))
     </script>
