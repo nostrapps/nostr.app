@@ -16,7 +16,8 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css"
     />
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.js"></script>
+    <!-- Use the complete bundle with common languages included -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <!-- Import DOMPurify for sanitizing HTML -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.1/dist/purify.min.js"></script>
 
@@ -327,8 +328,34 @@
 
       window.secp256k1 = secp256k1
 
-      // Make sure highlight.js is available globally
-      const hljs = window.hljs
+      // Function to safely initialize highlight.js
+      function initializeHighlightJs() {
+        if (window.hljs) {
+          console.log('highlight.js is available')
+          try {
+            // Force auto-highlighting for all code blocks
+            window.hljs.configure({
+              ignoreUnescapedHTML: true,
+              throwUnescapedHTML: false
+            })
+
+            // Log available languages
+            if (window.hljs.listLanguages) {
+              console.log(
+                'Available languages:',
+                window.hljs.listLanguages().join(', ')
+              )
+            }
+          } catch (e) {
+            console.error('Error initializing highlight.js:', e)
+          }
+        } else {
+          console.warn('highlight.js is not available during initial setup')
+        }
+      }
+
+      // Initialize highlight.js if available
+      initializeHighlightJs()
 
       // Configure marked with options
       marked.setOptions({
@@ -339,9 +366,15 @@
         smartypants: true, // Use "smart" typographic punctuation
         highlight: function (code, lang) {
           // Use highlight.js for syntax highlighting
-          if (lang && hljs && hljs.getLanguage && hljs.getLanguage(lang)) {
+          if (lang && window.hljs) {
             try {
-              return hljs.highlight(lang, code).value
+              if (window.hljs.getLanguage(lang)) {
+                console.log(`Highlighting code block with language: ${lang}`)
+                return window.hljs.highlight(code, { language: lang }).value
+              } else {
+                console.log(`Language ${lang} not found, using auto-detection`)
+                return window.hljs.highlightAuto(code).value
+              }
             } catch (err) {
               console.error('Highlight.js error:', err)
             }
@@ -352,6 +385,40 @@
 
       // Add support for task lists
       const renderer = new marked.Renderer()
+
+      // Override the code block renderer to ensure language classes are properly added
+      renderer.code = function (code, language) {
+        // Check if hljs is available
+        if (!window.hljs) {
+          console.warn('highlight.js not available during code rendering')
+          return `<pre><code${
+            language ? ` class="language-${language}"` : ''
+          }>${code}</code></pre>`
+        }
+
+        // Safely check if the language is supported
+        let validLanguage = ''
+        try {
+          validLanguage =
+            language && window.hljs.getLanguage(language) ? language : ''
+        } catch (e) {
+          console.warn('Error checking language:', e)
+        }
+
+        const languageClass = language ? ` class="language-${language}"` : ''
+
+        // Try to highlight if possible, otherwise return plain code
+        try {
+          return `<pre><code${languageClass}>${
+            validLanguage && window.hljs
+              ? window.hljs.highlight(code, { language: validLanguage }).value
+              : code
+          }</code></pre>`
+        } catch (e) {
+          console.warn('Error during code highlighting in renderer:', e)
+          return `<pre><code${languageClass}>${code}</code></pre>`
+        }
+      }
 
       // Override the list item renderer to support task lists
       const originalListItem = renderer.listitem
@@ -399,9 +466,82 @@
             isLoggedIn: localStorage.getItem('loggedIn') === 'true',
             pubkey: localStorage.getItem('pubkey') || null
           }
+
+          // Bind methods
+          this.applyHighlighting = this.applyHighlighting.bind(this)
+        }
+
+        // Add a dedicated method for applying syntax highlighting
+        applyHighlighting() {
+          // Wait a short time to ensure the DOM has been updated
+          setTimeout(() => {
+            if (!window.hljs) {
+              console.warn(
+                'highlight.js not available during applyHighlighting'
+              )
+              // Try to reload highlight.js if it's not available
+              this.loadHighlightJs()
+              return
+            }
+
+            const codeBlocks = document.querySelectorAll('#preview pre code')
+            if (codeBlocks.length > 0) {
+              console.log(
+                'Applying highlighting to',
+                codeBlocks.length,
+                'code blocks'
+              )
+              codeBlocks.forEach(block => {
+                try {
+                  // Use highlightBlock which is more reliable
+                  window.hljs.highlightBlock(block)
+                } catch (e) {
+                  console.error('Error highlighting code block:', e)
+                  // Fallback to the newer API if the old one fails
+                  try {
+                    window.hljs.highlightElement(block)
+                  } catch (e2) {
+                    console.error('Both highlighting methods failed:', e2)
+                  }
+                }
+              })
+            } else {
+              console.log('No code blocks found to highlight')
+            }
+          }, 100)
+        }
+
+        // Method to load highlight.js if it's not available
+        loadHighlightJs() {
+          if (window.hljs) return
+
+          console.log('Attempting to load highlight.js')
+          const script = document.createElement('script')
+          script.src =
+            'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js'
+          script.onload = () => {
+            console.log('highlight.js loaded successfully')
+            if (window.hljs) {
+              window.hljs.configure({
+                ignoreUnescapedHTML: true,
+                throwUnescapedHTML: false
+              })
+              // Apply highlighting after loading
+              this.applyHighlighting()
+            }
+          }
+          script.onerror = e => {
+            console.error('Failed to load highlight.js:', e)
+          }
+          document.head.appendChild(script)
         }
 
         componentDidMount() {
+          // Ensure highlight.js is loaded
+          if (!window.hljs) {
+            this.loadHighlightJs()
+          }
+
           if (this.state.uri) {
             this.fetchMarkdown(this.state.uri)
           } else {
@@ -468,10 +608,13 @@ Here's a sentence with a footnote.[^1]
 
 Try editing this content to see the live preview!
 `
-            this.setState({
-              markdownInput: defaultMarkdown,
-              markdownOutput: this.renderMarkdown(defaultMarkdown)
-            })
+            this.setState(
+              {
+                markdownInput: defaultMarkdown,
+                markdownOutput: this.renderMarkdown(defaultMarkdown)
+              },
+              this.applyHighlighting
+            )
           }
 
           // Check if user is already logged in
@@ -653,6 +796,11 @@ Try editing this content to see the live preview!
 
         fetchMarkdown = async uri => {
           try {
+            // Ensure highlight.js is loaded before fetching
+            if (!window.hljs) {
+              this.loadHighlightJs()
+            }
+
             const response = await fetch(uri)
             if (!response.ok) {
               throw new Error(
@@ -660,11 +808,14 @@ Try editing this content to see the live preview!
               )
             }
             const markdownInput = await response.text()
-            this.setState({
-              uri,
-              markdownInput,
-              markdownOutput: this.renderMarkdown(markdownInput)
-            })
+            this.setState(
+              {
+                uri,
+                markdownInput,
+                markdownOutput: this.renderMarkdown(markdownInput)
+              },
+              this.applyHighlighting
+            )
           } catch (error) {
             console.error('Error fetching markdown:', error)
             Swal.fire({
@@ -776,17 +927,24 @@ Try editing this content to see the live preview!
               ADD_ATTR: ['target', 'rel', 'checked', 'disabled'],
               ADD_TAGS: ['iframe']
             })
+
+            // Return the HTML immediately
             return sanitizedHtml
           } catch (error) {
             console.error('Error rendering markdown:', error)
-            return `<p>Error rendering markdown: ${error.message}</p>`
+            // Provide a more graceful fallback
+            return `<p>Error rendering markdown. Please try again.</p>
+                   <pre>${text || ''}</pre>`
           }
         }
 
         updateOutput = () => {
-          this.setState({
-            markdownOutput: this.renderMarkdown(this.state.markdownInput)
-          })
+          this.setState(
+            {
+              markdownOutput: this.renderMarkdown(this.state.markdownInput)
+            },
+            this.applyHighlighting
+          )
         }
 
         onInputChange = e => {
@@ -887,8 +1045,64 @@ Try editing this content to see the live preview!
 
       // Initialize highlight.js
       document.addEventListener('DOMContentLoaded', () => {
-        if (window.hljs) {
-          window.hljs.highlightAll()
+        console.log('DOM fully loaded')
+
+        // Try to initialize highlight.js again if it wasn't available earlier
+        if (!window.hljs) {
+          console.log(
+            'highlight.js not available at DOMContentLoaded, attempting to load it'
+          )
+          const script = document.createElement('script')
+          script.src =
+            'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js'
+          script.onload = () => {
+            console.log('highlight.js loaded successfully at DOMContentLoaded')
+            initializeHighlightJs()
+
+            // Apply highlighting to any existing code blocks
+            setTimeout(() => {
+              const codeBlocks = document.querySelectorAll('pre code')
+              console.log('Found', codeBlocks.length, 'code blocks at startup')
+              if (codeBlocks.length > 0) {
+                codeBlocks.forEach(block => {
+                  try {
+                    window.hljs.highlightBlock(block)
+                  } catch (e) {
+                    console.error('Error with highlightBlock:', e)
+                    try {
+                      window.hljs.highlightElement(block)
+                    } catch (e2) {
+                      console.error('Both highlighting methods failed:', e2)
+                    }
+                  }
+                })
+              }
+            }, 500)
+          }
+          document.head.appendChild(script)
+        } else {
+          console.log('highlight.js is available at DOMContentLoaded')
+          // Make sure highlighting is applied to any existing code blocks
+          setTimeout(() => {
+            const codeBlocks = document.querySelectorAll('pre code')
+            console.log('Found', codeBlocks.length, 'code blocks at startup')
+            if (codeBlocks.length > 0) {
+              codeBlocks.forEach(block => {
+                try {
+                  // Try the older API first
+                  window.hljs.highlightBlock(block)
+                } catch (e) {
+                  console.error('Error with highlightBlock:', e)
+                  // Fall back to the newer API
+                  try {
+                    window.hljs.highlightElement(block)
+                  } catch (e2) {
+                    console.error('Both highlighting methods failed:', e2)
+                  }
+                }
+              })
+            }
+          }, 500)
         }
       })
 
