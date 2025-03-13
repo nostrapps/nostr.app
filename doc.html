@@ -7,6 +7,10 @@
 
     <!-- CDN for nosdav-shim -->
     <script src="https://cdn.jsdelivr.net/npm/nosdav-shim@latest/dist/nosdav-shim.min.js"></script>
+    <!-- Import SweetAlert for notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Import secp256k1 for cryptographic operations -->
+    <script src="https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/lib/index.browser.js"></script>
 
     <style>
       body {
@@ -129,6 +133,29 @@
         clear: both;
         display: table;
       }
+
+      /* Login button styles */
+      #loginButton {
+        background-color: #008cba;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-left: 20px;
+      }
+
+      #loginButton:hover {
+        background-color: #006f8a;
+      }
+
+      /* Status indicator */
+      #loginStatus {
+        display: inline-block;
+        margin-left: 20px;
+        font-size: 14px;
+      }
     </style>
   </head>
   <body>
@@ -142,6 +169,13 @@
         Component
       } from 'https://cdn.jsdelivr.net/npm/htm@3.1.1/preact/standalone.module.js'
       import { marked } from 'https://cdn.jsdelivr.net/npm/marked@4.3.0/lib/marked.esm.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+
+      // Import navbar
+      import Navbar from './navbar.js'
+      import './nosdav-shim.js'
+
+      window.secp256k1 = secp256k1
 
       class MarkdownEditor extends Component {
         constructor() {
@@ -151,7 +185,9 @@
             uri,
             markdownInput: '',
             markdownOutput: '',
-            isDualView: false
+            isDualView: false,
+            isLoggedIn: localStorage.getItem('loggedIn') === 'true',
+            pubkey: localStorage.getItem('pubkey') || null
           }
         }
 
@@ -159,25 +195,299 @@
           if (this.state.uri) {
             this.fetchMarkdown(this.state.uri)
           }
+
+          // Check if user is already logged in
+          this.checkLoginStatus()
+
+          // Check for private key in URL hash
+          const hash = window.location.hash.substring(1)
+          if (hash && hash.length === 64 && /^[0-9a-fA-F]+$/.test(hash)) {
+            this.loginWithPrivkey(hash)
+            window.history.replaceState(
+              null,
+              null,
+              window.location.pathname + window.location.search
+            )
+          }
+        }
+
+        checkLoginStatus() {
+          const isLoggedIn = localStorage.getItem('loggedIn') === 'true'
+          const pubkey = localStorage.getItem('pubkey')
+
+          if (isLoggedIn && pubkey) {
+            this.setState({ isLoggedIn, pubkey })
+          }
+        }
+
+        handleLogin = async () => {
+          const { value: loginMethod } = await Swal.fire({
+            title: 'Login',
+            html: `
+              <button id="extensionLogin" class="swal2-confirm swal2-styled" style="display:block; width:100%; margin:10px auto;">Sign in with Nostr extension</button>
+              <input id="privkeyInput" type="text" placeholder="Or enter your 64-character hex private key" class="swal2-input" style="display:block; width:100%; margin:10px auto;">
+              <p style="margin-top: 10px; font-size: 0.9em;"><a href="https://nostrapps.github.io/extensions/" target="_blank">What is a Nostr extension?</a></p>
+            `,
+            showConfirmButton: false,
+            showCloseButton: true,
+            focusConfirm: false,
+            didOpen: () => {
+              const extensionButton =
+                Swal.getPopup().querySelector('#extensionLogin')
+              const privkeyInput =
+                Swal.getPopup().querySelector('#privkeyInput')
+
+              extensionButton.addEventListener('click', () => {
+                Swal.clickConfirm()
+              })
+
+              privkeyInput.addEventListener('keyup', e => {
+                if (e.key === 'Enter') {
+                  Swal.clickConfirm()
+                }
+              })
+
+              privkeyInput.addEventListener('paste', e => {
+                setTimeout(() => {
+                  if (
+                    privkeyInput.value.length === 64 &&
+                    /^[0-9a-fA-F]+$/.test(privkeyInput.value)
+                  ) {
+                    Swal.clickConfirm()
+                  }
+                }, 0)
+              })
+            },
+            preConfirm: () => {
+              const privkey =
+                Swal.getPopup().querySelector('#privkeyInput').value
+              if (
+                privkey &&
+                (privkey.length !== 64 || !/^[0-9a-fA-F]+$/.test(privkey))
+              ) {
+                Swal.showValidationMessage(
+                  'Invalid private key format. Please enter a 64-character hex string.'
+                )
+                return false
+              }
+              return {
+                loginMethod: privkey ? 'privkey' : 'extension',
+                privkey
+              }
+            }
+          })
+
+          if (loginMethod) {
+            if (loginMethod.loginMethod === 'privkey') {
+              this.loginWithPrivkey(loginMethod.privkey)
+            } else {
+              const storedPrivkey = localStorage.getItem('nostr:privkey')
+              if (storedPrivkey) {
+                this.loginWithPrivkey(storedPrivkey)
+              } else {
+                this.loginWithExtension()
+              }
+            }
+          }
+        }
+
+        loginWithExtension = async () => {
+          if (window.nostr) {
+            try {
+              const pubkey = await window.nostr.getPublicKey()
+              this.setState({ isLoggedIn: true, pubkey }, () => {
+                localStorage.setItem('loggedIn', 'true')
+                localStorage.setItem('pubkey', pubkey)
+                Swal.fire({
+                  title: 'Logged in!',
+                  text: 'You have successfully logged in with your Nostr extension.',
+                  icon: 'success',
+                  timer: 1000,
+                  showConfirmButton: false
+                })
+              })
+            } catch (error) {
+              console.error('Login failed:', error)
+              Swal.fire({
+                title: 'Login Failed',
+                text: 'There was an error logging in with your Nostr extension.',
+                icon: 'error',
+                timer: 1000,
+                showConfirmButton: false
+              })
+            }
+          } else {
+            Swal.fire({
+              title: 'Extension Not Found',
+              text: 'Nostr extension not found. Please install a Nostr browser extension.',
+              icon: 'warning',
+              timer: 1000,
+              showConfirmButton: false
+            })
+          }
+        }
+
+        loginWithPrivkey = async privkey => {
+          if (privkey) {
+            try {
+              const pubkey = secp256k1.utils.bytesToHex(
+                secp256k1.schnorr.getPublicKey(privkey)
+              )
+              this.setState({ isLoggedIn: true, pubkey }, () => {
+                localStorage.setItem('loggedIn', 'true')
+                localStorage.setItem('pubkey', pubkey)
+                localStorage.setItem('nostr:privkey', privkey)
+                Swal.fire({
+                  title: 'Logged in!',
+                  text: 'You have successfully logged in with your private key.',
+                  icon: 'success',
+                  timer: 1000,
+                  showConfirmButton: false
+                })
+              })
+            } catch (error) {
+              console.error('Login failed:', error)
+              Swal.fire({
+                title: 'Login Failed',
+                text: 'There was an error generating the public key from the provided private key.',
+                icon: 'error',
+                timer: 1000,
+                showConfirmButton: false
+              })
+            }
+          }
+        }
+
+        handleLogout = () => {
+          this.setState({ isLoggedIn: false, pubkey: null })
+          localStorage.setItem('loggedIn', 'false')
+          localStorage.removeItem('pubkey')
+          localStorage.removeItem('nostr:privkey')
+
+          Swal.fire({
+            title: 'Logged out!',
+            text: 'You have successfully logged out.',
+            icon: 'success',
+            timer: 1000,
+            showConfirmButton: false
+          })
         }
 
         fetchMarkdown = async uri => {
-          const response = await fetch(uri)
-          const markdownInput = await response.text()
-          this.setState({
-            markdownInput,
-            markdownOutput: marked(markdownInput)
-          })
+          try {
+            const response = await fetch(uri)
+            if (!response.ok) {
+              throw new Error(
+                `Failed to fetch: ${response.status} ${response.statusText}`
+              )
+            }
+            const markdownInput = await response.text()
+            this.setState({
+              uri,
+              markdownInput,
+              markdownOutput: marked(markdownInput)
+            })
+          } catch (error) {
+            console.error('Error fetching markdown:', error)
+            Swal.fire({
+              title: 'Error',
+              text: `Failed to fetch document: ${error.message}`,
+              icon: 'error'
+            })
+          }
         }
 
         saveMarkdown = async () => {
-          const response = await fetch(this.state.uri, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'text/markdown'
-            },
-            body: this.state.markdownInput
-          })
+          if (!this.state.isLoggedIn) {
+            Swal.fire({
+              title: 'Login Required',
+              text: 'You need to login with Nostr to save documents.',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: 'Login Now',
+              cancelButtonText: 'Cancel'
+            }).then(result => {
+              if (result.isConfirmed) {
+                this.handleLogin()
+              }
+            })
+            return
+          }
+
+          if (!this.state.uri) {
+            // If no URI is set, prompt the user to enter one
+            const { value: newUri } = await Swal.fire({
+              title: 'Save Document',
+              input: 'text',
+              inputLabel: 'Enter a URI to save the document',
+              inputPlaceholder: 'https://nosdav.net/your-pubkey/document.md',
+              showCancelButton: true,
+              inputValidator: value => {
+                if (!value) {
+                  return 'You need to enter a URI!'
+                }
+                if (!value.startsWith('https://')) {
+                  return 'URI must start with https://'
+                }
+              }
+            })
+
+            if (newUri) {
+              this.setState({ uri: newUri })
+              await this.performSave(newUri)
+            }
+          } else {
+            await this.performSave(this.state.uri)
+          }
+        }
+
+        performSave = async uri => {
+          try {
+            Swal.fire({
+              title: 'Saving...',
+              text: 'Please wait while we save your document.',
+              allowOutsideClick: false,
+              didOpen: () => {
+                Swal.showLoading()
+              }
+            })
+
+            const response = await fetch(uri, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'text/markdown'
+              },
+              body: this.state.markdownInput
+            })
+
+            if (!response.ok) {
+              throw new Error(
+                `Failed to save: ${response.status} ${response.statusText}`
+              )
+            }
+
+            Swal.fire({
+              title: 'Saved!',
+              text: 'Your document has been saved successfully.',
+              icon: 'success',
+              timer: 2000,
+              showConfirmButton: false
+            })
+
+            // Update URL with the new URI if it's not already there
+            const currentUrl = new URL(window.location.href)
+            if (currentUrl.searchParams.get('uri') !== uri) {
+              currentUrl.searchParams.set('uri', uri)
+              history.pushState(null, '', currentUrl.toString())
+            }
+          } catch (error) {
+            console.error('Error saving markdown:', error)
+            Swal.fire({
+              title: 'Error',
+              text: `Failed to save document: ${error.message}`,
+              icon: 'error'
+            })
+          }
         }
 
         updateOutput = () => {
@@ -226,7 +536,12 @@
             ? 'Show Preview Only'
             : 'Show Editor & Preview'
 
+          const loginButtonText = state.isLoggedIn
+            ? `Logout (${state.pubkey ? state.pubkey.substring(0, 8) : ''})`
+            : 'Login with Nostr'
+
           return html`
+            <${Navbar} />
             <div id="currentUri">
               <input
                 type="url"
@@ -243,6 +558,19 @@
               <button id="toggleViewButton" onClick=${this.toggleView}>
                 ${toggleButtonText}
               </button>
+              <button
+                id="loginButton"
+                onClick=${state.isLoggedIn
+                  ? this.handleLogout
+                  : this.handleLogin}
+              >
+                ${loginButtonText}
+              </button>
+              <span id="loginStatus">
+                ${state.isLoggedIn
+                  ? html`<span style="color: green;">✓ Logged in</span>`
+                  : html`<span style="color: red;">Not logged in</span>`}
+              </span>
             </div>
             <div class=${`${viewClass} clearfix`}>
               <div id="editor">
