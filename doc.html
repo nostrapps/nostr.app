@@ -1336,19 +1336,6 @@ Try editing this content to see the live preview!
               <button id="toggleViewButton" onClick=${this.toggleView}>
                 ${toggleButtonText}
               </button>
-              <button
-                id="loginButton"
-                onClick=${state.isLoggedIn
-                  ? this.handleLogout
-                  : this.handleLogin}
-              >
-                ${loginButtonText}
-              </button>
-              <span id="loginStatus">
-                ${state.isLoggedIn
-                  ? html`<span style="color: green;">✓ Logged in</span>`
-                  : html`<span style="color: red;">Not logged in</span>`}
-              </span>
             </div>
             <div class=${`${viewClass} clearfix`}>
               <div id="editor">
