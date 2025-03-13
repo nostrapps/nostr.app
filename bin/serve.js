@@ -5,8 +5,23 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-// Default port (can be overridden with environment variable)
-const PORT = process.env.PORT || 3000;
+// Parse command line arguments
+let port = 3313; // New default port
+const args = process.argv.slice(2);
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '-p' || args[i] === '--port') {
+    if (i + 1 < args.length) {
+      const portArg = parseInt(args[i + 1], 10);
+      if (!isNaN(portArg)) {
+        port = portArg;
+      }
+      i++; // Skip the next argument since we've used it
+    }
+  }
+}
+
+// Use environment variable as fallback if provided
+port = process.env.PORT || port;
 
 // MIME types for different file extensions
 const MIME_TYPES = {
@@ -105,7 +120,8 @@ const server = http.createServer((req, res) => {
 });
 
 // Start the server
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}/`);
+server.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}/`);
   console.log(`Serving files from: ${process.cwd()}`);
+  console.log(`Use -p or --port to specify a different port (default: 3222)`);
 }); 
