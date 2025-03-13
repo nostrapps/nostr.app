@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Split Screen Markdown Editor</title>
+
+    <!-- CDN for nosdav-shim -->
+    <script src="https://cdn.jsdelivr.net/npm/nosdav-shim@latest/dist/nosdav-shim.min.js"></script>
+
+    <style>
+      body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f0f0f0;
+        color: #333;
+      }
+      #editor,
+      #preview {
+        padding: 20px;
+        box-sizing: border-box;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin: 1%;
+      }
+
+      /* Dual view styles */
+      .dual-view #editor,
+      .dual-view #preview {
+        width: 48%;
+        float: left;
+      }
+
+      /* Single view styles */
+      .single-view #editor {
+        display: none;
+      }
+
+      .single-view #preview {
+        width: 98%;
+        margin: 1% auto;
+      }
+
+      #toggleViewButton {
+        background-color: #008cba;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-left: 20px;
+      }
+
+      #toggleViewButton:hover {
+        background-color: #006f8a;
+      }
+
+      #saveButton {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #008cba;
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      #saveButton:hover {
+        background-color: #006f8a;
+      }
+      #currentUri {
+        margin: 20px 0;
+        padding: 0 20px;
+        font-size: 18px;
+      }
+      #currentUri input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        width: 60%; /* Adjust the width as per your requirement */
+        font-size: 18px;
+        margin-right: 10px;
+        box-sizing: border-box;
+      }
+
+      #currentUri input:focus {
+        border-color: #008cba;
+      }
+
+      /* New styles for Go button */
+      #goButton {
+        background-color: #008cba;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      #goButton:hover {
+        background-color: #006f8a;
+      }
+
+      /* Optional: Style for tooltip */
+      #openNewTab {
+        position: relative;
+        cursor: pointer;
+      }
+
+      #openNewTab:hover::after {
+        content: 'Open in new tab';
+        position: absolute;
+        left: 0;
+        top: 25px;
+        background-color: #333;
+        color: white;
+        padding: 5px;
+        border-radius: 3px;
+        font-size: 14px;
+      }
+
+      /* Clear fix for floating elements */
+      .clearfix::after {
+        content: '';
+        clear: both;
+        display: table;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script type="module">
+      // Import from CDN instead of local files
+      import {
+        html,
+        render,
+        Component
+      } from 'https://cdn.jsdelivr.net/npm/htm@3.1.1/preact/standalone.module.js'
+      import { marked } from 'https://cdn.jsdelivr.net/npm/marked@4.3.0/lib/marked.esm.js'
+
+      class MarkdownEditor extends Component {
+        constructor() {
+          super()
+          const uri = new URLSearchParams(window.location.search).get('uri')
+          this.state = {
+            uri,
+            markdownInput: '',
+            markdownOutput: '',
+            isDualView: false
+          }
+        }
+
+        componentDidMount() {
+          if (this.state.uri) {
+            this.fetchMarkdown(this.state.uri)
+          }
+        }
+
+        fetchMarkdown = async uri => {
+          const response = await fetch(uri)
+          const markdownInput = await response.text()
+          this.setState({
+            markdownInput,
+            markdownOutput: marked(markdownInput)
+          })
+        }
+
+        saveMarkdown = async () => {
+          const response = await fetch(this.state.uri, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'text/markdown'
+            },
+            body: this.state.markdownInput
+          })
+        }
+
+        updateOutput = () => {
+          this.setState({
+            markdownOutput: marked(this.state.markdownInput)
+          })
+        }
+
+        onInputChange = e => {
+          this.setState(
+            {
+              markdownInput: e.target.value
+            },
+            this.updateOutput
+          )
+        }
+
+        handlePreviewClick = e => {
+          const target = e.target
+          if (target.tagName.toLowerCase() === 'a') {
+            const href = target.getAttribute('href')
+            if (href.endsWith('.md')) {
+              e.preventDefault()
+              const newUrl = new URL(window.location.href)
+              const currentUri = new URL(
+                newUrl.searchParams.get('uri'),
+                window.location.origin
+              )
+              const newUri = new URL(href, currentUri).toString()
+              newUrl.searchParams.set('uri', newUri)
+              history.pushState(null, '', newUrl.toString())
+              this.setState({ uri: newUri }, () => this.fetchMarkdown(newUri))
+            }
+          }
+        }
+
+        toggleView = () => {
+          this.setState({
+            isDualView: !this.state.isDualView
+          })
+        }
+
+        render(props, state) {
+          const viewClass = state.isDualView ? 'dual-view' : 'single-view'
+          const toggleButtonText = state.isDualView
+            ? 'Show Preview Only'
+            : 'Show Editor & Preview'
+
+          return html`
+            <div id="currentUri">
+              <input
+                type="url"
+                value=${state.uri}
+                onInput=${e => this.setState({ uri: e.target.value })}
+                placeholder="Enter the URI here"
+              />
+              <button
+                id="goButton"
+                onClick=${() => this.fetchMarkdown(state.uri)}
+              >
+                Go
+              </button>
+              <button id="toggleViewButton" onClick=${this.toggleView}>
+                ${toggleButtonText}
+              </button>
+            </div>
+            <div class=${`${viewClass} clearfix`}>
+              <div id="editor">
+                <textarea
+                  id="markdownInput"
+                  onInput=${this.onInputChange}
+                  style="width: 100%; height: 100vh"
+                  value=${state.markdownInput}
+                ></textarea>
+              </div>
+              <div
+                id="preview"
+                onClick=${this.handlePreviewClick}
+                dangerouslySetInnerHTML=${{ __html: state.markdownOutput }}
+              ></div>
+            </div>
+            <button id="saveButton" onClick=${this.saveMarkdown}>Save</button>
+          `
+        }
+      }
+
+      render(html`<${MarkdownEditor} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
