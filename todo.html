@@ -133,15 +133,80 @@
             isEditingTitle: false,
             editedTitle: '',
             availableUris: [],
-            currentUriIndex: 0
+            currentUriIndex: 0,
+            typeRegistrations: []
           }
         }
 
         componentDidMount() {
           // Add a small delay to ensure any URL hash login completes first
-          setTimeout(() => {
+          setTimeout(async () => {
+            // First check for publicTypeIndex.json
+            await this.checkPublicTypeIndex()
             this.initializeStorage()
           }, 200)
+        }
+
+        // Check for publicTypeIndex.json and load TypeRegistrations
+        async checkPublicTypeIndex() {
+          try {
+            const pubkey = localStorage.getItem('pubkey')
+            if (!pubkey) {
+              console.log('No pubkey found, skipping publicTypeIndex check')
+              return
+            }
+
+            const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
+            console.log(`Checking for publicTypeIndex at: ${typeIndexUrl}`)
+
+            const response = await fetch(typeIndexUrl)
+
+            if (response.status === 404) {
+              console.log('No publicTypeIndex.json found')
+              return
+            }
+
+            if (!response.ok) {
+              console.error(
+                'Error fetching publicTypeIndex.json:',
+                response.statusText
+              )
+              return
+            }
+
+            const typeIndex = await response.json()
+            console.log('Found publicTypeIndex.json:', typeIndex)
+
+            // Filter for TypeRegistration objects for Tracker class
+            const trackerRegistrations = typeIndex.filter(
+              item =>
+                item.type === 'TypeRegistration' && item.forClass === 'Tracker'
+            )
+
+            if (trackerRegistrations.length > 0) {
+              console.log('Found Tracker registrations:', trackerRegistrations)
+
+              // Convert instance paths to full URLs
+              const trackerUris = trackerRegistrations.map(reg => {
+                // Make sure the instance path starts with a slash
+                const instancePath = reg.instance.startsWith('/')
+                  ? reg.instance
+                  : `/${reg.instance}`
+
+                return `https://nosdav.net/${pubkey}${instancePath}`
+              })
+
+              console.log('Tracker URIs:', trackerUris)
+
+              // Update state with these URIs
+              this.setState({
+                availableUris: trackerUris,
+                typeRegistrations: trackerRegistrations
+              })
+            }
+          } catch (error) {
+            console.error('Error checking publicTypeIndex.json:', error)
+          }
         }
 
         // Parse URIs from query string
@@ -160,15 +225,18 @@
 
         // Storage handling
         getStorageProvider() {
-          // Check if custom todos URLs are provided in the query string
-          const availableUris = this.parseUrisFromQueryString()
+          // First check if we have URIs from TypeRegistrations
+          let availableUris = [...this.state.availableUris]
 
-          // Store the available URIs in state for later use
-          if (
-            availableUris.length > 0 &&
-            this.state.availableUris.length === 0
-          ) {
-            this.setState({ availableUris })
+          // If no TypeRegistration URIs, check query string
+          if (availableUris.length === 0) {
+            const queryUris = this.parseUrisFromQueryString()
+            availableUris = queryUris
+
+            // Store the available URIs in state for later use
+            if (queryUris.length > 0 && this.state.availableUris.length === 0) {
+              this.setState({ availableUris: queryUris })
+            }
           }
 
           // Get the current URI (either the selected one or the first one)
@@ -463,6 +531,7 @@
 
           // Check if using custom URL
           const hasMultipleUris = this.state.availableUris.length > 1
+          const showUriSelector = this.state.availableUris.length > 0
           const customTodosUrl =
             this.state.availableUris[this.state.currentUriIndex] || null
           const isUsingCustomUrl = !!customTodosUrl
@@ -501,7 +570,7 @@
                           <span class="ml-2 text-xs opacity-50">✏️</span>
                         </h1>
                       `}
-                  ${hasMultipleUris
+                  ${showUriSelector
                     ? html`
                         <div class="mb-6 text-center">
                           <div class="relative inline-block w-full max-w-xs">
@@ -521,14 +590,36 @@
                                 >
                                   ${this.state.availableUris.map(
                                     (uri, index) => {
-                                      // Extract a more readable name from the URI
-                                      const filename =
-                                        uri.split('/').pop() || uri
-                                      // Try to extract a more meaningful name if it's a JSON file
-                                      const displayName = filename.replace(
-                                        '.json',
-                                        ''
-                                      )
+                                      let displayName
+
+                                      // Check if we have a TypeRegistration for this URI
+                                      const typeReg =
+                                        this.state.typeRegistrations[index]
+                                      if (typeReg) {
+                                        // Extract the name from the instance path
+                                        const instancePath = typeReg.instance
+                                        const pathParts =
+                                          instancePath.split('/')
+                                        // Get the filename without extension
+                                        const filename =
+                                          pathParts[pathParts.length - 1]
+                                        displayName = filename.replace(
+                                          '.json',
+                                          ''
+                                        )
+                                        // Capitalize first letter
+                                        displayName =
+                                          displayName.charAt(0).toUpperCase() +
+                                          displayName.slice(1)
+                                      } else {
+                                        // Fall back to the old method for query string URIs
+                                        const filename =
+                                          uri.split('/').pop() || uri
+                                        displayName = filename.replace(
+                                          '.json',
+                                          ''
+                                        )
+                                      }
 
                                       return html`
                                         <option value=${index} key=${index}>
@@ -736,7 +827,9 @@
                                       d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                     />
                                   </svg>
-                                  Using custom URI
+                                  ${this.state.typeRegistrations.length > 0
+                                    ? 'Using registered trackers'
+                                    : 'Using custom URI'}
                                   ${hasMultipleUris
                                     ? html`<span
                                         class="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-white bg-opacity-30"
