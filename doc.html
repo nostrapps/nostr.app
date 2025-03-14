@@ -122,6 +122,22 @@
       #saveButton:hover {
         background-color: #006f8a;
       }
+      #saveButton::after {
+        content: 'Ctrl+S';
+        position: absolute;
+        top: -25px;
+        right: 0;
+        background-color: #333;
+        color: white;
+        padding: 5px;
+        border-radius: 3px;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      #saveButton:hover::after {
+        opacity: 1;
+      }
       #currentUri {
         margin: 20px 0;
         padding: 0 20px;
@@ -563,6 +579,7 @@
           this.handleDragEnter = this.handleDragEnter.bind(this)
           this.handleDragLeave = this.handleDragLeave.bind(this)
           this.handleDrop = this.handleDrop.bind(this)
+          this.handleKeyDown = this.handleKeyDown.bind(this)
         }
 
         // Add a dedicated method for applying syntax highlighting
@@ -743,6 +760,32 @@ Try editing this content to see the live preview!
             textarea.addEventListener('dragenter', this.handleDragEnter)
             textarea.addEventListener('dragleave', this.handleDragLeave)
             textarea.addEventListener('drop', this.handleDrop)
+          }
+
+          // Add keyboard shortcut for saving (Ctrl+S)
+          document.addEventListener('keydown', this.handleKeyDown)
+        }
+
+        componentWillUnmount() {
+          // Remove event listeners when component unmounts
+          document.removeEventListener('keydown', this.handleKeyDown)
+
+          const textarea = document.getElementById('markdownInput')
+          if (textarea) {
+            textarea.removeEventListener('paste', this.handlePaste)
+            textarea.removeEventListener('dragover', this.handleDragOver)
+            textarea.removeEventListener('dragenter', this.handleDragEnter)
+            textarea.removeEventListener('dragleave', this.handleDragLeave)
+            textarea.removeEventListener('drop', this.handleDrop)
+          }
+        }
+
+        // Handle keyboard shortcuts
+        handleKeyDown(e) {
+          // Ctrl+S to save
+          if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault() // Prevent browser's save dialog
+            this.saveMarkdown()
           }
         }
 
@@ -1399,7 +1442,13 @@ Try editing this content to see the live preview!
                 dangerouslySetInnerHTML=${{ __html: state.markdownOutput }}
               ></div>
             </div>
-            <button id="saveButton" onClick=${this.saveMarkdown}>Save</button>
+            <button
+              id="saveButton"
+              onClick=${this.saveMarkdown}
+              title="Save document (Ctrl+S)"
+            >
+              Save
+            </button>
           `
         }
       }
