@@ -192,7 +192,7 @@
                     console.error('No pubkey found for nosdav storage')
                     return false
                   }
-                  url = `https://nosdav.net/${pubkey}/todos.json`
+                  url = `https://nosdav.net/${pubkey}/public/todo/todo.json`
                 }
 
                 const response = await fetch(url, {
@@ -233,7 +233,7 @@
                     console.error('No pubkey found for nosdav storage')
                     return []
                   }
-                  url = `https://nosdav.net/${pubkey}/todos.json`
+                  url = `https://nosdav.net/${pubkey}/public/todo/todo.json`
                 }
 
                 const response = await fetch(url)
@@ -384,7 +384,7 @@
           } else {
             const pubkey = localStorage.getItem('pubkey')
             if (pubkey) {
-              const url = `https://nosdav.net/${pubkey}/todos.json`
+              const url = `https://nosdav.net/${pubkey}/public/todo/todo.json`
               window.open(url, '_blank')
             } else {
               alert('No pubkey found. Cannot open storage file.')
