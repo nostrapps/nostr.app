@@ -75,6 +75,33 @@
       .btn-primary:hover {
         opacity: 0.9;
       }
+
+      /* Custom select styling */
+      select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234a6fa5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1rem;
+        padding-right: 2.5rem;
+      }
+
+      select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(99, 192, 245, 0.25);
+      }
+
+      /* Style for dropdown options */
+      select option {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        color: var(--text-dark);
+        background-color: white;
+      }
+
+      select option:hover,
+      select option:focus {
+        background-color: var(--primary-light);
+      }
     </style>
   </head>
   <body>
@@ -104,7 +131,9 @@
             newTodo: '',
             storageType: '',
             isEditingTitle: false,
-            editedTitle: ''
+            editedTitle: '',
+            availableUris: [],
+            currentUriIndex: 0
           }
         }
 
@@ -115,11 +144,36 @@
           }, 200)
         }
 
+        // Parse URIs from query string
+        parseUrisFromQueryString() {
+          const urlParams = new URLSearchParams(window.location.search)
+          const uriParam = urlParams.get('uri')
+
+          if (!uriParam) return []
+
+          // Split by comma and trim each URI
+          return uriParam
+            .split(',')
+            .map(uri => uri.trim())
+            .filter(uri => uri)
+        }
+
         // Storage handling
         getStorageProvider() {
-          // Check if a custom todos URL is provided in the query string
-          const urlParams = new URLSearchParams(window.location.search)
-          const customTodosUrl = urlParams.get('uri')
+          // Check if custom todos URLs are provided in the query string
+          const availableUris = this.parseUrisFromQueryString()
+
+          // Store the available URIs in state for later use
+          if (
+            availableUris.length > 0 &&
+            this.state.availableUris.length === 0
+          ) {
+            this.setState({ availableUris })
+          }
+
+          // Get the current URI (either the selected one or the first one)
+          const customTodosUrl =
+            availableUris[this.state.currentUriIndex] || null
 
           // Use nosdav.net directly as the primary storage solution
           console.log('Using nosdav.net as primary storage')
@@ -321,8 +375,9 @@
         }
 
         openStorageFile = () => {
-          const urlParams = new URLSearchParams(window.location.search)
-          const customTodosUrl = urlParams.get('uri')
+          const availableUris = this.state.availableUris
+          const customTodosUrl =
+            availableUris[this.state.currentUriIndex] || null
 
           if (customTodosUrl) {
             window.open(customTodosUrl, '_blank')
@@ -383,6 +438,15 @@
           }
         }
 
+        // Handle URI selection change
+        handleUriChange = e => {
+          const newIndex = parseInt(e.target.value, 10)
+          this.setState({ currentUriIndex: newIndex }, () => {
+            // Reload todos from the new URI
+            this.initializeStorage()
+          })
+        }
+
         render() {
           // Filter todos to only display items with @type "Task"
           const taskItems = this.state.todos.filter(
@@ -398,8 +462,9 @@
             tracker && tracker.title ? tracker.title : 'Todo List'
 
           // Check if using custom URL
-          const urlParams = new URLSearchParams(window.location.search)
-          const customTodosUrl = urlParams.get('uri')
+          const hasMultipleUris = this.state.availableUris.length > 1
+          const customTodosUrl =
+            this.state.availableUris[this.state.currentUriIndex] || null
           const isUsingCustomUrl = !!customTodosUrl
 
           return html`
@@ -436,6 +501,68 @@
                           <span class="ml-2 text-xs opacity-50">✏️</span>
                         </h1>
                       `}
+                  ${hasMultipleUris
+                    ? html`
+                        <div class="mb-6 text-center">
+                          <div class="relative inline-block w-full max-w-xs">
+                            <div class="flex items-center">
+                              <label
+                                class="mr-3 text-sm font-medium"
+                                style="color: var(--primary-dark);"
+                              >
+                                Todo List:
+                              </label>
+                              <div class="relative flex-grow">
+                                <select
+                                  onChange=${this.handleUriChange}
+                                  value=${this.state.currentUriIndex}
+                                  class="w-full p-2.5 pl-4 pr-10 text-sm rounded-lg border appearance-none focus:outline-none focus:ring-2 focus:border-accent cursor-pointer"
+                                  style="border-color: var(--primary-light); background-color: white; color: var(--primary-dark); --tw-ring-color: var(--accent);"
+                                >
+                                  ${this.state.availableUris.map(
+                                    (uri, index) => {
+                                      // Extract a more readable name from the URI
+                                      const filename =
+                                        uri.split('/').pop() || uri
+                                      // Try to extract a more meaningful name if it's a JSON file
+                                      const displayName = filename.replace(
+                                        '.json',
+                                        ''
+                                      )
+
+                                      return html`
+                                        <option value=${index} key=${index}>
+                                          ${displayName}
+                                        </option>
+                                      `
+                                    }
+                                  )}
+                                </select>
+                                <div
+                                  class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2"
+                                >
+                                  <svg
+                                    class="w-4 h-4"
+                                    style="color: var(--primary);"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M19 9l-7 7-7-7"
+                                    ></path>
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      `
+                    : ''}
 
                   <div class="mb-4 text-center">
                     <div
@@ -495,11 +622,12 @@
                                   ${todo.title || todo.text}
                                   <a
                                     href=${(() => {
-                                      const urlParams = new URLSearchParams(
-                                        window.location.search
-                                      )
+                                      const availableUris =
+                                        this.state.availableUris
                                       const customTodosUrl =
-                                        urlParams.get('uri')
+                                        availableUris[
+                                          this.state.currentUriIndex
+                                        ] || null
                                       let basePath
 
                                       if (customTodosUrl) {
@@ -588,30 +716,101 @@
                   <div class="mt-6 text-center text-sm text-gray-500">
                     ${this.state.storageType === 'nosdav'
                       ? html`<div
-                          class="rounded-full px-3 py-1 inline-block"
+                          class="rounded-full px-4 py-2 inline-flex items-center justify-center"
                           style="background-color: rgba(99, 192, 245, 0.1); color: var(--primary);"
                         >
                           ${isUsingCustomUrl
-                            ? html`Using custom URI
-                                <span
-                                  class="text-xs opacity-70"
-                                  title="${customTodosUrl}"
-                                  >(hover to see URI)</span
-                                >`
-                            : `Using nosdav cloud storage`}
+                            ? html`
+                                <span class="flex items-center">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-4 w-4 mr-1.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                  Using custom URI
+                                  ${hasMultipleUris
+                                    ? html`<span
+                                        class="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-white bg-opacity-30"
+                                      >
+                                        ${this.state.currentUriIndex + 1} of
+                                        ${this.state.availableUris.length}
+                                      </span>`
+                                    : html`<span
+                                        class="ml-1.5 text-xs opacity-80 italic"
+                                        title="${customTodosUrl}"
+                                        >(hover to see URI)</span
+                                      >`}
+                                </span>
+                              `
+                            : html`
+                                <span class="flex items-center">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-4 w-4 mr-1.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+                                    />
+                                  </svg>
+                                  Using nosdav cloud storage
+                                </span>
+                              `}
                           <button
                             onClick=${this.openStorageFile}
-                            class="ml-2 text-white rounded-full px-2 py-0.5 text-xs"
+                            class="ml-3 text-white rounded-full px-2.5 py-1 text-xs flex items-center transition-all hover:bg-opacity-90"
                             style="background-color: var(--primary);"
                             title="Open storage file in new tab"
                           >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-3.5 w-3.5 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                              />
+                            </svg>
                             View File
                           </button>
                         </div>`
                       : html`<div
-                          class="rounded-full px-3 py-1 inline-block"
+                          class="rounded-full px-4 py-2 inline-flex items-center"
                           style="background-color: rgba(255, 193, 7, 0.1); color: #b45309;"
                         >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-4 w-4 mr-1.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
                           Using ${this.state.storageType} storage (nosdav not
                           available)
                         </div>`}
