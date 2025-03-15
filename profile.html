@@ -57,6 +57,8 @@
       import Navbar from './navbar.js'
       // Import secp256k1 for private key handling
       import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+      // Import nosdav-shim for nosdav storage
+      import './nosdav-shim.js'
 
       // Initialize htm with Preact
       const html = htm.bind(h)
@@ -104,6 +106,50 @@
         async fetchProfile(pubkey) {
           try {
             console.log('Fetching profile for pubkey:', pubkey)
+
+            // First try to load from nosdav
+            try {
+              console.log('Attempting to load profile from nosdav...')
+              const url = `https://nosdav.net/${pubkey}/index.json`
+              const response = await fetch(url)
+
+              if (response.ok) {
+                const profileData = await response.json()
+                console.log('Profile loaded from nosdav:', profileData)
+
+                // Convert subkeys string to array if it exists
+                const subkeysArray = profileData.subkeys
+                  ? typeof profileData.subkeys === 'string'
+                    ? profileData.subkeys
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(Boolean)
+                    : Array.isArray(profileData.subkeys)
+                    ? profileData.subkeys
+                    : []
+                  : []
+
+                this.setState({
+                  profile: {
+                    name: profileData.name || '',
+                    picture: profileData.picture || '',
+                    about: profileData.about || '',
+                    nip05: profileData.nip05 || '',
+                    pubkey: pubkey,
+                    subkeys: profileData.subkeys || ''
+                  },
+                  subkeysArray,
+                  loading: false
+                })
+
+                // Successfully loaded from nosdav, no need to check relays
+                return
+              }
+            } catch (nosdavError) {
+              console.error('Error loading from nosdav:', nosdavError)
+              // Continue to try loading from relays
+            }
+
             // Connect to relays using relayInit instead of SimplePool
             const relays = [
               'wss://relay.damus.io',
@@ -234,6 +280,31 @@
                   subkeysArray,
                   loading: false
                 })
+
+                // Also save to nosdav for future use
+                try {
+                  console.log('Syncing profile to nosdav...')
+                  const url = `https://nosdav.net/${pubkey}/index.json`
+
+                  const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profileData)
+                  })
+
+                  if (!response.ok) {
+                    console.error(
+                      'Error syncing to nosdav:',
+                      response.statusText
+                    )
+                  } else {
+                    console.log('Profile synced to nosdav successfully')
+                  }
+                } catch (nosdavError) {
+                  console.error('Error syncing to nosdav:', nosdavError)
+                }
               } catch (jsonError) {
                 console.error('Error parsing profile JSON:', jsonError)
                 this.setState({
@@ -331,6 +402,33 @@
 
             const pubs = pool.publish(relays, signedEvent)
             await Promise.all(pubs)
+
+            // Save to nosdav
+            try {
+              console.log('Saving profile to nosdav...')
+              const profileData = JSON.parse(profileContent)
+              const url = `https://nosdav.net/${pubkey}/index.json`
+
+              const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(profileData)
+              })
+
+              if (!response.ok) {
+                console.error('Error saving to nosdav:', response.statusText)
+                throw new Error(
+                  'Failed to save to nosdav: ' + response.statusText
+                )
+              }
+
+              console.log('Profile saved to nosdav successfully')
+            } catch (nosdavError) {
+              console.error('Error saving to nosdav:', nosdavError)
+              // Continue with success message even if nosdav fails, as we've published to relays
+            }
 
             Swal.fire({
               title: 'Success!',
@@ -647,6 +745,13 @@
                           >
                             Edit Nostr Profile
                           </h2>
+                          <div class="text-center mb-4">
+                            <span
+                              class="text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
+                            >
+                              Using nosdav cloud storage
+                            </span>
+                          </div>
                           <form class="space-y-4" onSubmit=${this.handleSubmit}>
                             <div class="flex flex-col items-center mb-6">
                               <img
