@@ -134,7 +134,8 @@
             editedTitle: '',
             availableUris: [],
             currentUriIndex: 0,
-            typeRegistrations: []
+            typeRegistrations: [],
+            saveError: null
           }
         }
 
@@ -271,7 +272,29 @@
                   body: JSON.stringify(data)
                 })
 
-                if (!response.ok) throw new Error('Network response was not ok')
+                if (!response.ok) {
+                  // Check if it's a 4xx error (client error)
+                  if (response.status >= 400 && response.status < 500) {
+                    // Show a user-friendly notification about needing an invite
+                    alert(
+                      `Unable to save to nosdav (Error ${response.status}): You may need an invite to save data.`
+                    )
+                    console.error(
+                      `Error saving to nosdav: ${response.status} ${response.statusText}`
+                    )
+                  } else {
+                    // For other errors, show a generic message
+                    alert(
+                      `Unable to save to nosdav (Error ${response.status}): ${response.statusText}`
+                    )
+                    console.error(
+                      `Error saving to nosdav: ${response.status} ${response.statusText}`
+                    )
+                  }
+                  throw new Error(
+                    `Network response was not ok: ${response.status} ${response.statusText}`
+                  )
+                }
                 console.log('Todos saved to nosdav successfully')
                 return true
               } catch (e) {
@@ -281,12 +304,28 @@
                   try {
                     localStorage.setItem('todos', JSON.stringify(data))
                     console.log('Todos saved to localStorage as fallback')
-                    return true
+                    // Notify user that data was saved to localStorage instead
+                    if (!e.message.includes('Network response was not ok')) {
+                      alert(
+                        'Your todos were saved to browser storage instead of nosdav due to a connection error.'
+                      )
+                    }
+                    return {
+                      success: false,
+                      error: e.message,
+                      fallbackUsed: true
+                    }
                   } catch (localErr) {
                     console.error('Error saving to localStorage:', localErr)
+                    alert('Unable to save your todos. Please try again later.')
+                    return {
+                      success: false,
+                      error: e.message,
+                      fallbackUsed: false
+                    }
                   }
                 }
-                return false
+                return { success: false, error: e.message, fallbackUsed: false }
               }
             },
             load: async () => {
@@ -387,7 +426,38 @@
           })
 
           const storage = this.getStorageProvider()
-          await storage.save(updatedTodos)
+          const saveResult = await storage.save(updatedTodos)
+
+          // Update state based on save result
+          if (saveResult === true) {
+            // Successful save
+            this.setState({ saveError: null })
+          } else if (saveResult && typeof saveResult === 'object') {
+            // Save failed but we have detailed error info
+            const errorMessage = saveResult.error || 'Unknown error'
+            const isInviteNeeded =
+              errorMessage.includes('401') ||
+              errorMessage.includes('403') ||
+              errorMessage.includes('404')
+
+            this.setState({
+              saveError: {
+                message: errorMessage,
+                needsInvite: isInviteNeeded,
+                fallbackUsed: saveResult.fallbackUsed
+              }
+            })
+          } else {
+            // Simple failure
+            this.setState({
+              saveError: {
+                message: 'Failed to save to nosdav',
+                needsInvite: false,
+                fallbackUsed: false
+              }
+            })
+          }
+
           console.log(`Todos saved to ${storage.type}`)
         }
 
@@ -664,6 +734,44 @@
                     </div>
                   </div>
 
+                  ${this.state.saveError
+                    ? html`
+                        <div
+                          class="mb-4 p-3 rounded-lg text-sm text-center"
+                          style="background-color: rgba(239, 68, 68, 0.1); color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.2);"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-5 w-5 inline-block mr-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                          ${this.state.saveError.needsInvite
+                            ? html`Your changes are saved locally but not synced
+                              to nosdav. You need an invite to save data.`
+                            : html`Your changes are saved locally but not synced
+                              to nosdav due to a connection error.`}
+                          ${this.state.saveError.needsInvite
+                            ? html``
+                            : html`<button
+                                onclick=${() =>
+                                  this.saveTodos(this.state.todos)}
+                                class="underline ml-1"
+                              >
+                                Try again
+                              </button>`}
+                        </div>
+                      `
+                    : ''}
+
                   <form onSubmit=${this.handleSubmit} class="mb-6">
                     <div class="flex items-center">
                       <input
@@ -861,6 +969,12 @@
                                     />
                                   </svg>
                                   Using nosdav cloud storage
+                                  ${this.state.saveError
+                                    ? html`<span
+                                        class="ml-1.5 text-xs text-red-500"
+                                        >(using local backup)</span
+                                      >`
+                                    : ''}
                                 </span>
                               `}
                           <button
