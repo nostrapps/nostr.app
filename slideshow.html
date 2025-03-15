@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>M3U Slideshow - Preact & HTM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#4a6fa5',
+              primaryDark: '#3a5683',
+              primaryLight: '#c5d5e5',
+              secondary: '#8fb8de',
+              accent: '#63c0f5',
+              softblue: '#a3c4f3',
+              softpurple: '#cfbaf0'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.9;
+          transform: scale(1.05);
+        }
+      }
+      .gradient-bg {
+        background: linear-gradient(135deg, #4a6fa5, #3a5683);
+      }
+      .text-shadow {
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .pulse-animation {
+        animation: pulse 3s infinite ease-in-out;
+      }
+
+      /* Slideshow specific styles */
+      .slideshow-container {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px 0;
+      }
+
+      .slideshow {
+        position: relative;
+        width: 100%;
+        height: 0;
+        padding-bottom: 75%; /* 4:3 Aspect Ratio */
+        margin: 0 auto;
+        overflow: hidden;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        background-color: rgba(0, 0, 0, 0.2);
+      }
+
+      .slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 1s ease-in-out, visibility 1s ease-in-out;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      .slide.active {
+        opacity: 1;
+        visibility: visible;
+        z-index: 1;
+      }
+
+      .slide img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: block;
+      }
+
+      .slide-caption {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 10px;
+        text-align: center;
+        font-size: 16px;
+      }
+
+      .slideshow-controls {
+        position: absolute;
+        bottom: 50px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        z-index: 10;
+      }
+
+      .slideshow-controls button {
+        background: rgba(255, 255, 255, 0.7);
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin: 0 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s;
+      }
+
+      .slideshow-controls button:hover {
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .slideshow-nav {
+        position: absolute;
+        bottom: 15px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        z-index: 10;
+      }
+
+      .slideshow-nav-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.5);
+        margin: 0 5px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .slideshow-nav-dot.active {
+        background: white;
+      }
+
+      .m3u-input {
+        width: 100%;
+        max-width: 500px;
+        margin-bottom: 20px;
+      }
+
+      /* Fullscreen mode styles */
+      .fullscreen-mode {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .fullscreen-mode img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      .fullscreen-mode .slide-caption {
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 15px;
+        text-align: center;
+        font-size: 18px;
+      }
+
+      .fullscreen-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255, 255, 255, 0.7);
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s;
+        z-index: 10;
+      }
+
+      .fullscreen-btn:hover {
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      .close-fullscreen-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.7);
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s;
+        z-index: 1001;
+      }
+
+      .close-fullscreen-btn:hover {
+        background: rgba(255, 255, 255, 0.9);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col gradient-bg">
+    <div id="navbar"></div>
+
+    <div
+      id="app"
+      class="flex-grow flex flex-col items-center justify-center p-4"
+    ></div>
+
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+      import Navbar from './navbar.js'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      // Initialize the navbar
+      const navbarContainer = document.getElementById('navbar')
+      if (navbarContainer) {
+        render(html`<${Navbar} />`, navbarContainer)
+      }
+
+      // Slideshow component
+      class Slideshow extends Component {
+        constructor(props) {
+          super(props)
+          this.state = {
+            images: [],
+            currentIndex: 0,
+            isPlaying: false,
+            m3uUrl: '',
+            error: null,
+            loading: false,
+            isFullscreen: false
+          }
+
+          this.slideInterval = null
+          this.slideDelay = 5000 // 5 seconds
+        }
+
+        componentDidMount() {
+          // Check for m3u URL in query string
+          const urlParams = new URLSearchParams(window.location.search)
+          const m3uParam = urlParams.get('uri') || urlParams.get('m3u')
+
+          if (m3uParam) {
+            this.setState({ m3uUrl: m3uParam }, () => {
+              this.loadM3uFile()
+            })
+          }
+
+          // Add debugging info to console
+          console.log('Slideshow component mounted')
+        }
+
+        componentDidUpdate(prevProps, prevState) {
+          // Log when the current slide changes
+          if (prevState.currentIndex !== this.state.currentIndex) {
+            console.log(
+              `Slide changed from ${prevState.currentIndex} to ${this.state.currentIndex}`
+            )
+
+            // Force browser to recalculate layout for the active slide
+            setTimeout(() => {
+              const activeSlide = document.querySelector('.slide.active')
+              if (activeSlide) {
+                activeSlide.style.display = 'none'
+                // Force reflow
+                void activeSlide.offsetHeight
+                activeSlide.style.display = 'flex'
+              }
+            }, 0)
+          }
+
+          // Log when images are loaded
+          if (prevState.images.length === 0 && this.state.images.length > 0) {
+            console.log(
+              `Images loaded: ${this.state.images.length} images available`
+            )
+          }
+        }
+
+        componentWillUnmount() {
+          this.stopSlideshow()
+        }
+
+        loadM3uFile = async () => {
+          const { m3uUrl } = this.state
+          if (!m3uUrl) return
+
+          this.setState({ loading: true, error: null })
+
+          try {
+            console.log(`Fetching M3U file from: ${m3uUrl}`)
+            const response = await fetch(m3uUrl)
+            if (!response.ok) {
+              throw new Error(
+                `Failed to fetch M3U file: ${response.statusText}`
+              )
+            }
+
+            const text = await response.text()
+            console.log(`M3U file content:`, text)
+            const images = this.parseM3uContent(text)
+            console.log(`Parsed images:`, images)
+
+            if (images.length === 0) {
+              throw new Error('No valid image URLs found in the M3U file')
+            }
+
+            this.setState(
+              {
+                images,
+                currentIndex: 0,
+                loading: false
+              },
+              () => {
+                // Auto-start slideshow if images were loaded
+                console.log(`Slideshow loaded with ${images.length} images`)
+                this.startSlideshow()
+              }
+            )
+          } catch (error) {
+            console.error('Error loading M3U file:', error)
+            this.setState({
+              error: error.message,
+              loading: false
+            })
+          }
+        }
+
+        parseM3uContent = content => {
+          // Split by newlines and filter out comments and empty lines
+          const lines = content
+            .split(/\r?\n/)
+            .filter(line => line.trim() !== '' && !line.startsWith('#'))
+
+          // Filter for image file extensions
+          const imageExtensions = [
+            '.jpg',
+            '.jpeg',
+            '.png',
+            '.gif',
+            '.webp',
+            '.bmp',
+            '.svg'
+          ]
+
+          // Get the base directory from the M3U URL to resolve relative paths
+          const baseUrl = this.getBaseUrl(this.state.m3uUrl)
+
+          // Filter for image files and resolve relative paths
+          const images = lines
+            .filter(url => {
+              const lowercaseUrl = url.toLowerCase()
+              return imageExtensions.some(ext => lowercaseUrl.endsWith(ext))
+            })
+            .map(url => {
+              // If the URL is relative (doesn't start with http:// or https://),
+              // resolve it relative to the M3U file's directory
+              if (!url.match(/^(https?:)?\/\//)) {
+                url = new URL(url, baseUrl).href
+              }
+
+              const filename = url.split('/').pop()
+              return {
+                url,
+                caption: filename
+              }
+            })
+
+          return images
+        }
+
+        // Helper method to get the base URL (directory) from a URL
+        getBaseUrl = url => {
+          try {
+            // Handle both http/https URLs and local file paths
+            const urlObj = new URL(url)
+            // Get the directory by removing everything after the last slash
+            const pathParts = urlObj.pathname.split('/')
+            pathParts.pop() // Remove the filename
+            urlObj.pathname = pathParts.join('/') + '/'
+            return urlObj.href
+          } catch (e) {
+            console.error('Error parsing URL:', e)
+            return url.substring(0, url.lastIndexOf('/') + 1)
+          }
+        }
+
+        startSlideshow = () => {
+          if (this.state.images.length === 0 || this.state.isPlaying) return
+
+          this.setState({ isPlaying: true })
+          this.slideInterval = setInterval(this.nextSlide, this.slideDelay)
+        }
+
+        stopSlideshow = () => {
+          if (this.slideInterval) {
+            clearInterval(this.slideInterval)
+            this.slideInterval = null
+          }
+          this.setState({ isPlaying: false })
+        }
+
+        togglePlayPause = () => {
+          if (this.state.isPlaying) {
+            this.stopSlideshow()
+          } else {
+            this.startSlideshow()
+          }
+        }
+
+        nextSlide = () => {
+          const { images, currentIndex } = this.state
+          if (images.length === 0) return
+
+          const newIndex = (currentIndex + 1) % images.length
+          console.log(`Moving to next slide: ${currentIndex} -> ${newIndex}`)
+
+          this.setState(
+            {
+              currentIndex: newIndex
+            },
+            () => {
+              console.log(`Current slide is now: ${this.state.currentIndex}`)
+            }
+          )
+        }
+
+        prevSlide = () => {
+          const { images, currentIndex } = this.state
+          if (images.length === 0) return
+
+          const newIndex = (currentIndex - 1 + images.length) % images.length
+          console.log(
+            `Moving to previous slide: ${currentIndex} -> ${newIndex}`
+          )
+
+          this.setState(
+            {
+              currentIndex: newIndex
+            },
+            () => {
+              console.log(`Current slide is now: ${this.state.currentIndex}`)
+            }
+          )
+        }
+
+        goToSlide = index => {
+          console.log(`Going directly to slide: ${index}`)
+          this.setState({ currentIndex: index }, () => {
+            console.log(`Current slide is now: ${this.state.currentIndex}`)
+          })
+        }
+
+        handleM3uUrlChange = e => {
+          this.setState({ m3uUrl: e.target.value })
+        }
+
+        handleSubmit = e => {
+          e.preventDefault()
+          this.loadM3uFile()
+        }
+
+        toggleFullscreen = () => {
+          // Stop slideshow when entering fullscreen
+          if (!this.state.isFullscreen && this.state.isPlaying) {
+            this.stopSlideshow()
+          }
+
+          this.setState(prevState => ({
+            isFullscreen: !prevState.isFullscreen
+          }))
+
+          // If exiting fullscreen and slideshow was playing before, restart it
+          if (this.state.isFullscreen && this.state.isPlaying) {
+            this.startSlideshow()
+          }
+        }
+
+        render() {
+          const {
+            images,
+            currentIndex,
+            isPlaying,
+            m3uUrl,
+            error,
+            loading,
+            isFullscreen
+          } = this.state
+
+          // Current image for fullscreen mode
+          const currentImage = images.length > 0 ? images[currentIndex] : null
+
+          return html`
+            <div class="flex flex-col items-center w-full">
+              ${isFullscreen && currentImage
+                ? html`
+                    <div class="fullscreen-mode">
+                      <img
+                        src=${currentImage.url}
+                        alt=${currentImage.caption}
+                      />
+                      <div class="slide-caption">${currentImage.caption}</div>
+                      <button
+                        class="close-fullscreen-btn"
+                        onClick=${this.toggleFullscreen}
+                        aria-label="Exit fullscreen"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  `
+                : null}
+
+              <div
+                class="text-center p-6 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl shadow-lg max-w-md mx-auto mb-6"
+              >
+                <h1
+                  class="text-3xl md:text-4xl font-bold mb-4 text-shadow text-white"
+                >
+                  M3U Slideshow
+                </h1>
+                <p class="text-md md:text-lg text-white opacity-90 mb-4">
+                  Load images from an M3U file and view them as a slideshow
+                </p>
+
+                <form onSubmit=${this.handleSubmit} class="m3u-input">
+                  <div class="flex flex-col md:flex-row gap-2">
+                    <input
+                      type="text"
+                      value=${m3uUrl}
+                      onInput=${this.handleM3uUrlChange}
+                      placeholder="Enter M3U file URL"
+                      class="flex-grow px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                    <button
+                      type="submit"
+                      class="bg-accent hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                      disabled=${loading}
+                    >
+                      ${loading ? 'Loading...' : 'Load'}
+                    </button>
+                  </div>
+                </form>
+
+                ${error &&
+                html`
+                  <div
+                    class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4"
+                  >
+                    ${error}
+                  </div>
+                `}
+              </div>
+
+              ${images.length > 0
+                ? html`
+                    <div class="slideshow-container">
+                      <div class="slideshow">
+                        ${images.map(
+                          (image, index) => html`
+                            <div
+                              class="slide ${index === currentIndex
+                                ? 'active'
+                                : ''}"
+                            >
+                              <img
+                                src=${image.url}
+                                alt=${image.caption}
+                                onLoad=${() =>
+                                  console.log(`Image loaded: ${image.url}`)}
+                                onError=${e => {
+                                  console.error(
+                                    `Failed to load image: ${image.url}`
+                                  )
+                                  e.target.src =
+                                    'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22600%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20600%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_15e8d59c792%20text%20%7B%20fill%3A%23ffffff%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_15e8d59c792%22%3E%3Crect%20width%3D%22800%22%20height%3D%22600%22%20fill%3D%22%23373940%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22285.9296875%22%20y%3D%22317.7%22%3EImage%20Load%20Error%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E'
+                                  e.target.style.opacity = '0.7'
+                                }}
+                              />
+                              <div class="slide-caption">${image.caption}</div>
+                            </div>
+                          `
+                        )}
+
+                        <button
+                          class="fullscreen-btn"
+                          onClick=${this.toggleFullscreen}
+                          aria-label="View fullscreen"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+                            ></path>
+                          </svg>
+                        </button>
+
+                        <div class="slideshow-controls">
+                          <button
+                            onClick=${this.prevSlide}
+                            aria-label="Previous slide"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                          </button>
+                          <button
+                            onClick=${this.togglePlayPause}
+                            aria-label=${isPlaying
+                              ? 'Pause slideshow'
+                              : 'Play slideshow'}
+                          >
+                            ${isPlaying
+                              ? html`
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                  >
+                                    <rect
+                                      x="6"
+                                      y="4"
+                                      width="4"
+                                      height="16"
+                                    ></rect>
+                                    <rect
+                                      x="14"
+                                      y="4"
+                                      width="4"
+                                      height="16"
+                                    ></rect>
+                                  </svg>
+                                `
+                              : html`
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                  >
+                                    <polygon
+                                      points="5 3 19 12 5 21 5 3"
+                                    ></polygon>
+                                  </svg>
+                                `}
+                          </button>
+                          <button
+                            onClick=${this.nextSlide}
+                            aria-label="Next slide"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            >
+                              <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div class="slideshow-nav">
+                          ${images.map(
+                            (_, index) => html`
+                              <div
+                                class="slideshow-nav-dot ${index ===
+                                currentIndex
+                                  ? 'active'
+                                  : ''}"
+                                onClick=${() => this.goToSlide(index)}
+                              ></div>
+                            `
+                          )}
+                        </div>
+                      </div>
+                      <div class="mt-4 text-center text-white">
+                        <p>
+                          Showing image ${currentIndex + 1} of ${images.length}
+                        </p>
+                      </div>
+                    </div>
+                  `
+                : html`
+                    <div
+                      class="bg-white bg-opacity-20 backdrop-blur-sm rounded-xl shadow-lg p-8 text-center"
+                    >
+                      <p class="text-white text-lg">
+                        ${loading
+                          ? 'Loading images...'
+                          : 'No images loaded. Enter an M3U URL to begin.'}
+                      </p>
+                    </div>
+                  `}
+            </div>
+          `
+        }
+      }
+
+      // Render the component to the DOM
+      render(html`<${Slideshow} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
