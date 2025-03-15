@@ -377,6 +377,14 @@
               <div id="imported-public-key-hex-text"></div>
             </div>
 
+            <h3>Imported Private Key (nsec)</h3>
+            <div id="imported-private-key" class="key-display visible">
+              <button class="copy-btn" data-copy="imported-private">
+                Copy
+              </button>
+              <div id="imported-private-key-text"></div>
+            </div>
+
             <h3>Imported Private Key (hex)</h3>
             <div id="imported-private-key-hex" class="key-display visible">
               <button class="copy-btn" data-copy="imported-private-hex">
@@ -390,6 +398,20 @@
                 Save Keys to Browser
               </button>
             </div>
+          </div>
+
+          <div
+            id="clear-keys-container"
+            style="margin-top: 30px; display: none"
+          >
+            <h3>Manage Stored Keys</h3>
+            <p>
+              If you want to remove your keys from browser storage, you can
+              clear them here.
+            </p>
+            <button id="clear-keys-btn" class="btn btn-secondary">
+              Clear Keys from Browser
+            </button>
           </div>
         </div>
       </div>
@@ -517,6 +539,21 @@
         localStorage.setItem('nostr:pubkey', keys.publicKeyHex)
         localStorage.setItem('nostr:privkey', keys.privateKeyHex)
         localStorage.setItem('loggedIn', 'true')
+
+        // Log the updated localStorage state
+        console.log('Keys saved to localStorage')
+        console.log('- nostr:pubkey:', keys.publicKeyHex)
+        console.log('- loggedIn: true')
+      }
+
+      // Clear keys from localStorage
+      function clearKeysFromLocalStorage() {
+        localStorage.removeItem('nostr:pubkey')
+        localStorage.removeItem('nostr:privkey')
+        localStorage.removeItem('loggedIn')
+
+        // Log the updated localStorage state
+        console.log('Keys cleared from localStorage')
       }
 
       // Download keys as a text file
@@ -578,11 +615,16 @@ Created: ${new Date().toISOString()}
           const publicKeyBytes = secp256k1.schnorr.getPublicKey(privateKeyHex)
           const publicKeyHex = bytesToHex(publicKeyBytes)
 
+          // Check if this matches the stored public key
+          const storedPubKey = localStorage.getItem('nostr:pubkey')
+          const isStoredKey = storedPubKey && storedPubKey === publicKeyHex
+
           return {
             privateKeyHex,
             privateKeyBytes: hexToBytes(privateKeyHex),
             publicKeyHex,
-            publicKeyBytes
+            publicKeyBytes,
+            isStoredKey
           }
         } catch (error) {
           console.error('Error processing key:', error)
@@ -595,6 +637,209 @@ Created: ${new Date().toISOString()}
 
       // Initialize the app
       document.addEventListener('DOMContentLoaded', () => {
+        // Debug function to log localStorage state
+        function debugLocalStorage() {
+          console.log('localStorage state:')
+          console.log('- nostr:pubkey:', localStorage.getItem('nostr:pubkey'))
+          console.log(
+            '- nostr:privkey:',
+            localStorage.getItem('nostr:privkey')
+              ? 'exists (not shown for security)'
+              : 'not set'
+          )
+          console.log('- loggedIn:', localStorage.getItem('loggedIn'))
+        }
+
+        // Log localStorage state on page load
+        debugLocalStorage()
+
+        // Check for existing keys in localStorage
+        function checkExistingKeys() {
+          const storedPrivKey = localStorage.getItem('nostr:privkey')
+          const storedPubKey = localStorage.getItem('nostr:pubkey')
+          const isLoggedIn = localStorage.getItem('loggedIn') === 'true'
+
+          // Pre-populate the import field if private key exists
+          if (storedPrivKey) {
+            console.log('Found stored private key in localStorage')
+            document.getElementById('import-key-input').value = storedPrivKey
+
+            // Show the clear keys container since we have a stored private key
+            document.getElementById('clear-keys-container').style.display =
+              'block'
+
+            // If we only have the private key but not the public key, show a notification
+            if (!storedPubKey) {
+              console.log(
+                'Found only private key in localStorage, no public key'
+              )
+              const importSection = document.querySelector(
+                '#import-tab .section'
+              )
+              const partialKeysNotice = document.createElement('div')
+              partialKeysNotice.className = 'alert'
+              partialKeysNotice.style.borderLeftColor = '#f59e0b' // Amber color
+              partialKeysNotice.style.backgroundColor = '#fffbeb'
+              partialKeysNotice.innerHTML = `
+                <div class="alert-title">⚠️ Partial Key Found in Browser Storage</div>
+                <p>We found a private key stored in your browser, but no corresponding public key.</p>
+                <p>The import field has been pre-populated with your private key. Click "Import Key" to derive the public key and complete the import.</p>
+              `
+
+              // Insert at the top of the import section
+              importSection.insertBefore(
+                partialKeysNotice,
+                importSection.firstChild
+              )
+            }
+          }
+
+          if (storedPrivKey && storedPubKey) {
+            console.log('Found stored keys in localStorage')
+
+            // Create a notification about existing keys
+            const importSection = document.querySelector('#import-tab .section')
+            const existingKeysNotice = document.createElement('div')
+            existingKeysNotice.className = 'alert'
+            existingKeysNotice.style.borderLeftColor = '#4ade80' // Green color
+            existingKeysNotice.style.backgroundColor = '#f0fdf4'
+            existingKeysNotice.innerHTML = `
+              <div class="alert-title">✅ Keys Found in Browser Storage</div>
+              <p>We found existing Nostr keys stored in your browser.</p>
+              <button id="load-stored-keys-btn" class="btn" style="margin-top: 10px;">Load Stored Keys</button>
+            `
+
+            // Insert at the top of the import section
+            importSection.insertBefore(
+              existingKeysNotice,
+              importSection.firstChild
+            )
+
+            // Show the clear keys container since we have stored keys
+            document.getElementById('clear-keys-container').style.display =
+              'block'
+
+            // Define the function to load stored keys
+            const loadStoredKeys = async () => {
+              try {
+                console.log('Loading stored keys from localStorage')
+                // Create a key pair from the stored private key
+                const keyPair = await processImportedKey(storedPrivKey)
+                if (keyPair) {
+                  const formattedKeys = formatKeys(keyPair)
+
+                  // Display the keys in the import result section
+                  document.getElementById(
+                    'imported-public-key-text'
+                  ).textContent = formattedKeys.npub
+                  document.getElementById(
+                    'imported-public-key-hex-text'
+                  ).textContent = formattedKeys.publicKeyHex
+                  document.getElementById(
+                    'imported-private-key-text'
+                  ).textContent = formattedKeys.nsec
+                  document.getElementById(
+                    'imported-private-key-hex-text'
+                  ).textContent = formattedKeys.privateKeyHex
+                  document.getElementById('import-result').style.display =
+                    'block'
+
+                  // Check if the imported key matches the specified prefix
+                  const prefixMatch = formattedKeys.publicKeyHex.startsWith(
+                    customPrefix.toLowerCase()
+                  )
+
+                  // Add prefix match notification
+                  let prefixNotice = document.getElementById(
+                    'prefix-match-notice'
+                  )
+                  if (!prefixNotice) {
+                    prefixNotice = document.createElement('div')
+                    prefixNotice.id = 'prefix-match-notice'
+                    prefixNotice.className = 'alert'
+                    document
+                      .getElementById('import-result')
+                      .prepend(prefixNotice)
+                  }
+
+                  if (prefixMatch) {
+                    prefixNotice.innerHTML = `<div class="alert-title">✅ Prefix Match</div>
+                    <p>This key's public key starts with the specified prefix: <strong>${customPrefix}</strong></p>`
+                    prefixNotice.style.borderLeftColor = '#4ade80' // Green color
+                    prefixNotice.style.backgroundColor = '#f0fdf4'
+                  } else {
+                    prefixNotice.innerHTML = `<div class="alert-title">⚠️ Prefix Mismatch</div>
+                    <p>This key's public key does not start with the specified prefix: <strong>${customPrefix}</strong></p>
+                    <p>Actual prefix: <strong>${formattedKeys.publicKeyHex.substring(
+                      0,
+                      customPrefix.length
+                    )}</strong></p>`
+                    prefixNotice.style.borderLeftColor = '#f97316' // Orange color
+                    prefixNotice.style.backgroundColor = '#fff7ed'
+                  }
+
+                  // Add stored key notification
+                  let storedKeyNotice =
+                    document.getElementById('stored-key-notice')
+                  if (!storedKeyNotice) {
+                    storedKeyNotice = document.createElement('div')
+                    storedKeyNotice.id = 'stored-key-notice'
+                    storedKeyNotice.className = 'alert'
+                    document
+                      .getElementById('import-result')
+                      .prepend(storedKeyNotice)
+                  }
+
+                  storedKeyNotice.innerHTML = `<div class="alert-title">✅ Currently Stored Key</div>
+                    <p>This is the key that is currently stored in your browser.</p>`
+                  storedKeyNotice.style.borderLeftColor = '#4ade80' // Green color
+                  storedKeyNotice.style.backgroundColor = '#f0fdf4'
+
+                  // Update the existing keys notice
+                  existingKeysNotice.innerHTML = `
+                  <div class="alert-title">✅ Keys Loaded Successfully</div>
+                  <p>Your stored keys have been loaded and are displayed below.</p>
+                `
+
+                  // Show the clear keys container
+                  document.getElementById(
+                    'clear-keys-container'
+                  ).style.display = 'block'
+                }
+              } catch (error) {
+                console.error('Error loading stored keys:', error)
+                existingKeysNotice.innerHTML = `
+                <div class="alert-title">❌ Error Loading Keys</div>
+                <p>There was a problem loading your stored keys. They may be corrupted or in an invalid format.</p>
+                <button id="retry-load-keys-btn" class="btn" style="margin-top: 10px;">Try Again</button>
+              `
+                document
+                  .getElementById('retry-load-keys-btn')
+                  .addEventListener('click', () => {
+                    checkExistingKeys()
+                  })
+              }
+            }
+
+            // Add event listener for the load stored keys button
+            document
+              .getElementById('load-stored-keys-btn')
+              .addEventListener('click', loadStoredKeys)
+
+            // If user is logged in, automatically switch to import tab and load keys
+            if (isLoggedIn) {
+              console.log('User is logged in, automatically loading keys')
+              // Switch to import tab
+              document.querySelector('.tab[data-tab="import"]').click()
+
+              // Automatically load the keys immediately
+              loadStoredKeys()
+            }
+          } else {
+            console.log('No stored keys found in localStorage')
+          }
+        }
+
         // Parse URL query parameters to get custom prefix
         function getQueryParam(param) {
           const urlParams = new URLSearchParams(window.location.search)
@@ -612,6 +857,9 @@ Created: ${new Date().toISOString()}
           )
           customPrefix = defaultPrefix
         }
+
+        // Call the function to check for existing keys after prefix is defined
+        checkExistingKeys()
 
         // Update the UI to show the current prefix
         const generateSection = document.querySelector(
@@ -705,12 +953,37 @@ Created: ${new Date().toISOString()}
               formattedKeys.privateKeyHex
             document.getElementById('keys-container').style.display = 'block'
 
+            // Remove any existing event listeners by cloning and replacing the buttons
+            const saveKeysBtn = document.getElementById('save-keys-btn')
+            const newSaveKeysBtn = saveKeysBtn.cloneNode(true)
+            saveKeysBtn.parentNode.replaceChild(newSaveKeysBtn, saveKeysBtn)
+
+            const downloadBtn = document.getElementById('download-btn')
+            const newDownloadBtn = downloadBtn.cloneNode(true)
+            downloadBtn.parentNode.replaceChild(newDownloadBtn, downloadBtn)
+
             // Save keys button
             document
               .getElementById('save-keys-btn')
               .addEventListener('click', () => {
                 saveKeysToLocalStorage(formattedKeys)
                 alert('Keys saved to browser storage!')
+
+                // Show the clear keys option in the import tab
+                document.getElementById('clear-keys-container').style.display =
+                  'block'
+
+                // Let the user know they can manage their keys in the import tab
+                const managementNotice = document.createElement('div')
+                managementNotice.className = 'alert'
+                managementNotice.style.marginTop = '20px'
+                managementNotice.innerHTML = `
+                  <div class="alert-title">Keys Saved Successfully</div>
+                  <p>Your keys have been saved to browser storage. You can manage your stored keys in the "Import Existing Keys" tab.</p>
+                `
+                document
+                  .getElementById('keys-container')
+                  .appendChild(managementNotice)
               })
 
             // Download button
@@ -745,16 +1018,31 @@ Created: ${new Date().toISOString()}
               customPrefix.toLowerCase()
             )
 
+            // Check if this is the currently stored key
+            const isStoredKey = keyPair.isStoredKey
+
             // Display public key
             document.getElementById('imported-public-key-text').textContent =
               formattedKeys.npub
             document.getElementById(
               'imported-public-key-hex-text'
             ).textContent = formattedKeys.publicKeyHex
+            document.getElementById('imported-private-key-text').textContent =
+              formattedKeys.nsec
             document.getElementById(
               'imported-private-key-hex-text'
             ).textContent = formattedKeys.privateKeyHex
             document.getElementById('import-result').style.display = 'block'
+
+            // Remove any existing event listeners by cloning and replacing the button
+            const saveImportedKeysBtn = document.getElementById(
+              'save-imported-keys-btn'
+            )
+            const newSaveImportedKeysBtn = saveImportedKeysBtn.cloneNode(true)
+            saveImportedKeysBtn.parentNode.replaceChild(
+              newSaveImportedKeysBtn,
+              saveImportedKeysBtn
+            )
 
             // Add prefix match notification
             let prefixNotice = document.getElementById('prefix-match-notice')
@@ -781,12 +1069,42 @@ Created: ${new Date().toISOString()}
               prefixNotice.style.backgroundColor = '#fff7ed'
             }
 
+            // Add stored key notification if applicable
+            let storedKeyNotice = document.getElementById('stored-key-notice')
+            if (!storedKeyNotice) {
+              storedKeyNotice = document.createElement('div')
+              storedKeyNotice.id = 'stored-key-notice'
+              storedKeyNotice.className = 'alert'
+              document.getElementById('import-result').prepend(storedKeyNotice)
+            }
+
+            if (isStoredKey) {
+              storedKeyNotice.innerHTML = `<div class="alert-title">✅ Currently Stored Key</div>
+                <p>This is the key that is currently stored in your browser.</p>`
+              storedKeyNotice.style.borderLeftColor = '#4ade80' // Green color
+              storedKeyNotice.style.backgroundColor = '#f0fdf4'
+
+              // Show the clear keys container since we're working with a stored key
+              document.getElementById('clear-keys-container').style.display =
+                'block'
+            } else {
+              storedKeyNotice.innerHTML = `<div class="alert-title">ℹ️ New Key</div>
+                <p>This is a different key than what is currently stored in your browser.</p>
+                <p>If you save this key, it will replace your currently stored key.</p>`
+              storedKeyNotice.style.borderLeftColor = '#3b82f6' // Blue color
+              storedKeyNotice.style.backgroundColor = '#eff6ff'
+            }
+
             // Save imported keys button
             document
               .getElementById('save-imported-keys-btn')
               .addEventListener('click', () => {
                 saveKeysToLocalStorage(formattedKeys)
                 alert('Keys saved to browser storage!')
+
+                // Show the clear keys container
+                document.getElementById('clear-keys-container').style.display =
+                  'block'
               })
           }
         })
@@ -804,6 +1122,10 @@ Created: ${new Date().toISOString()}
             } else if (type === 'imported-public') {
               text = document.getElementById(
                 'imported-public-key-text'
+              ).textContent
+            } else if (type === 'imported-private') {
+              text = document.getElementById(
+                'imported-private-key-text'
               ).textContent
             } else if (type === 'private-hex') {
               text = document.getElementById('private-key-hex').textContent
@@ -824,6 +1146,38 @@ Created: ${new Date().toISOString()}
             }
           })
         })
+
+        // Add event listener for the clear keys button
+        document
+          .getElementById('clear-keys-btn')
+          .addEventListener('click', () => {
+            if (
+              confirm(
+                'Are you sure you want to clear your keys from browser storage? This action cannot be undone.'
+              )
+            ) {
+              clearKeysFromLocalStorage()
+              alert('Keys have been cleared from browser storage.')
+
+              // Hide the clear keys container
+              document.getElementById('clear-keys-container').style.display =
+                'none'
+
+              // Remove the existing keys notice if it exists
+              const existingKeysNotice = document.querySelector(
+                '#import-tab .section .alert'
+              )
+              if (existingKeysNotice) {
+                existingKeysNotice.remove()
+              }
+
+              // Hide the import result
+              document.getElementById('import-result').style.display = 'none'
+
+              // Clear the import key input
+              document.getElementById('import-key-input').value = ''
+            }
+          })
       })
     </script>
   </body>
