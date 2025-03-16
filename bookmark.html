@@ -137,10 +137,12 @@
       const html = htm.bind(h)
 
       // Utility function to get the bookmarks URL
-      const getBookmarksUrl = () => {
+      const getBookmarksUrl = (customUrl = null) => {
+        if (customUrl) return customUrl
+
         const pubkey = localStorage.getItem('pubkey')
         if (!pubkey) return null
-        return `https://nosdav.net/${pubkey}/public/boookmark/bookmark.json`
+        return `https://nosdav.net/${pubkey}/public/bookmark/bookmark.json`
       }
 
       // Default categories
@@ -162,22 +164,129 @@
             bookmarks: [],
             newBookmark: { title: '', url: '', category: 'Development' },
             selectedCategory: 'All Categories',
-            searchQuery: ''
+            searchQuery: '',
+            availableUris: [],
+            currentUriIndex: 0,
+            typeRegistrations: [],
+            storageType: 'nosdav'
           }
-          this.loadBookmarks()
         }
 
         componentDidMount() {
-          this.loadBookmarks()
+          // Add a small delay to ensure any URL hash login completes first
+          setTimeout(async () => {
+            // First check for publicTypeIndex.json
+            await this.checkPublicTypeIndex()
+            this.loadBookmarks()
+          }, 200)
+        }
+
+        // Check for publicTypeIndex.json and load TypeRegistrations
+        async checkPublicTypeIndex() {
+          try {
+            const pubkey = localStorage.getItem('pubkey')
+            if (!pubkey) {
+              console.log('No pubkey found, skipping publicTypeIndex check')
+              return
+            }
+
+            const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
+            console.log(`Checking for publicTypeIndex at: ${typeIndexUrl}`)
+
+            const response = await fetch(typeIndexUrl)
+
+            if (response.status === 404) {
+              console.log('No publicTypeIndex.json found')
+              return
+            }
+
+            if (!response.ok) {
+              console.error(
+                'Error fetching publicTypeIndex.json:',
+                response.statusText
+              )
+              return
+            }
+
+            const typeIndex = await response.json()
+            console.log('Found publicTypeIndex.json:', typeIndex)
+
+            // Filter for TypeRegistration objects for Bookmark class
+            const bookmarkRegistrations = typeIndex.filter(
+              item =>
+                item.type === 'TypeRegistration' &&
+                item.forClass === 'BookmarkCollection'
+            )
+
+            if (bookmarkRegistrations.length > 0) {
+              console.log(
+                'Found Bookmark registrations:',
+                bookmarkRegistrations
+              )
+
+              // Convert instance paths to full URLs
+              const bookmarkUris = bookmarkRegistrations.map(reg => {
+                // Make sure the instance path starts with a slash
+                const instancePath = reg.instance.startsWith('/')
+                  ? reg.instance
+                  : `/${reg.instance}`
+
+                return `https://nosdav.net/${pubkey}${instancePath}`
+              })
+
+              console.log('Bookmark URIs:', bookmarkUris)
+
+              // Update state with these URIs
+              this.setState({
+                availableUris: bookmarkUris,
+                typeRegistrations: bookmarkRegistrations
+              })
+            }
+          } catch (error) {
+            console.error('Error checking publicTypeIndex.json:', error)
+          }
+        }
+
+        // Parse URIs from query string
+        parseUrisFromQueryString() {
+          const urlParams = new URLSearchParams(window.location.search)
+          const uriParam = urlParams.get('uri')
+
+          if (!uriParam) return []
+
+          // Split by comma and trim each URI
+          return uriParam
+            .split(',')
+            .map(uri => uri.trim())
+            .filter(uri => uri)
         }
 
         // Storage handling
         getStorageProvider() {
+          // First check if we have URIs from TypeRegistrations
+          let availableUris = [...this.state.availableUris]
+
+          // If no TypeRegistration URIs, check query string
+          if (availableUris.length === 0) {
+            const queryUris = this.parseUrisFromQueryString()
+            availableUris = queryUris
+
+            // Store the available URIs in state for later use
+            if (queryUris.length > 0 && this.state.availableUris.length === 0) {
+              this.setState({ availableUris: queryUris })
+            }
+          }
+
+          // Get the current URI (either the selected one or the first one)
+          const customBookmarksUrl =
+            availableUris[this.state.currentUriIndex] || null
+
           // Use nosdav.net directly as the primary storage solution
           console.log('Using nosdav.net as primary storage')
           return {
             type: 'nosdav',
             isPrimary: true,
+            customUrl: customBookmarksUrl,
             save: async data => {
               try {
                 const pubkey = localStorage.getItem('pubkey')
@@ -186,7 +295,7 @@
                   return false
                 }
 
-                const url = getBookmarksUrl()
+                const url = getBookmarksUrl(customBookmarksUrl)
                 const response = await fetch(url, {
                   method: 'PUT',
                   headers: {
@@ -221,7 +330,11 @@
                   return []
                 }
 
-                const url = getBookmarksUrl()
+                const url = getBookmarksUrl(customBookmarksUrl)
+                if (customBookmarksUrl) {
+                  console.log(`Using URI from settings: ${url}`)
+                }
+
                 const response = await fetch(url)
 
                 if (response.status === 404) {
@@ -352,12 +465,29 @@
         }
 
         openStorageFile = () => {
-          const url = getBookmarksUrl()
-          if (url) {
-            window.open(url, '_blank')
+          const availableUris = this.state.availableUris
+          const customBookmarksUrl =
+            availableUris[this.state.currentUriIndex] || null
+
+          if (customBookmarksUrl) {
+            window.open(customBookmarksUrl, '_blank')
           } else {
-            alert('No pubkey found. Cannot open storage file.')
+            const url = getBookmarksUrl()
+            if (url) {
+              window.open(url, '_blank')
+            } else {
+              alert('No pubkey found. Cannot open storage file.')
+            }
           }
+        }
+
+        // Handle URI selection change
+        handleUriChange = e => {
+          const newIndex = parseInt(e.target.value, 10)
+          this.setState({ currentUriIndex: newIndex }, () => {
+            // Reload bookmarks from the new URI
+            this.loadBookmarks()
+          })
         }
 
         getFilteredBookmarks() {
@@ -384,6 +514,13 @@
         render() {
           const storage = this.getStorageProvider()
           const filteredBookmarks = this.getFilteredBookmarks()
+
+          // Check if using custom URL
+          const hasMultipleUris = this.state.availableUris.length > 1
+          const showUriSelector = this.state.availableUris.length > 0
+          const customBookmarksUrl =
+            this.state.availableUris[this.state.currentUriIndex] || null
+          const isUsingCustomUrl = !!customBookmarksUrl
 
           return html`
             <div class="min-h-screen flex flex-col">
@@ -419,6 +556,56 @@
                         Using ${storage.type} storage (nosdav not available)
                       </div>`}
                 </div>
+
+                ${showUriSelector
+                  ? html`
+                      <div class="mb-6">
+                        <div class="flex items-center">
+                          <label class="mr-3 text-sm font-medium text-gray-700">
+                            Bookmark List:
+                          </label>
+                          <div class="relative flex-grow max-w-xs">
+                            <select
+                              onChange=${this.handleUriChange}
+                              value=${this.state.currentUriIndex}
+                              class="categories-dropdown w-full appearance-none focus:outline-none focus:ring-2 focus:border-blue-500 cursor-pointer"
+                            >
+                              ${this.state.availableUris.map((uri, index) => {
+                                let displayName
+
+                                // Check if we have a TypeRegistration for this URI
+                                const typeReg =
+                                  this.state.typeRegistrations[index]
+                                if (typeReg) {
+                                  // Extract the name from the instance path
+                                  const instancePath = typeReg.instance
+                                  const pathParts = instancePath.split('/')
+                                  // Get the filename without extension
+                                  const filename =
+                                    pathParts[pathParts.length - 1]
+                                  displayName = filename.replace('.json', '')
+                                  // Capitalize first letter
+                                  displayName =
+                                    displayName.charAt(0).toUpperCase() +
+                                    displayName.slice(1)
+                                } else {
+                                  // Fall back to the old method for query string URIs
+                                  const filename = uri.split('/').pop() || uri
+                                  displayName = filename.replace('.json', '')
+                                }
+
+                                return html`
+                                  <option value=${index} key=${index}>
+                                    ${displayName}
+                                  </option>
+                                `
+                              })}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    `
+                  : ''}
 
                 <div class="flex justify-between items-center mb-6">
                   <select
@@ -693,6 +880,110 @@
                 </div>
               </main>
 
+              <div class="mt-6 text-center text-sm text-gray-500">
+                ${storage.type === 'nosdav'
+                  ? html`<div
+                      class="rounded-full px-4 py-2 inline-flex items-center justify-center"
+                      style="background-color: rgba(99, 192, 245, 0.1); color: var(--primary);"
+                    >
+                      ${isUsingCustomUrl
+                        ? html`
+                            <span class="flex items-center">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-4 w-4 mr-1.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              ${this.state.typeRegistrations.length > 0
+                                ? 'Using registered bookmarks'
+                                : 'Using custom URI'}
+                              ${hasMultipleUris
+                                ? html`<span
+                                    class="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-white bg-opacity-30"
+                                  >
+                                    ${this.state.currentUriIndex + 1} of
+                                    ${this.state.availableUris.length}
+                                  </span>`
+                                : html`<span
+                                    class="ml-1.5 text-xs opacity-80 italic"
+                                    title="${customBookmarksUrl}"
+                                    >(hover to see URI)</span
+                                  >`}
+                            </span>
+                          `
+                        : html`
+                            <span class="flex items-center">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-4 w-4 mr-1.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+                                />
+                              </svg>
+                              Using nosdav cloud storage
+                            </span>
+                          `}
+                      <button
+                        onClick=${this.openStorageFile}
+                        class="ml-3 text-white rounded-full px-2.5 py-1 text-xs flex items-center transition-all hover:bg-opacity-90"
+                        style="background-color: var(--primary);"
+                        title="Open storage file in new tab"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          class="h-3.5 w-3.5 mr-1"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                        View File
+                      </button>
+                    </div>`
+                  : html`<div
+                      class="rounded-full px-4 py-2 inline-flex items-center"
+                      style="background-color: rgba(255, 193, 7, 0.1); color: #b45309;"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-4 w-4 mr-1.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                      Using ${storage.type} storage (nosdav not available)
+                    </div>`}
+              </div>
+
               <footer class="text-center py-4 text-gray-500 text-sm">
                 <p>© ${new Date().getFullYear()} Bookmark Manager</p>
               </footer>
@@ -709,7 +1000,51 @@
               const pubkey = localStorage.getItem('pubkey')
               if (!pubkey) return []
 
-              const url = getBookmarksUrl()
+              // Check for URIs in query string
+              const urlParams = new URLSearchParams(window.location.search)
+              const uriParam = urlParams.get('uri')
+              let customUrl = null
+
+              if (uriParam) {
+                // Use the first URI from the query string
+                const uris = uriParam
+                  .split(',')
+                  .map(uri => uri.trim())
+                  .filter(uri => uri)
+                if (uris.length > 0) {
+                  customUrl = uris[0]
+                }
+              }
+
+              // If no custom URL, check for publicTypeIndex.json
+              if (!customUrl) {
+                try {
+                  const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
+                  const typeIndexResponse = await fetch(typeIndexUrl)
+
+                  if (typeIndexResponse.ok) {
+                    const typeIndex = await typeIndexResponse.json()
+                    const bookmarkRegistrations = typeIndex.filter(
+                      item =>
+                        item.type === 'TypeRegistration' &&
+                        item.forClass === 'BookmarkCollection'
+                    )
+
+                    if (bookmarkRegistrations.length > 0) {
+                      // Use the first bookmark registration
+                      const reg = bookmarkRegistrations[0]
+                      const instancePath = reg.instance.startsWith('/')
+                        ? reg.instance
+                        : `/${reg.instance}`
+                      customUrl = `https://nosdav.net/${pubkey}${instancePath}`
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error checking publicTypeIndex.json:', error)
+                }
+              }
+
+              const url = customUrl || getBookmarksUrl()
               const response = await fetch(url)
               if (response.status === 404) return []
               if (!response.ok) throw new Error('Network response was not ok')
@@ -730,7 +1065,51 @@
                 return
               }
 
-              const url = getBookmarksUrl()
+              // Check for URIs in query string
+              const urlParams = new URLSearchParams(window.location.search)
+              const uriParam = urlParams.get('uri')
+              let customUrl = null
+
+              if (uriParam) {
+                // Use the first URI from the query string
+                const uris = uriParam
+                  .split(',')
+                  .map(uri => uri.trim())
+                  .filter(uri => uri)
+                if (uris.length > 0) {
+                  customUrl = uris[0]
+                }
+              }
+
+              // If no custom URL, check for publicTypeIndex.json
+              if (!customUrl) {
+                try {
+                  const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
+                  const typeIndexResponse = await fetch(typeIndexUrl)
+
+                  if (typeIndexResponse.ok) {
+                    const typeIndex = await typeIndexResponse.json()
+                    const bookmarkRegistrations = typeIndex.filter(
+                      item =>
+                        item.type === 'TypeRegistration' &&
+                        item.forClass === 'BookmarkCollection'
+                    )
+
+                    if (bookmarkRegistrations.length > 0) {
+                      // Use the first bookmark registration
+                      const reg = bookmarkRegistrations[0]
+                      const instancePath = reg.instance.startsWith('/')
+                        ? reg.instance
+                        : `/${reg.instance}`
+                      customUrl = `https://nosdav.net/${pubkey}${instancePath}`
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error checking publicTypeIndex.json:', error)
+                }
+              }
+
+              const url = customUrl || getBookmarksUrl()
               await fetch(url, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
