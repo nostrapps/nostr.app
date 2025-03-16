@@ -136,6 +136,13 @@
       // Initialize htm with Preact
       const html = htm.bind(h)
 
+      // Utility function to get the bookmarks URL
+      const getBookmarksUrl = () => {
+        const pubkey = localStorage.getItem('pubkey')
+        if (!pubkey) return null
+        return `https://nosdav.net/${pubkey}/public/boookmark/bookmark.json`
+      }
+
       // Default categories
       const DEFAULT_CATEGORIES = [
         'Development',
@@ -179,7 +186,7 @@
                   return false
                 }
 
-                const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+                const url = getBookmarksUrl()
                 const response = await fetch(url, {
                   method: 'PUT',
                   headers: {
@@ -214,7 +221,7 @@
                   return []
                 }
 
-                const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+                const url = getBookmarksUrl()
                 const response = await fetch(url)
 
                 if (response.status === 404) {
@@ -345,9 +352,8 @@
         }
 
         openStorageFile = () => {
-          const pubkey = localStorage.getItem('pubkey')
-          if (pubkey) {
-            const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+          const url = getBookmarksUrl()
+          if (url) {
             window.open(url, '_blank')
           } else {
             alert('No pubkey found. Cannot open storage file.')
@@ -703,7 +709,7 @@
               const pubkey = localStorage.getItem('pubkey')
               if (!pubkey) return []
 
-              const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+              const url = getBookmarksUrl()
               const response = await fetch(url)
               if (response.status === 404) return []
               if (!response.ok) throw new Error('Network response was not ok')
@@ -724,7 +730,7 @@
                 return
               }
 
-              const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+              const url = getBookmarksUrl()
               await fetch(url, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
