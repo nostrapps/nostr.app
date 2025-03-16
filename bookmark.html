@@ -7,21 +7,21 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       :root {
-        --primary: #4a6fa5;
-        --primary-dark: #3a5683;
-        --primary-light: #c5d5e5;
-        --secondary: #8fb8de;
-        --accent: #63c0f5;
+        --primary: #3b82f6;
+        --primary-dark: #2563eb;
+        --primary-light: #dbeafe;
+        --secondary: #93c5fd;
+        --accent: #3b82f6;
         --text-light: #ffffff;
         --text-dark: #334155;
-        --card-bg: #f0f7ff;
+        --card-bg: #ffffff;
         --body-bg: #f8fafc;
         --sidebar-width: 230px;
         --header-height: 60px;
-        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05);
         --radius-sm: 6px;
-        --radius-md: 12px;
+        --radius-md: 8px;
       }
 
       body {
@@ -29,15 +29,91 @@
         min-height: 100vh;
       }
       .bookmark-card {
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
+        border: 1px solid #e5e7eb;
       }
       .bookmark-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
       }
       .add-form {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(10px);
+        background: #ffffff;
+      }
+      .category-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+      }
+      .category-badge.development {
+        background-color: #dbeafe;
+        color: #1e40af;
+      }
+      .category-badge.design {
+        background-color: #fce7f3;
+        color: #9d174d;
+      }
+      .category-badge.productivity {
+        background-color: #d1fae5;
+        color: #065f46;
+      }
+      .category-badge.education {
+        background-color: #fef3c7;
+        color: #92400e;
+      }
+      .category-badge.entertainment {
+        background-color: #e0e7ff;
+        color: #3730a3;
+      }
+      .category-badge.social {
+        background-color: #fee2e2;
+        color: #991b1b;
+      }
+      .category-badge.news {
+        background-color: #f3f4f6;
+        color: #1f2937;
+      }
+      .category-badge.other {
+        background-color: #e5e7eb;
+        color: #4b5563;
+      }
+      .add-bookmark-btn {
+        background-color: var(--primary);
+        color: white;
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+      }
+      .add-bookmark-btn:hover {
+        background-color: var(--primary-dark);
+      }
+      .search-input {
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 1rem;
+        padding-right: 2.5rem;
+        width: 100%;
+        max-width: 300px;
+      }
+      .search-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+      }
+      .categories-dropdown {
+        border: 1px solid #e5e7eb;
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 1rem;
+        background-color: white;
+        min-width: 180px;
+      }
+      .categories-dropdown:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
       }
     </style>
   </head>
@@ -60,12 +136,26 @@
       // Initialize htm with Preact
       const html = htm.bind(h)
 
+      // Default categories
+      const DEFAULT_CATEGORIES = [
+        'Development',
+        'Design',
+        'Productivity',
+        'Education',
+        'Entertainment',
+        'Social',
+        'News',
+        'Other'
+      ]
+
       class BookmarkApp extends Component {
         constructor() {
           super()
           this.state = {
             bookmarks: [],
-            newBookmark: { title: '', url: '' }
+            newBookmark: { title: '', url: '', category: 'Development' },
+            selectedCategory: 'All Categories',
+            searchQuery: ''
           }
           this.loadBookmarks()
         }
@@ -166,16 +256,17 @@
           const storage = this.getStorageProvider()
           const bookmarks = await storage.load()
 
-          // Ensure all bookmarks have the @type property
+          // Ensure all bookmarks have the @type property and a category
           const updatedBookmarks = bookmarks.map(bookmark => ({
             ...bookmark,
-            '@type': bookmark['@type'] || 'Bookmark'
+            '@type': bookmark['@type'] || 'Bookmark',
+            category: bookmark.category || 'Development'
           }))
 
           this.setState({ bookmarks: updatedBookmarks })
           console.log(`Bookmarks loaded from ${storage.type}`)
 
-          // Save if any bookmarks were updated with @type
+          // Save if any bookmarks were updated with @type or category
           if (JSON.stringify(bookmarks) !== JSON.stringify(updatedBookmarks)) {
             this.saveBookmarks()
           }
@@ -191,9 +282,17 @@
           })
         }
 
+        handleCategoryChange = e => {
+          this.setState({ selectedCategory: e.target.value })
+        }
+
+        handleSearchChange = e => {
+          this.setState({ searchQuery: e.target.value })
+        }
+
         addBookmark = e => {
           e.preventDefault()
-          const { title, url } = this.state.newBookmark
+          const { title, url, category } = this.state.newBookmark
 
           if (!title || !url) return
 
@@ -209,6 +308,7 @@
               id: Date.now(),
               title,
               url: formattedUrl,
+              category,
               createdAt: new Date().toISOString(),
               read: false,
               '@type': 'Bookmark'
@@ -218,7 +318,11 @@
           this.setState(
             {
               bookmarks: newBookmarks,
-              newBookmark: { title: '', url: '' }
+              newBookmark: {
+                title: '',
+                url: '',
+                category: this.state.newBookmark.category
+              }
             },
             () => this.saveBookmarks()
           )
@@ -250,219 +354,340 @@
           }
         }
 
+        getFilteredBookmarks() {
+          const { bookmarks, selectedCategory, searchQuery } = this.state
+
+          return bookmarks.filter(bookmark => {
+            // Filter by category
+            const categoryMatch =
+              selectedCategory === 'All Categories' ||
+              bookmark.category === selectedCategory
+
+            // Filter by search query
+            const searchMatch =
+              !searchQuery ||
+              bookmark.title
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()) ||
+              bookmark.url.toLowerCase().includes(searchQuery.toLowerCase())
+
+            return categoryMatch && searchMatch
+          })
+        }
+
         render() {
           const storage = this.getStorageProvider()
+          const filteredBookmarks = this.getFilteredBookmarks()
+
           return html`
             <div class="min-h-screen flex flex-col">
               <${Navbar} />
 
-              <main class="container mx-auto px-4 py-8 flex-grow">
-                <div class="text-center mb-12">
+              <main class="container mx-auto px-4 py-6 flex-grow max-w-6xl">
+                <div class="text-left mb-8">
                   <h1
-                    class="text-4xl font-bold text-indigo-800 mb-2"
-                    style="color: var(--primary-dark);"
+                    class="text-3xl font-bold mb-1"
+                    style="color: var(--text-dark);"
                   >
-                    Bookmark Manager
+                    Bookmarks
                   </h1>
-                  <p
-                    class="text-lg text-indigo-600"
-                    style="color: var(--primary);"
-                  >
-                    Keep your favorite sites organized
+                  <p class="text-base text-gray-500">
+                    Organize and access your favorite websites
                   </p>
                   ${storage.type === 'nosdav'
                     ? html`<div
-                        class="mt-2 text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
+                        class="mt-2 text-sm text-blue-600 bg-blue-50 rounded-md px-3 py-1 inline-block"
                       >
                         Using nosdav cloud storage
                         <button
                           onClick=${this.openStorageFile}
-                          class="ml-2 text-white rounded-full px-2 py-0.5 text-xs"
-                          style="background-color: var(--primary);"
+                          class="ml-2 text-blue-700 hover:text-blue-800 text-xs font-medium"
                           title="Open storage file in new tab"
                         >
                           View File
                         </button>
                       </div>`
                     : html`<div
-                        class="mt-2 text-sm text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block"
+                        class="mt-2 text-sm text-yellow-600 bg-yellow-50 rounded-md px-3 py-1 inline-block"
                       >
                         Using ${storage.type} storage (nosdav not available)
                       </div>`}
                 </div>
 
-                <div
-                  class="max-w-md mx-auto add-form rounded-lg shadow-lg p-6 mb-10"
-                  style="border-radius: var(--radius-md); box-shadow: var(--shadow-md);"
-                >
-                  <h2
-                    class="text-2xl font-semibold mb-4"
-                    style="color: var(--primary);"
+                <div class="flex justify-between items-center mb-6">
+                  <select
+                    class="categories-dropdown"
+                    value=${this.state.selectedCategory}
+                    onChange=${this.handleCategoryChange}
                   >
-                    Add New Bookmark
-                  </h2>
-                  <form onSubmit=${this.addBookmark} class="space-y-4">
-                    <div>
-                      <input
-                        type="text"
-                        name="title"
-                        value=${this.state.newBookmark.title}
-                        onInput=${this.handleInputChange}
-                        class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent"
-                        style="border-radius: var(--radius-sm); focus:ring-color: var(--accent);"
-                        placeholder="Website Title"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        name="url"
-                        value=${this.state.newBookmark.url}
-                        onInput=${this.handleInputChange}
-                        class="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:border-transparent"
-                        style="border-radius: var(--radius-sm); focus:ring-color: var(--accent);"
-                        placeholder="Website URL"
-                        required
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      class="w-full py-3 px-4 rounded-lg transition duration-300 ease-in-out focus:outline-none focus:ring-2"
-                      style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: var(--text-light); border-radius: var(--radius-sm);"
+                    <option value="All Categories">All Categories</option>
+                    ${DEFAULT_CATEGORIES.map(
+                      category =>
+                        html`<option value=${category}>${category}</option>`
+                    )}
+                  </select>
+
+                  <div class="relative">
+                    <input
+                      type="text"
+                      placeholder="Search bookmarks..."
+                      class="search-input"
+                      value=${this.state.searchQuery}
+                      onInput=${this.handleSearchChange}
+                    />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4 absolute right-3 top-2.5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      Add Bookmark
-                    </button>
-                  </form>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+
+                  <button
+                    class="add-bookmark-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#addBookmarkModal"
+                    onClick=${() => {
+                      document.getElementById('addBookmarkForm').style.display =
+                        document.getElementById('addBookmarkForm').style
+                          .display === 'none'
+                          ? 'block'
+                          : 'none'
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Add Bookmark
+                  </button>
                 </div>
 
-                <div class="max-w-4xl mx-auto">
-                  <h2
-                    class="text-2xl font-semibold mb-6 text-center"
-                    style="color: var(--primary);"
+                <div id="addBookmarkForm" class="mb-8" style="display: none;">
+                  <div
+                    class="add-form rounded-lg shadow-sm p-6 border border-gray-200"
+                    style="border-radius: var(--radius-md);"
                   >
-                    Your Bookmarks
-                  </h2>
+                    <div class="flex justify-between items-center mb-4">
+                      <h2
+                        class="text-lg font-semibold"
+                        style="color: var(--text-dark);"
+                      >
+                        Add Bookmark
+                      </h2>
+                      <button
+                        class="text-gray-400 hover:text-gray-600"
+                        onClick=${() => {
+                          document.getElementById(
+                            'addBookmarkForm'
+                          ).style.display = 'none'
+                        }}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          class="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <form onSubmit=${this.addBookmark} class="space-y-4">
+                      <div>
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >Title</label
+                        >
+                        <input
+                          type="text"
+                          name="title"
+                          value=${this.state.newBookmark.title}
+                          onInput=${this.handleInputChange}
+                          class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Website name"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >URL</label
+                        >
+                        <input
+                          type="text"
+                          name="url"
+                          value=${this.state.newBookmark.url}
+                          onInput=${this.handleInputChange}
+                          class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="https://example.com"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          >Category</label
+                        >
+                        <select
+                          name="category"
+                          value=${this.state.newBookmark.category}
+                          onInput=${this.handleInputChange}
+                          class="w-full px-3 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          ${DEFAULT_CATEGORIES.map(
+                            category =>
+                              html`<option value=${category}>
+                                ${category}
+                              </option>`
+                          )}
+                        </select>
+                      </div>
+                      <div class="flex justify-end">
+                        <button
+                          type="button"
+                          class="mr-2 py-2 px-4 border border-gray-300 text-gray-700 font-medium rounded-md transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                          onClick=${() => {
+                            document.getElementById(
+                              'addBookmarkForm'
+                            ).style.display = 'none'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          class="py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-md transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                          Save Bookmark
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
 
-                  ${this.state.bookmarks.length === 0
+                <div
+                  class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                >
+                  ${filteredBookmarks.length === 0
                     ? html`
                         <div
-                          class="text-center py-10"
-                          style="color: var(--primary);"
+                          class="col-span-full text-center py-10 bg-white rounded-lg border border-gray-200"
                         >
-                          <p>No bookmarks yet. Add your first one above!</p>
+                          <p class="text-gray-500">
+                            No bookmarks found. Add your first one!
+                          </p>
                         </div>
                       `
-                    : html`
-                        <div
-                          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                        >
-                          ${this.state.bookmarks.map(
-                            bookmark => html`
+                    : filteredBookmarks.map(
+                        bookmark => html`
+                          <div
+                            key=${bookmark.id}
+                            class="bookmark-card bg-white rounded-lg overflow-hidden flex flex-col"
+                          >
+                            <div class="p-4">
                               <div
-                                key=${bookmark.id}
-                                class="bookmark-card bg-white rounded-lg shadow-md overflow-hidden ${bookmark.read
-                                  ? 'bg-gray-50'
-                                  : ''}"
-                                style="border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background-color: var(--card-bg);"
+                                class="flex justify-between items-start mb-2"
                               >
-                                <div class="p-5">
-                                  <div
-                                    class="flex justify-between items-center mb-2"
-                                  >
-                                    <h3
-                                      class="font-bold text-lg truncate ${bookmark.read
-                                        ? 'text-indigo-500'
-                                        : ''}"
-                                      style="color: var(--primary-dark);"
-                                    >
-                                      ${bookmark.title}
-                                    </h3>
-                                    <span
-                                      class="text-xs px-2 py-1 rounded-full ${bookmark.read
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-yellow-100 text-yellow-800'}"
-                                    >
-                                      ${bookmark.read ? 'Read' : 'Unread'}
-                                    </span>
-                                  </div>
+                                <h3
+                                  class="font-medium text-base truncate"
+                                  style="color: var(--text-dark);"
+                                >
+                                  ${bookmark.title}
+                                </h3>
+                                <span
+                                  class="ml-2 category-badge ${bookmark.category.toLowerCase()}"
+                                >
+                                  ${bookmark.category}
+                                </span>
+                              </div>
+                              <a
+                                href=${bookmark.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="text-gray-500 hover:text-blue-600 text-sm block truncate mb-3"
+                              >
+                                ${bookmark.url}
+                              </a>
+                              <div class="flex justify-between items-center">
+                                <div class="flex space-x-2">
                                   <a
                                     href=${bookmark.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    class="text-blue-500 hover:text-blue-700 text-sm block truncate mb-3"
-                                    style="color: var(--accent);"
+                                    class="text-gray-400 hover:text-blue-500 focus:outline-none"
+                                    aria-label="Open bookmark"
                                   >
-                                    ${bookmark.url}
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      class="h-5 w-5"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                      />
+                                    </svg>
                                   </a>
-                                  <div
-                                    class="flex justify-between items-center"
+                                  <button
+                                    onClick=${() =>
+                                      this.removeBookmark(bookmark.id)}
+                                    class="text-gray-400 hover:text-red-500 focus:outline-none"
+                                    aria-label="Delete bookmark"
                                   >
-                                    <span class="text-xs text-gray-500">
-                                      ${new Date(
-                                        bookmark.createdAt
-                                      ).toLocaleDateString()}
-                                    </span>
-                                    <div class="flex space-x-2">
-                                      <button
-                                        onClick=${() =>
-                                          this.toggleReadStatus(bookmark.id)}
-                                        class="text-gray-500 hover:text-indigo-700 focus:outline-none"
-                                        style="hover:color: var(--primary);"
-                                        aria-label="${bookmark.read
-                                          ? 'Mark as unread'
-                                          : 'Mark as read'}"
-                                      >
-                                        <svg
-                                          xmlns="http://www.w3.org/2000/svg"
-                                          class="h-5 w-5"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="${bookmark.read
-                                              ? 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'
-                                              : 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'}"
-                                          />
-                                        </svg>
-                                      </button>
-                                      <button
-                                        onClick=${() =>
-                                          this.removeBookmark(bookmark.id)}
-                                        class="text-red-500 hover:text-red-700 focus:outline-none"
-                                        aria-label="Delete bookmark"
-                                      >
-                                        <svg
-                                          xmlns="http://www.w3.org/2000/svg"
-                                          class="h-5 w-5"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                          />
-                                        </svg>
-                                      </button>
-                                    </div>
-                                  </div>
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      class="h-5 w-5"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  </button>
                                 </div>
                               </div>
-                            `
-                          )}
-                        </div>
-                      `}
+                            </div>
+                          </div>
+                        `
+                      )}
                 </div>
               </main>
 
-              <footer class="text-center py-6" style="color: var(--primary);">
+              <footer class="text-center py-4 text-gray-500 text-sm">
                 <p>© ${new Date().getFullYear()} Bookmark Manager</p>
               </footer>
             </div>
@@ -470,8 +695,94 @@
         }
       }
 
-      // Render the app
-      render(html`<${BookmarkApp} />`, document.getElementById('app'))
+      // Add default bookmarks if none exist
+      const addDefaultBookmarks = async () => {
+        const storage = {
+          load: async () => {
+            try {
+              const pubkey = localStorage.getItem('pubkey')
+              if (!pubkey) return []
+
+              const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+              const response = await fetch(url)
+              if (response.status === 404) return []
+              if (!response.ok) throw new Error('Network response was not ok')
+
+              const bookmarks = await response.json()
+              return bookmarks
+            } catch (e) {
+              const data = localStorage.getItem('bookmarks')
+              if (data) return JSON.parse(data)
+              return []
+            }
+          },
+          save: async data => {
+            try {
+              const pubkey = localStorage.getItem('pubkey')
+              if (!pubkey) {
+                localStorage.setItem('bookmarks', JSON.stringify(data))
+                return
+              }
+
+              const url = `https://nosdav.net/${pubkey}/bookmarks.json`
+              await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+              })
+            } catch (e) {
+              localStorage.setItem('bookmarks', JSON.stringify(data))
+            }
+          }
+        }
+
+        const bookmarks = await storage.load()
+
+        if (bookmarks.length === 0) {
+          const defaultBookmarks = [
+            {
+              id: Date.now(),
+              title: 'Vercel',
+              url: 'https://vercel.com',
+              category: 'Development',
+              createdAt: new Date().toISOString(),
+              read: false,
+              '@type': 'Bookmark',
+              description:
+                'Deploy web projects with the best frontend developer experience and highest end-user performance.'
+            },
+            {
+              id: Date.now() + 1,
+              title: 'GitHub',
+              url: 'https://github.com',
+              category: 'Development',
+              createdAt: new Date().toISOString(),
+              read: false,
+              '@type': 'Bookmark',
+              description:
+                'GitHub is where over 100 million developers shape the future of software, together.'
+            },
+            {
+              id: Date.now() + 2,
+              title: 'Figma',
+              url: 'https://figma.com',
+              category: 'Design',
+              createdAt: new Date().toISOString(),
+              read: false,
+              '@type': 'Bookmark',
+              description:
+                'Figma connects everyone in the design process so teams can deliver better products faster.'
+            }
+          ]
+
+          await storage.save(defaultBookmarks)
+        }
+      }
+
+      // Add default bookmarks and render the app
+      addDefaultBookmarks().then(() => {
+        render(html`<${BookmarkApp} />`, document.getElementById('app'))
+      })
     </script>
   </body>
 </html>
