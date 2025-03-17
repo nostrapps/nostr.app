@@ -836,16 +836,27 @@
                                           urlObj.pathname.split('/')
                                         // Remove the last part (todos.json)
                                         pathParts.pop()
-                                        basePath = `${
-                                          urlObj.origin
-                                        }${pathParts.join('/')}`
+                                        // Get the parent directory by removing the 'todo' directory if it exists
+                                        if (
+                                          pathParts[pathParts.length - 1] ===
+                                          'todo'
+                                        ) {
+                                          pathParts.pop()
+                                        }
+                                        // Add 'mm' directory
+                                        pathParts.push('mm')
+                                        // Ensure the path ends with a slash
+                                        const path = pathParts.join('/')
+                                        basePath = `${urlObj.origin}${path}${
+                                          path.endsWith('/') ? '' : '/'
+                                        }`
                                       } else {
                                         const pubkey =
                                           localStorage.getItem('pubkey')
-                                        basePath = `https://nosdav.net/${pubkey}`
+                                        basePath = `https://nosdav.net/${pubkey}/public/mm/`
                                       }
 
-                                      return `./mindstr.html?map=${basePath}/mm/${
+                                      return `./mindstr.html?map=${basePath}${
                                         todo['@id']
                                           ? todo['@id'].substring(1)
                                           : ''
