@@ -843,8 +843,8 @@
                                         ) {
                                           pathParts.pop()
                                         }
-                                        // Add 'mm' directory
-                                        pathParts.push('mm')
+                                        // Add 'mindmaps' directory
+                                        pathParts.push('mindmaps')
                                         // Ensure the path ends with a slash
                                         const path = pathParts.join('/')
                                         basePath = `${urlObj.origin}${path}${
@@ -853,7 +853,7 @@
                                       } else {
                                         const pubkey =
                                           localStorage.getItem('pubkey')
-                                        basePath = `https://nosdav.net/${pubkey}/public/mm/`
+                                        basePath = `https://nosdav.net/${pubkey}/public/mindmaps/`
                                       }
 
                                       return `./mindstr.html?map=${basePath}${
