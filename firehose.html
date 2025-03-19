@@ -1091,7 +1091,7 @@
           console.log('Received event:', event)
 
           this.setState(prevState => {
-            const newEvents = [event, ...prevState.events]
+            const newEvents = [...prevState.events, event]
 
             // Limit the number of events to prevent memory issues
             if (newEvents.length > this.state.maxEvents) {
