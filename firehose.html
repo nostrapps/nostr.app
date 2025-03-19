@@ -232,6 +232,41 @@
         background-color: var(--primary-dark);
       }
 
+      .submit-button:disabled {
+        background-color: #a0aec0;
+        cursor: not-allowed;
+      }
+
+      .note-form-container {
+        margin-bottom: 20px;
+      }
+
+      .note-textarea {
+        width: 100%;
+        min-height: 80px;
+        border-radius: var(--radius-sm);
+        resize: vertical;
+        background-color: var(--body-bg);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 12px;
+        font-size: 14px;
+        outline: none;
+        transition: all 0.2s ease;
+        margin-bottom: 10px;
+      }
+
+      .note-textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(99, 192, 245, 0.2);
+      }
+
+      .full-width-button {
+        width: 100%;
+        border-radius: var(--radius-sm);
+        padding: 10px;
+        font-weight: 500;
+      }
+
       .status-row {
         display: flex;
         justify-content: space-between;
@@ -583,7 +618,8 @@
             autoScroll: true,
             user: null,
             pubkey: localStorage.getItem('pubkey') || null,
-            privkey: localStorage.getItem('nostr:privkey') || null
+            privkey: localStorage.getItem('nostr:privkey') || null,
+            newNoteContent: ''
           }
           this.relayConnection = null
           this.handleEvent = this.handleEvent.bind(this)
@@ -594,6 +630,8 @@
           this.toggleAutoScroll = this.toggleAutoScroll.bind(this)
           this.handleLogin = this.handleLogin.bind(this)
           this.handleLogout = this.handleLogout.bind(this)
+          this.handleNoteContentChange = this.handleNoteContentChange.bind(this)
+          this.publishNote = this.publishNote.bind(this)
         }
 
         getRelayFromQueryString() {
@@ -721,6 +759,8 @@
                       timer: 1500,
                       showConfirmButton: false
                     })
+                    // Reconnect to apply author filter
+                    this.connectToRelay()
                   })
                 })
                 .catch(err => {
@@ -766,6 +806,8 @@
                   timer: 1500,
                   showConfirmButton: false
                 })
+                // Reconnect to apply author filter
+                this.connectToRelay()
               })
             } catch (error) {
               console.error('Login failed:', error)
@@ -780,17 +822,21 @@
         }
 
         handleLogout() {
-          this.setState({ user: null, privkey: null })
-          localStorage.setItem('loggedIn', 'false')
-          localStorage.removeItem('pubkey')
-          localStorage.removeItem('nostr:privkey')
+          this.setState({ user: null, privkey: null }, () => {
+            localStorage.setItem('loggedIn', 'false')
+            localStorage.removeItem('pubkey')
+            localStorage.removeItem('nostr:privkey')
 
-          Swal.fire({
-            title: 'Logged out!',
-            text: 'You have successfully logged out.',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false
+            Swal.fire({
+              title: 'Logged out!',
+              text: 'You have successfully logged out.',
+              icon: 'success',
+              timer: 1500,
+              showConfirmButton: false
+            })
+
+            // Reconnect to show all events again
+            this.connectToRelay()
           })
         }
 
@@ -816,8 +862,19 @@
               console.log(`Connected to ${this.state.relay}`)
               this.setState({ connected: true, error: null })
 
-              // Subscribe to all events with a limit of 10
-              const sub = this.relayConnection.sub([{ limit: 10 }])
+              // Create different filter based on login status
+              let filter = { limit: 10 }
+
+              // If user is logged in, only show their own notes
+              if (this.state.user && this.state.user.pubkey) {
+                filter = {
+                  authors: [this.state.user.pubkey],
+                  limit: 10
+                }
+              }
+
+              // Subscribe to events with the appropriate filter
+              const sub = this.relayConnection.sub([filter])
 
               sub.on('event', event => {
                 this.handleEvent(event)
@@ -1009,6 +1066,110 @@ ${JSON.stringify(parsed, null, 2)}</pre
           }
         }
 
+        handleNoteContentChange(e) {
+          this.setState({ newNoteContent: e.target.value })
+        }
+
+        async publishNote(e) {
+          e.preventDefault()
+
+          if (!this.state.newNoteContent.trim()) {
+            Swal.fire({
+              title: 'Empty Note',
+              text: 'Please enter some content for your note.',
+              icon: 'warning',
+              showConfirmButton: true
+            })
+            return
+          }
+
+          if (!this.state.connected) {
+            Swal.fire({
+              title: 'Not Connected',
+              text: 'Please connect to a relay first.',
+              icon: 'warning',
+              showConfirmButton: true
+            })
+            return
+          }
+
+          try {
+            // Create the event object
+            let event = {
+              kind: 1,
+              created_at: Math.floor(Date.now() / 1000),
+              tags: [],
+              content: this.state.newNoteContent,
+              pubkey: this.state.user.pubkey
+            }
+
+            // Sign the event
+            if (window.nostr && !this.state.privkey) {
+              // Use extension to sign
+              try {
+                event = await window.nostr.signEvent(event)
+              } catch (error) {
+                console.error('Signing error:', error)
+                Swal.fire({
+                  title: 'Signing Failed',
+                  text: 'Failed to sign the note with your extension.',
+                  icon: 'error',
+                  showConfirmButton: true
+                })
+                return
+              }
+            } else if (this.state.privkey) {
+              // Use local private key to sign
+              event.id = window.NostrTools.getEventHash(event)
+              event.sig = window.NostrTools.signEvent(event, this.state.privkey)
+            } else {
+              throw new Error('No signing method available')
+            }
+
+            // Validate the event
+            const ok = window.NostrTools.validateEvent(event)
+            const veryOk = window.NostrTools.verifySignature(event)
+
+            if (!ok || !veryOk) {
+              throw new Error('Invalid event or signature')
+            }
+
+            // Publish the event
+            const pub = this.relayConnection.publish(event)
+
+            pub.on('ok', () => {
+              console.log('Note published successfully')
+              this.setState({ newNoteContent: '' })
+
+              Swal.fire({
+                title: 'Published!',
+                text: 'Your note was published successfully.',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+              })
+            })
+
+            pub.on('failed', reason => {
+              console.error('Failed to publish note:', reason)
+              Swal.fire({
+                title: 'Publishing Failed',
+                text: `Failed to publish your note: ${reason}`,
+                icon: 'error',
+                showConfirmButton: true
+              })
+            })
+          } catch (error) {
+            console.error('Error publishing note:', error)
+            Swal.fire({
+              title: 'Error',
+              text: `Error creating or publishing note: ${error.message}`,
+              icon: 'error',
+              showConfirmButton: true
+            })
+          }
+        }
+
         render() {
           const {
             events,
@@ -1017,7 +1178,8 @@ ${JSON.stringify(parsed, null, 2)}</pre
             customRelay,
             error,
             autoScroll,
-            user
+            user,
+            newNoteContent
           } = this.state
 
           return html`
@@ -1050,6 +1212,9 @@ ${JSON.stringify(parsed, null, 2)}</pre
                       </option>
                       <option value="wss://relay.snort.social">
                         Snort (wss://relay.snort.social)
+                      </option>
+                      <option value="wss://ditto.pub/relay">
+                        Ditto (wss://ditto.pub/relay)
                       </option>
                     </select>
                   </div>
@@ -1100,15 +1265,49 @@ ${JSON.stringify(parsed, null, 2)}</pre
                 ${error && html`<div class="error-message">${error}</div>`}
               </div>
 
+              ${user &&
+              html`
+                <div class="controls-container note-form-container">
+                  <form onSubmit=${this.publishNote}>
+                    <div class="control-group" style="margin-bottom: 10px;">
+                      <label class="control-label">Create New Note</label>
+                      <textarea
+                        class="note-textarea"
+                        placeholder="What's on your mind?"
+                        value=${newNoteContent}
+                        onChange=${this.handleNoteContentChange}
+                      ></textarea>
+                    </div>
+                    <button
+                      type="submit"
+                      class="submit-button full-width-button"
+                      disabled=${!connected}
+                    >
+                      ${connected ? 'Publish Note' : 'Connect to a relay first'}
+                    </button>
+                  </form>
+                </div>
+              `}
+
               <div
                 class="events-container"
                 ref=${el => (this.eventsContainer = el)}
               >
                 ${events.length === 0 && !error
                   ? html`<div class="events-placeholder">
-                      Waiting for events...
+                      ${user
+                        ? `Waiting for your notes from ${relay}...`
+                        : 'Waiting for events...'}
                     </div>`
                   : html`<div class="events-list">
+                      ${user &&
+                      html`
+                        <div
+                          style="padding: 0 0 16px 0; color: var(--primary); font-weight: 500;"
+                        >
+                          Showing your notes only
+                        </div>
+                      `}
                       ${events.map(
                         (event, index) =>
                           html`<div key=${index} class="event-card">
