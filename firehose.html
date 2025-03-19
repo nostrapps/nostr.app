@@ -267,6 +267,53 @@
         font-weight: 500;
       }
 
+      .view-mode-container {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+      }
+
+      .view-mode-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .view-mode-button {
+        background-color: var(--body-bg);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-sm);
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .view-mode-button:hover {
+        background-color: var(--primary-light);
+      }
+
+      .view-mode-button.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+      }
+
+      .debug-button {
+        background-color: var(--body-bg);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-sm);
+        padding: 6px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 10px;
+      }
+
+      .debug-button:hover {
+        background-color: var(--primary-light);
+      }
+
       .status-row {
         display: flex;
         justify-content: space-between;
@@ -619,7 +666,10 @@
             user: null,
             pubkey: localStorage.getItem('pubkey') || null,
             privkey: localStorage.getItem('nostr:privkey') || null,
-            newNoteContent: ''
+            newNoteContent: '',
+            following: [],
+            viewMode: 'all',
+            isRefreshingFollows: false
           }
           this.relayConnection = null
           this.handleEvent = this.handleEvent.bind(this)
@@ -632,6 +682,9 @@
           this.handleLogout = this.handleLogout.bind(this)
           this.handleNoteContentChange = this.handleNoteContentChange.bind(this)
           this.publishNote = this.publishNote.bind(this)
+          this.fetchFollowingList = this.fetchFollowingList.bind(this)
+          this.setViewMode = this.setViewMode.bind(this)
+          this.refreshFollowList = this.refreshFollowList.bind(this)
         }
 
         getRelayFromQueryString() {
@@ -666,7 +719,10 @@
             localStorage.getItem('pubkey')
           ) {
             const pubkey = localStorage.getItem('pubkey')
-            this.setState({ user: { pubkey } })
+            this.setState({ user: { pubkey } }, () => {
+              // Fetch following list after login check
+              this.fetchFollowingList()
+            })
           }
         }
 
@@ -759,8 +815,8 @@
                       timer: 1500,
                       showConfirmButton: false
                     })
-                    // Reconnect to apply author filter
-                    this.connectToRelay()
+                    // Fetch following list first, then reconnect when it's done
+                    this.fetchFollowingList()
                   })
                 })
                 .catch(err => {
@@ -806,8 +862,8 @@
                   timer: 1500,
                   showConfirmButton: false
                 })
-                // Reconnect to apply author filter
-                this.connectToRelay()
+                // Fetch following list first, then reconnect when it's done
+                this.fetchFollowingList()
               })
             } catch (error) {
               console.error('Login failed:', error)
@@ -822,22 +878,30 @@
         }
 
         handleLogout() {
-          this.setState({ user: null, privkey: null }, () => {
-            localStorage.setItem('loggedIn', 'false')
-            localStorage.removeItem('pubkey')
-            localStorage.removeItem('nostr:privkey')
+          this.setState(
+            {
+              user: null,
+              privkey: null,
+              following: [],
+              viewMode: 'all'
+            },
+            () => {
+              localStorage.setItem('loggedIn', 'false')
+              localStorage.removeItem('pubkey')
+              localStorage.removeItem('nostr:privkey')
 
-            Swal.fire({
-              title: 'Logged out!',
-              text: 'You have successfully logged out.',
-              icon: 'success',
-              timer: 1500,
-              showConfirmButton: false
-            })
+              Swal.fire({
+                title: 'Logged out!',
+                text: 'You have successfully logged out.',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+              })
 
-            // Reconnect to show all events again
-            this.connectToRelay()
-          })
+              // Reconnect to show all events again
+              this.connectToRelay()
+            }
+          )
         }
 
         componentWillUnmount() {
@@ -862,18 +926,60 @@
               console.log(`Connected to ${this.state.relay}`)
               this.setState({ connected: true, error: null })
 
-              // Create different filter based on login status
-              let filter = { limit: 10 }
+              // Define our filter based on view mode
+              let filter = { kinds: [1], limit: 20 }
 
-              // If user is logged in, only show their own notes
               if (this.state.user && this.state.user.pubkey) {
-                filter = {
-                  authors: [this.state.user.pubkey],
-                  limit: 10
+                const pubkey = this.state.user.pubkey
+                console.log(
+                  `User is logged in with pubkey: ${pubkey.substring(0, 8)}...`
+                )
+                console.log(`Current view mode: ${this.state.viewMode}`)
+
+                // Filter based on view mode
+                switch (this.state.viewMode) {
+                  case 'mine':
+                    // Only my events
+                    filter = {
+                      kinds: [1], // Just text notes
+                      authors: [pubkey],
+                      limit: 20
+                    }
+                    console.log('Using filter for my events')
+                    break
+
+                  case 'following':
+                    // Only events from people I follow
+                    if (this.state.following.length > 0) {
+                      // If we have follows, filter for them
+                      filter = {
+                        kinds: [1],
+                        authors: this.state.following,
+                        limit: 50
+                      }
+                      console.log(
+                        `Using filter for ${this.state.following.length} follows`
+                      )
+                    } else {
+                      // No follows found
+                      console.log('No follows found, using default filter')
+                      this.setState({
+                        error:
+                          'No follows found in your contacts list. You may need to create a contacts list on this relay.'
+                      })
+                    }
+                    break
+
+                  default: // 'all'
+                    // Default filter for all events
+                    console.log('Using default filter for all events')
+                    break
                 }
               }
 
-              // Subscribe to events with the appropriate filter
+              console.log('Subscribing with filter:', filter)
+
+              // Subscribe to events with the filter
               const sub = this.relayConnection.sub([filter])
 
               sub.on('event', event => {
@@ -1170,6 +1276,173 @@ ${JSON.stringify(parsed, null, 2)}</pre
           }
         }
 
+        fetchFollowingList(isManualRefresh = false) {
+          // Only fetch if we have a user
+          if (!this.state.user || !this.state.user.pubkey) {
+            this.connectToRelay()
+            return
+          }
+
+          console.log(
+            'Fetching following list for pubkey:',
+            this.state.user.pubkey
+          )
+
+          // Create a separate relay connection for fetching follows
+          const tmpRelay = window.NostrTools.relayInit(this.state.relay)
+
+          tmpRelay.on('connect', () => {
+            console.log('Connected to relay to fetch contacts (kind 3 event)')
+
+            // Per NIP-02, we need to fetch kind 3 events (contacts/follows)
+            const sub = tmpRelay.sub([
+              {
+                kinds: [3],
+                authors: [this.state.user.pubkey],
+                limit: 1 // We only need the most recent one
+              }
+            ])
+
+            let followers = []
+
+            sub.on('event', event => {
+              console.log('Found contacts event:', event)
+
+              // Extract the pubkeys from 'p' tags according to NIP-02
+              followers = event.tags
+                .filter(tag => tag[0] === 'p' && tag.length > 1)
+                .map(tag => tag[1])
+
+              console.log(
+                `Found ${followers.length} follows in contacts list:`,
+                followers.length > 0
+                  ? followers.slice(0, 3).join(', ') + '...'
+                  : 'none'
+              )
+            })
+
+            // Handle "end of stored events"
+            sub.on('eose', () => {
+              console.log('End of stored contact events')
+              tmpRelay.close()
+
+              if (followers.length > 0) {
+                console.log(`Successfully found ${followers.length} follows`)
+              } else {
+                console.log('No follows found in the contacts list')
+              }
+
+              // Update state with the follows we found and connect
+              this.setState(
+                {
+                  following: followers,
+                  isRefreshingFollows: false
+                },
+                () => {
+                  this.connectToRelay()
+
+                  // Show a notification if this was a manual refresh
+                  if (isManualRefresh) {
+                    Swal.fire({
+                      title: 'Follows Refreshed',
+                      text:
+                        followers.length > 0
+                          ? `Found ${followers.length} accounts you follow`
+                          : 'No follows found in your contacts list on this relay',
+                      icon: followers.length > 0 ? 'success' : 'info',
+                      timer: 2000,
+                      showConfirmButton: false
+                    })
+                  }
+                }
+              )
+            })
+
+            // Set a timeout in case the relay doesn't return EOSE
+            setTimeout(() => {
+              if (tmpRelay) {
+                console.log('Timeout reached waiting for contacts')
+                tmpRelay.close()
+
+                // Update state with whatever we found and connect
+                this.setState(
+                  {
+                    following: followers,
+                    isRefreshingFollows: false
+                  },
+                  () => {
+                    this.connectToRelay()
+
+                    // Show a notification if this was a manual refresh
+                    if (isManualRefresh) {
+                      Swal.fire({
+                        title: 'Follows Refresh Timeout',
+                        text:
+                          'Refresh timed out, but found ' +
+                          (followers.length > 0
+                            ? followers.length + ' follows'
+                            : 'no follows'),
+                        icon: 'warning',
+                        timer: 2000,
+                        showConfirmButton: false
+                      })
+                    }
+                  }
+                )
+              }
+            }, 5000)
+          })
+
+          tmpRelay.on('error', err => {
+            console.error('Error fetching contacts:', err)
+            tmpRelay.close()
+
+            this.setState({ isRefreshingFollows: false }, () => {
+              // Continue with connection anyway
+              this.connectToRelay()
+
+              // Show error notification if manual refresh
+              if (isManualRefresh) {
+                Swal.fire({
+                  title: 'Refresh Error',
+                  text: 'Error refreshing follow list: ' + err,
+                  icon: 'error',
+                  showConfirmButton: true
+                })
+              }
+            })
+          })
+
+          tmpRelay.connect()
+        }
+
+        setViewMode(mode) {
+          if (this.state.viewMode !== mode) {
+            this.setState({ viewMode: mode }, () => {
+              // Reconnect with the new filter
+              this.connectToRelay()
+            })
+          }
+        }
+
+        refreshFollowList() {
+          if (
+            !this.state.user ||
+            !this.state.user.pubkey ||
+            this.state.isRefreshingFollows
+          ) {
+            return
+          }
+
+          // Set refreshing flag
+          this.setState({ isRefreshingFollows: true }, () => {
+            console.log('Manually refreshing follow list...')
+
+            // Call the follow list function
+            this.fetchFollowingList(true)
+          })
+        }
+
         render() {
           const {
             events,
@@ -1179,7 +1452,10 @@ ${JSON.stringify(parsed, null, 2)}</pre
             error,
             autoScroll,
             user,
-            newNoteContent
+            newNoteContent,
+            following,
+            viewMode,
+            isRefreshingFollows
           } = this.state
 
           return html`
@@ -1239,6 +1515,108 @@ ${JSON.stringify(parsed, null, 2)}</pre
                   </div>
                 </div>
 
+                ${user &&
+                html`
+                  <div class="view-mode-container">
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: center;"
+                    >
+                      <label class="control-label">Filter:</label>
+                      <button
+                        class="debug-button"
+                        onClick=${this.refreshFollowList}
+                        disabled=${isRefreshingFollows}
+                        style=${isRefreshingFollows ? 'opacity: 0.7;' : ''}
+                      >
+                        ${isRefreshingFollows
+                          ? 'Refreshing...'
+                          : 'Refresh Follows'}
+                      </button>
+                    </div>
+                    <div class="view-mode-buttons">
+                      <button
+                        class=${`view-mode-button ${
+                          viewMode === 'all' ? 'active' : ''
+                        }`}
+                        onClick=${() => this.setViewMode('all')}
+                      >
+                        All Posts
+                      </button>
+                      <button
+                        class=${`view-mode-button ${
+                          viewMode === 'following' ? 'active' : ''
+                        }`}
+                        onClick=${() => this.setViewMode('following')}
+                      >
+                        Following (${following.length})
+                      </button>
+                      <button
+                        class=${`view-mode-button ${
+                          viewMode === 'mine' ? 'active' : ''
+                        }`}
+                        onClick=${() => this.setViewMode('mine')}
+                      >
+                        My Posts
+                      </button>
+                    </div>
+                    ${following.length > 0
+                      ? html`
+                          <button
+                            class="debug-button"
+                            onClick=${() => {
+                              Swal.fire({
+                                title: 'Your Follow List',
+                                html: `
+                              <div style="max-height: 300px; overflow-y: auto; text-align: left;">
+                                <p>You follow ${following.length} accounts:</p>
+                                <ul style="font-family: monospace; font-size: 12px;">
+                                  ${following
+                                    .map(
+                                      pk =>
+                                        `<li>${pk.substring(
+                                          0,
+                                          8
+                                        )}...${pk.substring(
+                                          pk.length - 4
+                                        )}</li>`
+                                    )
+                                    .join('')}
+                                </ul>
+                              </div>
+                            `,
+                                showConfirmButton: true
+                              })
+                            }}
+                          >
+                            View Follow List Details
+                          </button>
+                        `
+                      : html`
+                          <button
+                            class="debug-button"
+                            onClick=${() => {
+                              Swal.fire({
+                                title: 'No Follows Found',
+                                html: `
+                              <div style="text-align: left;">
+                                <p>No follows were found in your contacts list on this relay.</p>
+                                <p>To create a contact list, you can:</p>
+                                <ul>
+                                  <li>Use a Nostr client with contacts management</li>
+                                  <li>Follow people on other Nostr clients that publish to this relay</li>
+                                </ul>
+                              </div>
+                            `,
+                                showConfirmButton: true
+                              })
+                            }}
+                          >
+                            Why am I not seeing follows?
+                          </button>
+                        `}
+                  </div>
+                `}
+
                 <div class="status-row">
                   <div class="connection-status">
                     <div
@@ -1296,7 +1674,13 @@ ${JSON.stringify(parsed, null, 2)}</pre
                 ${events.length === 0 && !error
                   ? html`<div class="events-placeholder">
                       ${user
-                        ? `Waiting for your notes from ${relay}...`
+                        ? viewMode === 'mine'
+                          ? `Waiting for your notes from ${relay}...`
+                          : viewMode === 'following'
+                          ? following.length > 0
+                            ? `Waiting for posts from people you follow (${following.length})...`
+                            : 'No follows found in your contacts list. Try creating a contact list on this relay.'
+                          : 'Waiting for events...'
                         : 'Waiting for events...'}
                     </div>`
                   : html`<div class="events-list">
@@ -1305,7 +1689,11 @@ ${JSON.stringify(parsed, null, 2)}</pre
                         <div
                           style="padding: 0 0 16px 0; color: var(--primary); font-weight: 500;"
                         >
-                          Showing your notes only
+                          ${viewMode === 'mine'
+                            ? 'Showing your notes only'
+                            : viewMode === 'following'
+                            ? `Showing posts from people you follow (${following.length})`
+                            : 'Showing all posts'}
                         </div>
                       `}
                       ${events.map(
