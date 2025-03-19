@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/preact@10.13.1/dist/preact-compat.min.js"></script>
     <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
     <script src="https://unpkg.com/nostr-tools@1.12.0/lib/nostr.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
       :root {
         --primary: #4a6fa5;
@@ -302,6 +303,30 @@
         left: 21px;
       }
 
+      /* Login button styling */
+      .theme-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .theme-select {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: white;
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: 8px 16px;
+        outline: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .theme-select:hover {
+        background-color: rgba(255, 255, 255, 0.25);
+      }
+
       .error-message {
         color: var(--status-disconnected);
         font-size: 14px;
@@ -500,10 +525,23 @@
       const html = htm.bind(h)
 
       // Header component
-      const Header = () => {
+      const Header = ({ user, onLogin, onLogout }) => {
+        const displayText = user
+          ? user.pubkey.substring(0, 8)
+          : 'Login with Nostr'
+
         return html`
           <header class="header">
             <div class="logo">Nostr<span class="logo-dot">.</span>App</div>
+            <div class="theme-container">
+              ${user
+                ? html`<button onClick=${onLogout} class="theme-select">
+                    Logout (${displayText})
+                  </button>`
+                : html`<button onClick=${onLogin} class="theme-select">
+                    Login with Nostr
+                  </button>`}
+            </div>
           </header>
         `
       }
@@ -542,7 +580,10 @@
             customRelay: '',
             error: null,
             maxEvents: 100,
-            autoScroll: true
+            autoScroll: true,
+            user: null,
+            pubkey: localStorage.getItem('pubkey') || null,
+            privkey: localStorage.getItem('nostr:privkey') || null
           }
           this.relayConnection = null
           this.handleEvent = this.handleEvent.bind(this)
@@ -551,6 +592,8 @@
           this.handleCustomRelayChange = this.handleCustomRelayChange.bind(this)
           this.handleCustomRelaySubmit = this.handleCustomRelaySubmit.bind(this)
           this.toggleAutoScroll = this.toggleAutoScroll.bind(this)
+          this.handleLogin = this.handleLogin.bind(this)
+          this.handleLogout = this.handleLogout.bind(this)
         }
 
         getRelayFromQueryString() {
@@ -560,6 +603,195 @@
 
         componentDidMount() {
           this.connectToRelay()
+          // Check if user is logged in via Nostr
+          this.checkNostrLogin()
+
+          // Check for private key in URL hash
+          const hash = window.location.hash.substring(1) // Remove the # character
+          if (hash && hash.length === 64 && /^[0-9a-fA-F]+$/.test(hash)) {
+            // Valid private key in hash, use it to login
+            this.loginWithPrivkey(hash)
+
+            // Clean URL by removing the hash to protect privacy
+            window.history.replaceState(
+              null,
+              null,
+              window.location.pathname + window.location.search
+            )
+          }
+        }
+
+        checkNostrLogin() {
+          // Check if user is already logged in
+          if (
+            localStorage.getItem('loggedIn') === 'true' &&
+            localStorage.getItem('pubkey')
+          ) {
+            const pubkey = localStorage.getItem('pubkey')
+            this.setState({ user: { pubkey } })
+          }
+        }
+
+        handleLogin() {
+          Swal.fire({
+            title: 'Login',
+            html: `
+              <button id="extensionLogin" class="swal2-confirm swal2-styled" style="display:block; width:100%; margin:10px auto;">Sign in with Nostr extension</button>
+              <input id="privkeyInput" type="text" placeholder="Or enter your 64-character hex private key" class="swal2-input" style="display:block; width:100%; margin:10px auto;">
+              <p style="margin-top: 10px; font-size: 0.9em;"><a href="https://nostrapps.github.io/extensions/" target="_blank">What is a Nostr extension?</a></p>
+            `,
+            showConfirmButton: false,
+            showCloseButton: true,
+            focusConfirm: false,
+            didOpen: () => {
+              const extensionButton =
+                Swal.getPopup().querySelector('#extensionLogin')
+              const privkeyInput =
+                Swal.getPopup().querySelector('#privkeyInput')
+
+              extensionButton.addEventListener('click', () => {
+                Swal.clickConfirm()
+              })
+
+              privkeyInput.addEventListener('keyup', e => {
+                if (e.key === 'Enter') {
+                  Swal.clickConfirm()
+                }
+              })
+
+              // Add paste event listener
+              privkeyInput.addEventListener('paste', e => {
+                setTimeout(() => {
+                  if (
+                    privkeyInput.value.length === 64 &&
+                    /^[0-9a-fA-F]+$/.test(privkeyInput.value)
+                  ) {
+                    Swal.clickConfirm()
+                  }
+                }, 0)
+              })
+            },
+            preConfirm: () => {
+              const privkey =
+                Swal.getPopup().querySelector('#privkeyInput').value
+              if (
+                privkey &&
+                (privkey.length !== 64 || !/^[0-9a-fA-F]+$/.test(privkey))
+              ) {
+                Swal.showValidationMessage(
+                  'Invalid private key format. Please enter a 64-character hex string.'
+                )
+                return false
+              }
+              return {
+                loginMethod: privkey ? 'privkey' : 'extension',
+                privkey
+              }
+            }
+          }).then(result => {
+            if (result.isConfirmed) {
+              if (result.value.loginMethod === 'privkey') {
+                this.loginWithPrivkey(result.value.privkey)
+              } else {
+                // Check for localStorage privkey first
+                const storedPrivkey = localStorage.getItem('nostr:privkey')
+                if (storedPrivkey) {
+                  this.loginWithPrivkey(storedPrivkey)
+                } else {
+                  this.loginWithExtension()
+                }
+              }
+            }
+          })
+        }
+
+        loginWithExtension() {
+          if (window.nostr) {
+            try {
+              window.nostr
+                .getPublicKey()
+                .then(pubkey => {
+                  this.setState({ user: { pubkey } }, () => {
+                    localStorage.setItem('loggedIn', 'true')
+                    localStorage.setItem('pubkey', pubkey)
+                    Swal.fire({
+                      title: 'Logged in!',
+                      text: 'You have successfully logged in with your Nostr extension.',
+                      icon: 'success',
+                      timer: 1500,
+                      showConfirmButton: false
+                    })
+                  })
+                })
+                .catch(err => {
+                  console.error('Login failed:', err)
+                  Swal.fire({
+                    title: 'Login Failed',
+                    text: 'There was an error logging in with your Nostr extension.',
+                    icon: 'error',
+                    showConfirmButton: true
+                  })
+                })
+            } catch (error) {
+              console.error('Login error:', error)
+              Swal.fire({
+                title: 'Login Error',
+                text: 'Error connecting to Nostr extension: ' + error.message,
+                icon: 'error',
+                showConfirmButton: true
+              })
+            }
+          } else {
+            Swal.fire({
+              title: 'Extension Not Found',
+              text: 'Nostr extension not found. Please install a Nostr browser extension.',
+              icon: 'warning',
+              showConfirmButton: true
+            })
+          }
+        }
+
+        loginWithPrivkey(privkey) {
+          if (privkey && window.NostrTools) {
+            try {
+              const pubkey = window.NostrTools.getPublicKey(privkey)
+              this.setState({ user: { pubkey }, privkey }, () => {
+                localStorage.setItem('loggedIn', 'true')
+                localStorage.setItem('pubkey', pubkey)
+                localStorage.setItem('nostr:privkey', privkey)
+                Swal.fire({
+                  title: 'Logged in!',
+                  text: 'You have successfully logged in with your private key.',
+                  icon: 'success',
+                  timer: 1500,
+                  showConfirmButton: false
+                })
+              })
+            } catch (error) {
+              console.error('Login failed:', error)
+              Swal.fire({
+                title: 'Login Failed',
+                text: 'There was an error generating the public key from the provided private key.',
+                icon: 'error',
+                showConfirmButton: true
+              })
+            }
+          }
+        }
+
+        handleLogout() {
+          this.setState({ user: null, privkey: null })
+          localStorage.setItem('loggedIn', 'false')
+          localStorage.removeItem('pubkey')
+          localStorage.removeItem('nostr:privkey')
+
+          Swal.fire({
+            title: 'Logged out!',
+            text: 'You have successfully logged out.',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+          })
         }
 
         componentWillUnmount() {
@@ -778,11 +1010,22 @@ ${JSON.stringify(parsed, null, 2)}</pre
         }
 
         render() {
-          const { events, connected, relay, customRelay, error, autoScroll } =
-            this.state
+          const {
+            events,
+            connected,
+            relay,
+            customRelay,
+            error,
+            autoScroll,
+            user
+          } = this.state
 
           return html`
-            <${Header} />
+            <${Header}
+              user=${user}
+              onLogin=${this.handleLogin}
+              onLogout=${this.handleLogout}
+            />
             <${Sidebar} />
             <div class="main-content">
               <h1 class="section-title">Nostr App</h1>
