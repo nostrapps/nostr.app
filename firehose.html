@@ -1188,31 +1188,97 @@
                   </div>
                 `
               case 1: // Text Note
-                // Process content to enhance formatting
-                let processedContent = event.content
-                  // Convert URLs to links
-                  .replace(
-                    /(https?:\/\/[^\s]+)/g,
-                    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-                  )
-                  // Highlight nostr: npub mentions
-                  .replace(
-                    /(nostr:npub[a-zA-Z0-9]+)/g,
-                    '<span class="mention">$1</span>'
-                  )
-                  // Highlight hashtags
-                  .replace(
-                    /#([a-zA-Z0-9_]+)/g,
-                    '<span class="hashtag">#$1</span>'
-                  )
+                // For image detection, check if content contains a media.ditto.pub URL specifically
+                if (event.content.includes('https://media.ditto.pub/')) {
+                  const lines = event.content.split('\n')
+                  const contentElements = []
 
-                return html`
-                  <div class="content-text">
-                    <div
-                      dangerouslySetInnerHTML=${{ __html: processedContent }}
-                    ></div>
-                  </div>
-                `
+                  lines.forEach(line => {
+                    if (line.trim().startsWith('https://media.ditto.pub/')) {
+                      // This is a media.ditto.pub URL, render it as an image
+                      contentElements.push(
+                        html`<div style="margin: 10px 0;">
+                          <img
+                            src=${line.trim()}
+                            style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                            alt="Nostr media"
+                          />
+                        </div>`
+                      )
+                    } else if (
+                      line
+                        .trim()
+                        .match(
+                          /https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(?:\?[^\s]*)?/i
+                        )
+                    ) {
+                      // Standard image URL
+                      const imgUrl = line
+                        .trim()
+                        .match(
+                          /https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(?:\?[^\s]*)?/i
+                        )[0]
+                      contentElements.push(
+                        html`<div style="margin: 10px 0;">
+                          <img
+                            src=${imgUrl}
+                            style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                            alt="Image"
+                          />
+                        </div>`
+                      )
+                    } else if (line.trim().match(/https?:\/\/[^\s]+/)) {
+                      // Regular URL, not an image
+                      const url = line.trim().match(/https?:\/\/[^\s]+/)[0]
+                      contentElements.push(
+                        html`<div>
+                          <a
+                            href=${url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            >${url}</a
+                          >
+                        </div>`
+                      )
+                    } else if (line.trim()) {
+                      // Regular text
+                      contentElements.push(html`<div>${line}</div>`)
+                    } else {
+                      // Empty line, add a line break
+                      contentElements.push(html`<br />`)
+                    }
+                  })
+
+                  return html`
+                    <div class="content-text">${contentElements}</div>
+                  `
+                } else {
+                  // Standard text note without media.ditto.pub URLs
+                  let processedContent = event.content
+                    // Convert URLs to links
+                    .replace(
+                      /(https?:\/\/[^\s]+)/g,
+                      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+                    )
+                    // Highlight nostr: npub mentions
+                    .replace(
+                      /(nostr:npub[a-zA-Z0-9]+)/g,
+                      '<span class="mention">$1</span>'
+                    )
+                    // Highlight hashtags
+                    .replace(
+                      /#([a-zA-Z0-9_]+)/g,
+                      '<span class="hashtag">#$1</span>'
+                    )
+
+                  return html`
+                    <div class="content-text">
+                      <div
+                        dangerouslySetInnerHTML=${{ __html: processedContent }}
+                      ></div>
+                    </div>
+                  `
+                }
               case 4: // DM
                 return html`<div class="content-dm">
                   Encrypted direct message
