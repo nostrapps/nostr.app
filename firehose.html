@@ -442,22 +442,42 @@
         background-color: var(--event-bg);
         border: 1px solid var(--event-border);
         border-radius: var(--radius-md);
-        padding: 16px;
-        transition: all 0.2s ease;
+        padding: 20px;
+        transition: all 0.3s ease;
         box-shadow: var(--shadow-sm);
+        margin-bottom: 16px;
+        position: relative;
+        overflow: hidden;
       }
 
       .event-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px);
         box-shadow: var(--shadow-md);
         background-color: var(--event-hover-bg);
+      }
+
+      .event-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(
+          to bottom,
+          var(--primary),
+          var(--accent, #8b5cf6)
+        );
+        opacity: 0.6;
       }
 
       .event-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
       }
 
       .event-kind {
@@ -468,20 +488,30 @@
         padding: 3px 8px;
         border-radius: var(--radius-sm);
         margin-right: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       }
 
       .event-id {
         font-size: 13px;
         color: #64748b;
+        transition: all 0.2s ease;
+      }
+
+      .event-id:hover {
+        color: var(--primary);
       }
 
       .event-timestamp {
         font-size: 12px;
         color: #94a3b8;
+        background-color: rgba(0, 0, 0, 0.03);
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
       }
 
       .event-content {
         margin-bottom: 12px;
+        position: relative;
       }
 
       .content-metadata {
@@ -493,7 +523,27 @@
       .content-text {
         white-space: pre-wrap;
         word-break: break-word;
-        font-size: 14px;
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--text-color, #2d3748);
+        padding: 12px 16px;
+        border-radius: 10px;
+        background-color: var(--content-bg, rgba(255, 255, 255, 0.5));
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        border-left: 3px solid var(--primary, #3b82f6);
+        margin: 4px 0;
+      }
+
+      .content-text a {
+        color: var(--primary, #3b82f6);
+        text-decoration: none;
+        border-bottom: 1px dotted var(--primary, #3b82f6);
+        transition: all 0.2s ease;
+      }
+
+      .content-text a:hover {
+        border-bottom: 1px solid var(--primary, #3b82f6);
       }
 
       .content-dm {
@@ -581,6 +631,16 @@
         padding: 16px;
         font-size: 13px;
         color: #64748b;
+      }
+
+      .mention {
+        color: var(--primary, #3b82f6);
+        font-weight: 500;
+      }
+
+      .hashtag {
+        color: var(--accent, #8b5cf6);
+        font-weight: 500;
       }
 
       @media (max-width: 768px) {
@@ -1128,7 +1188,31 @@
                   </div>
                 `
               case 1: // Text Note
-                return html`<div class="content-text">${event.content}</div>`
+                // Process content to enhance formatting
+                let processedContent = event.content
+                  // Convert URLs to links
+                  .replace(
+                    /(https?:\/\/[^\s]+)/g,
+                    '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+                  )
+                  // Highlight nostr: npub mentions
+                  .replace(
+                    /(nostr:npub[a-zA-Z0-9]+)/g,
+                    '<span class="mention">$1</span>'
+                  )
+                  // Highlight hashtags
+                  .replace(
+                    /#([a-zA-Z0-9_]+)/g,
+                    '<span class="hashtag">#$1</span>'
+                  )
+
+                return html`
+                  <div class="content-text">
+                    <div
+                      dangerouslySetInnerHTML=${{ __html: processedContent }}
+                    ></div>
+                  </div>
+                `
               case 4: // DM
                 return html`<div class="content-dm">
                   Encrypted direct message
@@ -1753,7 +1837,11 @@ ${JSON.stringify(parsed, null, 2)}</pre
                 relayConn.connect()
               } catch (err) {
                 updateProgress(relayUrl, 'Failed', err.toString())
-                resolve({ relay: relayUrl, follows: [], error: err.toString() })
+                resolve({
+                  relay: relayUrl,
+                  follows: [],
+                  error: err.toString()
+                })
               }
             })
           }
