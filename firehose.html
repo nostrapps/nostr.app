@@ -669,7 +669,13 @@
             newNoteContent: '',
             following: [],
             viewMode: 'all',
-            isRefreshingFollows: false
+            isRefreshingFollows: false,
+            debugInfo: {
+              followsAttempted: false,
+              receivedEvents: [],
+              lastError: null
+            },
+            searchingAllRelays: false
           }
           this.relayConnection = null
           this.handleEvent = this.handleEvent.bind(this)
@@ -685,6 +691,9 @@
           this.fetchFollowingList = this.fetchFollowingList.bind(this)
           this.setViewMode = this.setViewMode.bind(this)
           this.refreshFollowList = this.refreshFollowList.bind(this)
+          this.showDebugInfo = this.showDebugInfo.bind(this)
+          this.searchAllRelaysForFollows =
+            this.searchAllRelaysForFollows.bind(this)
         }
 
         getRelayFromQueryString() {
@@ -1283,6 +1292,16 @@ ${JSON.stringify(parsed, null, 2)}</pre
             return
           }
 
+          // Update debug info
+          this.setState(prevState => ({
+            debugInfo: {
+              ...prevState.debugInfo,
+              followsAttempted: true,
+              receivedEvents: [],
+              lastError: null
+            }
+          }))
+
           console.log(
             'Fetching following list for pubkey:',
             this.state.user.pubkey
@@ -1294,31 +1313,58 @@ ${JSON.stringify(parsed, null, 2)}</pre
           tmpRelay.on('connect', () => {
             console.log('Connected to relay to fetch contacts (kind 3 event)')
 
+            // Try both NIP-02 contacts lists AND NIP-51 follow lists
             // Per NIP-02, we need to fetch kind 3 events (contacts/follows)
             const sub = tmpRelay.sub([
               {
-                kinds: [3],
+                kinds: [3, 10002], // Include both NIP-02 contacts and NIP-51 lists
                 authors: [this.state.user.pubkey],
-                limit: 1 // We only need the most recent one
+                limit: 5 // Get a few recent ones to be safe
               }
             ])
 
             let followers = []
+            let receivedEvents = []
 
             sub.on('event', event => {
-              console.log('Found contacts event:', event)
+              console.log(`Found event kind ${event.kind}:`, event)
 
-              // Extract the pubkeys from 'p' tags according to NIP-02
-              followers = event.tags
-                .filter(tag => tag[0] === 'p' && tag.length > 1)
-                .map(tag => tag[1])
+              // Save event for debugging
+              receivedEvents.push({
+                id: event.id,
+                kind: event.kind,
+                created_at: event.created_at,
+                tagCount: event.tags.length
+              })
 
-              console.log(
-                `Found ${followers.length} follows in contacts list:`,
-                followers.length > 0
-                  ? followers.slice(0, 3).join(', ') + '...'
-                  : 'none'
-              )
+              // Kind 3 is traditional contact list
+              if (event.kind === 3) {
+                // Extract the pubkeys from 'p' tags according to NIP-02
+                const follows = event.tags
+                  .filter(tag => tag[0] === 'p' && tag.length > 1)
+                  .map(tag => tag[1])
+
+                if (follows.length > followers.length) {
+                  followers = follows
+                  console.log(
+                    `Found ${follows.length} follows in kind 3 contacts list`
+                  )
+                }
+              }
+              // Kind 10002 is NIP-51 contact list (newer format)
+              else if (event.kind === 10002) {
+                // Filter for 'p' tags
+                const follows = event.tags
+                  .filter(tag => tag[0] === 'p' && tag.length > 1)
+                  .map(tag => tag[1])
+
+                if (follows.length > followers.length) {
+                  followers = follows
+                  console.log(
+                    `Found ${follows.length} follows in kind 10002 follow list`
+                  )
+                }
+              }
             })
 
             // Handle "end of stored events"
@@ -1336,7 +1382,12 @@ ${JSON.stringify(parsed, null, 2)}</pre
               this.setState(
                 {
                   following: followers,
-                  isRefreshingFollows: false
+                  isRefreshingFollows: false,
+                  debugInfo: {
+                    followsAttempted: true,
+                    receivedEvents,
+                    lastError: null
+                  }
                 },
                 () => {
                   this.connectToRelay()
@@ -1368,7 +1419,12 @@ ${JSON.stringify(parsed, null, 2)}</pre
                 this.setState(
                   {
                     following: followers,
-                    isRefreshingFollows: false
+                    isRefreshingFollows: false,
+                    debugInfo: {
+                      followsAttempted: true,
+                      receivedEvents,
+                      lastError: 'Timeout while fetching follows'
+                    }
                   },
                   () => {
                     this.connectToRelay()
@@ -1397,20 +1453,30 @@ ${JSON.stringify(parsed, null, 2)}</pre
             console.error('Error fetching contacts:', err)
             tmpRelay.close()
 
-            this.setState({ isRefreshingFollows: false }, () => {
-              // Continue with connection anyway
-              this.connectToRelay()
+            this.setState(
+              {
+                isRefreshingFollows: false,
+                debugInfo: {
+                  followsAttempted: true,
+                  receivedEvents: [],
+                  lastError: `Error: ${err}`
+                }
+              },
+              () => {
+                // Continue with connection anyway
+                this.connectToRelay()
 
-              // Show error notification if manual refresh
-              if (isManualRefresh) {
-                Swal.fire({
-                  title: 'Refresh Error',
-                  text: 'Error refreshing follow list: ' + err,
-                  icon: 'error',
-                  showConfirmButton: true
-                })
+                // Show error notification if manual refresh
+                if (isManualRefresh) {
+                  Swal.fire({
+                    title: 'Refresh Error',
+                    text: 'Error refreshing follow list: ' + err,
+                    icon: 'error',
+                    showConfirmButton: true
+                  })
+                }
               }
-            })
+            )
           })
 
           tmpRelay.connect()
@@ -1443,6 +1509,344 @@ ${JSON.stringify(parsed, null, 2)}</pre
           })
         }
 
+        showDebugInfo() {
+          const { user, debugInfo, relay, searchingAllRelays } = this.state
+
+          if (!user) {
+            Swal.fire({
+              title: 'Not Logged In',
+              text: 'You need to be logged in to view debug information',
+              icon: 'info'
+            })
+            return
+          }
+
+          let debugHtml = `
+            <div style="text-align: left; font-size: 14px;">
+              <h3>Debug Information:</h3>
+              <p><strong>Current relay:</strong> ${relay}</p>
+              <p><strong>User pubkey:</strong> ${user.pubkey.substring(
+                0,
+                8
+              )}...${user.pubkey.substring(user.pubkey.length - 4)}</p>
+              <p><strong>Follows fetch attempted:</strong> ${
+                debugInfo.followsAttempted ? 'Yes' : 'No'
+              }</p>
+              <p><strong>Follows count:</strong> ${
+                this.state.following.length
+              }</p>
+              ${
+                debugInfo.lastError
+                  ? `<p><strong>Last error:</strong> ${debugInfo.lastError}</p>`
+                  : ''
+              }
+              
+              <h4>Received Events (${debugInfo.receivedEvents.length}):</h4>
+              ${
+                debugInfo.receivedEvents.length === 0
+                  ? '<p>No events received from relay. This means:</p><ul>' +
+                    '<li>You may not have a contacts list on this relay</li>' +
+                    '<li>The relay might not be returning your contacts</li>' +
+                    '<li>Try connecting to a different relay</li></ul>'
+                  : '<table style="width:100%; border-collapse: collapse;">' +
+                    '<tr><th style="text-align:left; border-bottom: 1px solid #ccc;">Kind</th>' +
+                    '<th style="text-align:left; border-bottom: 1px solid #ccc;">Created</th>' +
+                    '<th style="text-align:left; border-bottom: 1px solid #ccc;">Tag Count</th></tr>' +
+                    debugInfo.receivedEvents
+                      .map(
+                        event =>
+                          `<tr>` +
+                          `<td>${event.kind}</td>` +
+                          `<td>${new Date(
+                            event.created_at * 1000
+                          ).toLocaleString()}</td>` +
+                          `<td>${event.tagCount}</td>` +
+                          `</tr>`
+                      )
+                      .join('') +
+                    '</table>'
+              }
+              
+              <h4>Next Steps:</h4>
+              <ol>
+                <li>Make sure you've created a contacts list with an app like <a href="https://damus.io/" target="_blank">Damus</a>, <a href="https://snort.social/" target="_blank">Snort</a>, or <a href="https://primal.net/" target="_blank">Primal</a></li>
+                <li>Try connecting to different relays (some may have your contacts, others may not)</li>
+                <li>If you're using multiple apps, they may be using different relays</li>
+                <li>Your contacts might be stored in a different format (Kind 3 vs Kind 10002)</li>
+              </ol>
+              
+              <div style="margin-top: 15px;">
+                <button id="searchAllRelaysBtn" class="swal2-confirm swal2-styled" ${
+                  searchingAllRelays ? 'disabled' : ''
+                }>
+                  ${
+                    searchingAllRelays
+                      ? 'Searching for follows...'
+                      : 'Search All Popular Relays for Follows'
+                  }
+                </button>
+              </div>
+            </div>
+          `
+
+          Swal.fire({
+            title: 'Follows List Debug Info',
+            html: debugHtml,
+            width: '600px',
+            showConfirmButton: true,
+            didOpen: () => {
+              const searchBtn = document.getElementById('searchAllRelaysBtn')
+              if (searchBtn) {
+                searchBtn.addEventListener('click', () => {
+                  Swal.close()
+                  this.searchAllRelaysForFollows()
+                })
+              }
+            }
+          })
+        }
+
+        searchAllRelaysForFollows() {
+          if (
+            !this.state.user ||
+            !this.state.user.pubkey ||
+            this.state.searchingAllRelays
+          ) {
+            return
+          }
+
+          // Popular relays to check
+          const relaysToCheck = [
+            'wss://relay.damus.io',
+            'wss://relay.snort.social',
+            'wss://nos.lol',
+            'wss://relay.primal.net',
+            'wss://relay.nostr.band',
+            'wss://purplepag.es',
+            'wss://relay.nostr.info'
+          ]
+
+          // Set searching flag
+          this.setState({ searchingAllRelays: true })
+
+          // Show loading indicator
+          const loadingPopup = Swal.fire({
+            title: 'Searching for follows...',
+            html:
+              'Checking multiple popular relays for your contacts list...<br><br>' +
+              '<div id="relay-search-progress">Starting search...</div>',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+              Swal.showLoading()
+            }
+          })
+
+          // Track results
+          let searchResults = {}
+          let completedRelays = 0
+          let foundFollows = false
+          let bestRelay = null
+          let bestFollowCount = 0
+
+          // Function to update progress in the popup
+          const updateProgress = (relay, status, details = '') => {
+            const progressDiv = document.getElementById('relay-search-progress')
+            if (progressDiv) {
+              const relayName = relay.replace('wss://', '')
+              let statusText = status
+              if (details) {
+                statusText += ` (${details})`
+              }
+
+              const existingContent = progressDiv.innerHTML.split('<br>')
+              const newContent = [
+                ...existingContent.slice(0, 5),
+                `${relayName}: ${statusText}`
+              ].join('<br>')
+              progressDiv.innerHTML = newContent
+              progressDiv.scrollTop = progressDiv.scrollHeight
+            }
+          }
+
+          // Function to check one relay
+          const checkRelay = relayUrl => {
+            return new Promise(resolve => {
+              try {
+                updateProgress(relayUrl, 'Connecting...')
+                const relayConn = window.NostrTools.relayInit(relayUrl)
+
+                // Set timeout for the entire operation
+                const timeout = setTimeout(() => {
+                  updateProgress(relayUrl, 'Timed out')
+                  try {
+                    relayConn.close()
+                  } catch (e) {}
+                  resolve({ relay: relayUrl, follows: [], error: 'Timeout' })
+                }, 7000)
+
+                relayConn.on('connect', () => {
+                  updateProgress(relayUrl, 'Connected, searching...')
+
+                  // Look for contacts list events
+                  const sub = relayConn.sub([
+                    {
+                      kinds: [3, 10002],
+                      authors: [this.state.user.pubkey],
+                      limit: 5
+                    }
+                  ])
+
+                  let follows = []
+                  let receivedEvents = []
+
+                  sub.on('event', event => {
+                    receivedEvents.push(event)
+
+                    // Extract follows from event
+                    if (event.kind === 3 || event.kind === 10002) {
+                      const eventFollows = event.tags
+                        .filter(tag => tag[0] === 'p' && tag.length > 1)
+                        .map(tag => tag[1])
+
+                      if (eventFollows.length > follows.length) {
+                        follows = eventFollows
+                      }
+                    }
+                  })
+
+                  sub.on('eose', () => {
+                    clearTimeout(timeout)
+                    try {
+                      relayConn.close()
+                    } catch (e) {}
+
+                    updateProgress(
+                      relayUrl,
+                      follows.length > 0
+                        ? `Found ${follows.length} follows!`
+                        : 'No follows found'
+                    )
+
+                    resolve({
+                      relay: relayUrl,
+                      follows,
+                      events: receivedEvents,
+                      error: null
+                    })
+                  })
+                })
+
+                relayConn.on('error', err => {
+                  clearTimeout(timeout)
+                  updateProgress(relayUrl, 'Failed', err.toString())
+                  try {
+                    relayConn.close()
+                  } catch (e) {}
+                  resolve({
+                    relay: relayUrl,
+                    follows: [],
+                    error: err.toString()
+                  })
+                })
+
+                relayConn.connect()
+              } catch (err) {
+                updateProgress(relayUrl, 'Failed', err.toString())
+                resolve({ relay: relayUrl, follows: [], error: err.toString() })
+              }
+            })
+          }
+
+          // Process relays sequentially (to avoid overwhelming the browser)
+          const processRelays = async () => {
+            for (const relay of relaysToCheck) {
+              if (relay === this.state.relay) {
+                searchResults[relay] = {
+                  follows: this.state.following,
+                  checked: true,
+                  error: null,
+                  isCurrent: true
+                }
+                completedRelays++
+                updateProgress(
+                  relay,
+                  this.state.following.length > 0
+                    ? `Current relay: ${this.state.following.length} follows`
+                    : 'Current relay: No follows'
+                )
+
+                if (this.state.following.length > bestFollowCount) {
+                  bestFollowCount = this.state.following.length
+                  bestRelay = relay
+                  foundFollows = true
+                }
+
+                continue
+              }
+
+              const result = await checkRelay(relay)
+              searchResults[relay] = {
+                follows: result.follows,
+                checked: true,
+                error: result.error,
+                events: result.events
+              }
+
+              completedRelays++
+
+              if (result.follows.length > bestFollowCount) {
+                bestFollowCount = result.follows.length
+                bestRelay = relay
+                foundFollows = true
+              }
+            }
+
+            // Close the loading popup
+            loadingPopup.close()
+
+            // If we found follows somewhere, offer to switch relays
+            if (foundFollows && bestRelay && bestRelay !== this.state.relay) {
+              Swal.fire({
+                title: 'Found Follows!',
+                html: `Found ${bestFollowCount} follows on ${bestRelay}<br><br>Would you like to switch to this relay?`,
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: 'Switch Relay',
+                cancelButtonText: 'Stay on Current Relay'
+              }).then(result => {
+                if (result.isConfirmed) {
+                  // Switch relay and update follows
+                  this.setState({ relay: bestRelay }, () => {
+                    this.connectToRelay()
+                    this.fetchFollowingList()
+                  })
+                }
+              })
+            } else if (foundFollows && bestRelay === this.state.relay) {
+              Swal.fire({
+                title: 'Search Complete',
+                html: `Your current relay has the most follows (${bestFollowCount}).`,
+                icon: 'success'
+              })
+            } else {
+              Swal.fire({
+                title: 'No Follows Found',
+                html:
+                  'Could not find a contacts list on any of the popular relays.<br><br>' +
+                  'You may need to create a contacts list using a Nostr client like Damus, Snort, or Primal.',
+                icon: 'info'
+              })
+            }
+
+            // Reset search flag
+            this.setState({ searchingAllRelays: false })
+          }
+
+          // Start the process
+          processRelays()
+        }
+
         render() {
           const {
             events,
@@ -1455,7 +1859,8 @@ ${JSON.stringify(parsed, null, 2)}</pre
             newNoteContent,
             following,
             viewMode,
-            isRefreshingFollows
+            isRefreshingFollows,
+            searchingAllRelays
           } = this.state
 
           return html`
@@ -1480,6 +1885,11 @@ ${JSON.stringify(parsed, null, 2)}</pre
                       <option value="wss://relay.damus.io">
                         Damus (wss://relay.damus.io)
                       </option>
+
+                      <option value="wss://relay.primal.net">
+                        Primal (wss://relay.primal.net)
+                      </option>
+
                       <option value="wss://relay.nostr.band">
                         Nostr.band (wss://relay.nostr.band)
                       </option>
@@ -1522,16 +1932,25 @@ ${JSON.stringify(parsed, null, 2)}</pre
                       style="display: flex; justify-content: space-between; align-items: center;"
                     >
                       <label class="control-label">Filter:</label>
-                      <button
-                        class="debug-button"
-                        onClick=${this.refreshFollowList}
-                        disabled=${isRefreshingFollows}
-                        style=${isRefreshingFollows ? 'opacity: 0.7;' : ''}
-                      >
-                        ${isRefreshingFollows
-                          ? 'Refreshing...'
-                          : 'Refresh Follows'}
-                      </button>
+                      <div>
+                        <button
+                          class="debug-button"
+                          onClick=${this.refreshFollowList}
+                          disabled=${isRefreshingFollows}
+                          style=${isRefreshingFollows ? 'opacity: 0.7;' : ''}
+                        >
+                          ${isRefreshingFollows
+                            ? 'Refreshing...'
+                            : 'Refresh Follows'}
+                        </button>
+                        <button
+                          class="debug-button"
+                          onClick=${this.showDebugInfo}
+                          style="margin-left: 10px;"
+                        >
+                          Advanced Debug
+                        </button>
+                      </div>
                     </div>
                     <div class="view-mode-buttons">
                       <button
@@ -1567,23 +1986,25 @@ ${JSON.stringify(parsed, null, 2)}</pre
                               Swal.fire({
                                 title: 'Your Follow List',
                                 html: `
-                              <div style="max-height: 300px; overflow-y: auto; text-align: left;">
-                                <p>You follow ${following.length} accounts:</p>
-                                <ul style="font-family: monospace; font-size: 12px;">
-                                  ${following
-                                    .map(
-                                      pk =>
-                                        `<li>${pk.substring(
-                                          0,
-                                          8
-                                        )}...${pk.substring(
-                                          pk.length - 4
-                                        )}</li>`
-                                    )
-                                    .join('')}
-                                </ul>
-                              </div>
-                            `,
+                                  <div style="max-height: 300px; overflow-y: auto; text-align: left;">
+                                    <p>You follow ${
+                                      following.length
+                                    } accounts:</p>
+                                    <ul style="font-family: monospace; font-size: 12px;">
+                                      ${following
+                                        .map(
+                                          pk =>
+                                            `<li>${pk.substring(
+                                              0,
+                                              8
+                                            )}...${pk.substring(
+                                              pk.length - 4
+                                            )}</li>`
+                                        )
+                                        .join('')}
+                                    </ul>
+                                  </div>
+                                `,
                                 showConfirmButton: true
                               })
                             }}
@@ -1592,27 +2013,41 @@ ${JSON.stringify(parsed, null, 2)}</pre
                           </button>
                         `
                       : html`
-                          <button
-                            class="debug-button"
-                            onClick=${() => {
-                              Swal.fire({
-                                title: 'No Follows Found',
-                                html: `
-                              <div style="text-align: left;">
-                                <p>No follows were found in your contacts list on this relay.</p>
-                                <p>To create a contact list, you can:</p>
-                                <ul>
-                                  <li>Use a Nostr client with contacts management</li>
-                                  <li>Follow people on other Nostr clients that publish to this relay</li>
-                                </ul>
-                              </div>
-                            `,
-                                showConfirmButton: true
-                              })
-                            }}
-                          >
-                            Why am I not seeing follows?
-                          </button>
+                          <div>
+                            <button
+                              class="debug-button"
+                              onClick=${() => {
+                                Swal.fire({
+                                  title: 'No Follows Found',
+                                  html: `
+                                    <div style="text-align: left;">
+                                      <p>No follows were found in your contacts list on this relay.</p>
+                                      <p>To create a contact list, you can:</p>
+                                      <ul>
+                                        <li>Use a Nostr client with contacts management</li>
+                                        <li>Follow people on other Nostr clients that publish to this relay</li>
+                                        <li><a href="#" onClick="document.querySelector('button[onClick*=showDebugInfo]').click(); return false;">Click here for advanced debugging</a></li>
+                                      </ul>
+                                    </div>
+                                  `,
+                                  showConfirmButton: true
+                                })
+                              }}
+                            >
+                              Why am I not seeing follows?
+                            </button>
+
+                            <button
+                              class="debug-button"
+                              style="margin-top: 10px; width: 100%;"
+                              onClick=${this.searchAllRelaysForFollows}
+                              disabled=${searchingAllRelays}
+                            >
+                              ${searchingAllRelays
+                                ? 'Searching relays...'
+                                : 'Search All Popular Relays for Follows'}
+                            </button>
+                          </div>
                         `}
                   </div>
                 `}
