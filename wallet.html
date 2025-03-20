@@ -346,6 +346,44 @@
         font-weight: bold;
         color: var(--primary-dark);
       }
+
+      /* Add these responsive table styles */
+      @media (max-width: 768px) {
+        .utxo-table {
+          display: block;
+          width: 100%;
+          overflow-x: auto;
+        }
+
+        .utxo-table th:first-child,
+        .utxo-table td:first-child {
+          max-width: 140px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        #user-identifiers {
+          padding: 12px;
+        }
+
+        #user-identifiers .mb-4,
+        #user-identifiers .p-3 {
+          padding: 8px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .utxo-table td:first-child {
+          max-width: 100px;
+        }
+
+        .utxo-table th,
+        .utxo-table td {
+          padding: 8px 6px;
+          font-size: 0.85rem;
+        }
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/@cmdcode/tapscript"></script>
@@ -485,6 +523,40 @@
           Copy
         </button>
       </div>
+
+      <div class="mt-8 p-4 bg-gray-50 rounded-md border border-gray-200">
+        <h3 class="text-lg font-semibold text-primary mb-2">
+          Need testnet coins?
+        </h3>
+        <p class="text-gray-600 mb-3">
+          Get free testnet4 coins from these faucets to test your wallet:
+        </p>
+        <a
+          href="https://github.com/testnet4/awesome-testnet4?tab=readme-ov-file#faucets"
+          target="_blank"
+          class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 mr-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
+          </svg>
+          Testnet4 Faucets
+        </a>
+        <p class="text-xs text-gray-500 mt-2">
+          These faucets provide free testnet coins for development and testing
+          purposes.
+        </p>
+      </div>
     </div>
 
     <script type="module">
@@ -542,35 +614,43 @@
 
       const renderUTXOTable = utxos => {
         const tableHTML = `
-          <table class="utxo-table">
-            <thead>
-              <tr>
-                <th>TXID</th>
-                <th>VOUT</th>
-                <th>Value (sats)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${utxos
-                .map(
-                  utxo => `
+          <div class="overflow-x-auto">
+            <table class="utxo-table">
+              <thead>
                 <tr>
-                  <td><a href="https://mempool.space/testnet4/tx/${utxo.txid}" target="_blank" class="text-primary hover:text-accent transition-colors">${utxo.txid}</a></td>
-                  <td>${utxo.vout}</td>
-                  <td>${utxo.value}</td>
+                  <th>TXID</th>
+                  <th>VOUT</th>
+                  <th>Value (sats)</th>
                 </tr>
-              `
-                )
-                .join('')}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                ${utxos
+                  .map(
+                    utxo => `
+                  <tr>
+                    <td title="${
+                      utxo.txid
+                    }"><a href="https://mempool.space/testnet4/tx/${
+                      utxo.txid
+                    }" target="_blank" class="text-primary hover:text-accent transition-colors">${
+                      utxo.txid
+                    }</a></td>
+                    <td>${utxo.vout}</td>
+                    <td>${utxo.value.toLocaleString()}</td>
+                  </tr>
+                `
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+          </div>
         `
         document.getElementById('utxo-table-container').innerHTML = tableHTML
 
         const totalBalance = utxos.reduce((sum, utxo) => sum + utxo.value, 0)
         document.getElementById(
           'balance-info'
-        ).innerHTML = `<span class="text-xl">Total Balance: <span class="text-primary-dark font-bold">${totalBalance}</span> sats</span>`
+        ).innerHTML = `<span class="text-xl">Total Balance: <span class="text-primary-dark font-bold">${totalBalance.toLocaleString()}</span> sats</span>`
       }
 
       // Handle login callback from navbar
