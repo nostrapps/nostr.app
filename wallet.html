@@ -460,6 +460,58 @@
         onLogout=${handleNavbarLogout}
       />`
 
+      const fetchUTXOs = async address => {
+        try {
+          const response = await fetch(
+            `https://mempool.space/testnet4/api/address/${address}/utxo`
+          )
+          const utxos = await response.json()
+          currentUTXOs = utxos
+          renderUTXOTable(utxos)
+        } catch (error) {
+          console.error('Failed to fetch UTXOs:', error)
+          Swal.fire({
+            title: 'Error',
+            text: 'Failed to fetch UTXOs',
+            icon: 'error',
+            confirmButtonColor: 'var(--primary)'
+          })
+        }
+      }
+
+      const renderUTXOTable = utxos => {
+        const tableHTML = `
+          <table class="utxo-table">
+            <thead>
+              <tr>
+                <th>TXID</th>
+                <th>VOUT</th>
+                <th>Value (sats)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${utxos
+                .map(
+                  utxo => `
+                <tr>
+                  <td><a href="https://mempool.space/testnet4/tx/${utxo.txid}" target="_blank" class="text-primary hover:text-accent transition-colors">${utxo.txid}</a></td>
+                  <td>${utxo.vout}</td>
+                  <td>${utxo.value}</td>
+                </tr>
+              `
+                )
+                .join('')}
+            </tbody>
+          </table>
+        `
+        document.getElementById('utxo-table-container').innerHTML = tableHTML
+
+        const totalBalance = utxos.reduce((sum, utxo) => sum + utxo.value, 0)
+        document.getElementById(
+          'balance-info'
+        ).innerHTML = `<span class="text-xl">Total Balance: <span class="text-primary-dark font-bold">${totalBalance}</span> sats</span>`
+      }
+
       // Handle login callback from navbar
       function handleNavbarLogin(newPubkey) {
         console.log('User logged in with pubkey:', newPubkey)
@@ -499,6 +551,16 @@
       // Render the navbar component
       if (navbarContainer) {
         render(navbarComponent, navbarContainer)
+
+        // Check if user is already logged in via localStorage
+        const storedPubkey = localStorage.getItem('pubkey')
+        if (storedPubkey) {
+          console.log(
+            'User already logged in with stored pubkey:',
+            storedPubkey
+          )
+          handleNavbarLogin(storedPubkey)
+        }
       }
 
       document.getElementById('refresh-icon').addEventListener('click', () => {
@@ -574,58 +636,6 @@
       }
 
       window.sendTransaction = sendTransaction
-
-      const fetchUTXOs = async address => {
-        try {
-          const response = await fetch(
-            `https://mempool.space/testnet4/api/address/${address}/utxo`
-          )
-          const utxos = await response.json()
-          currentUTXOs = utxos
-          renderUTXOTable(utxos)
-        } catch (error) {
-          console.error('Failed to fetch UTXOs:', error)
-          Swal.fire({
-            title: 'Error',
-            text: 'Failed to fetch UTXOs',
-            icon: 'error',
-            confirmButtonColor: 'var(--primary)'
-          })
-        }
-      }
-
-      const renderUTXOTable = utxos => {
-        const tableHTML = `
-          <table class="utxo-table">
-            <thead>
-              <tr>
-                <th>TXID</th>
-                <th>VOUT</th>
-                <th>Value (sats)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${utxos
-                .map(
-                  utxo => `
-                <tr>
-                  <td><a href="https://mempool.space/testnet4/tx/${utxo.txid}" target="_blank" class="text-primary hover:text-accent transition-colors">${utxo.txid}</a></td>
-                  <td>${utxo.vout}</td>
-                  <td>${utxo.value}</td>
-                </tr>
-              `
-                )
-                .join('')}
-            </tbody>
-          </table>
-        `
-        document.getElementById('utxo-table-container').innerHTML = tableHTML
-
-        const totalBalance = utxos.reduce((sum, utxo) => sum + utxo.value, 0)
-        document.getElementById(
-          'balance-info'
-        ).innerHTML = `<span class="text-xl">Total Balance: <span class="text-primary-dark font-bold">${totalBalance}</span> sats</span>`
-      }
 
       const createTransaction = async (recipient, amount) => {
         if (currentUTXOs.length === 0) {
