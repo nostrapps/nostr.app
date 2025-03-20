@@ -530,8 +530,10 @@
           1024
         )
 
-        // Display the taproot address in the Receive tab
-        document.getElementById('receive-address').innerText = taprootAddress
+        // Display the taproot address in the Receive tab with a clickable link
+        const receiveAddressElement = document.getElementById('receive-address')
+        const mempoolUrl = `https://mempool.space/testnet4/address/${taprootAddress}`
+        receiveAddressElement.innerHTML = `<a href="${mempoolUrl}" target="_blank" class="text-primary hover:text-accent transition-colors">${taprootAddress}</a>`
 
         // Fetch and render UTXOs
         fetchUTXOs(taprootAddress)
@@ -615,9 +617,18 @@
             icon: 'success',
             confirmButtonColor: 'var(--primary)'
           })
+
           // Refresh UTXOs after transaction is sent successfully
-          const taprootAddress =
-            document.getElementById('receive-address').innerText
+          const receiveElement = document.getElementById('receive-address')
+          // Extract the address - either from the link if present or directly from the text
+          let taprootAddress
+          const linkElement = receiveElement.querySelector('a')
+          if (linkElement) {
+            taprootAddress = linkElement.textContent
+          } else {
+            taprootAddress = receiveElement.textContent
+          }
+
           if (
             taprootAddress &&
             taprootAddress !== 'Connect to see address...'
