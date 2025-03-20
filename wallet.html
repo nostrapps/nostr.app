@@ -637,7 +637,42 @@
 
       window.sendTransaction = sendTransaction
 
+      // Helper function to check if stored private key exists
+      const hasStoredPrivkey = () => {
+        return localStorage.getItem('nostr:privkey') !== null
+      }
+
+      // Helper function to check login status
+      const isUserLoggedIn = () => {
+        return localStorage.getItem('loggedIn') === 'true'
+      }
+
       const createTransaction = async (recipient, amount) => {
+        // First check if the user is logged in
+        if (!isUserLoggedIn()) {
+          Swal.fire({
+            title: 'Login Required',
+            text: 'Please login with your private key or Nostr extension to create a transaction.',
+            icon: 'warning',
+            confirmButtonColor: 'var(--primary)'
+          })
+          return
+        }
+
+        // If user is using extension, check if it supports signSchnorr
+        if (
+          !hasStoredPrivkey() &&
+          (!window.nostr || typeof window.nostr.signSchnorr !== 'function')
+        ) {
+          Swal.fire({
+            title: 'Signing Not Supported',
+            text: 'Your Nostr extension does not support Schnorr signatures. Please login with your private key instead.',
+            icon: 'warning',
+            confirmButtonColor: 'var(--primary)'
+          })
+          return
+        }
+
         if (currentUTXOs.length === 0) {
           Swal.fire({
             title: 'Error',
@@ -713,11 +748,27 @@
         const rawTxHex = await serializeTransaction(tx)
         window.rawTxHex = rawTxHex
         displayDebugInfo(tx, rawTxHex)
-        document.getElementById('send-tx-button').style.display = 'block'
+
+        // Update button text based on signing method
+        const sendTxButton = document.getElementById('send-tx-button')
+        sendTxButton.innerText = hasStoredPrivkey()
+          ? 'Send Transaction (Private Key)'
+          : 'Send Transaction (Extension)'
+        sendTxButton.style.display = 'block'
       }
 
       const displayDebugInfo = (tx, rawTxHex) => {
+        // Check login method for informative message
+        let signingMethod = 'Not logged in'
+
+        if (isUserLoggedIn()) {
+          signingMethod = hasStoredPrivkey()
+            ? 'Using stored private key for signing'
+            : 'Using Nostr extension for signing'
+        }
+
         const debugInfo = `
+                          Signing Method: ${signingMethod}\n\n
                           Unsigned Transaction JSON:\n${JSON.stringify(
                             tx,
                             null,
@@ -810,29 +861,76 @@
           let hash = preimage
 
           try {
-            // Check if nostr is available and has the signSchnorr method
-            if (
-              !window.nostr ||
-              typeof window.nostr.signSchnorr !== 'function'
-            ) {
-              Swal.fire({
-                title: 'Signing Error',
-                text: 'Nostr extension does not support Schnorr signatures. Please use a compatible extension like Alby or nos2x.',
-                icon: 'error',
-                confirmButtonColor: 'var(--primary)'
-              })
-              throw new Error('Missing nostr.signSchnorr method')
+            let sign
+
+            if (hasStoredPrivkey()) {
+              // Use the stored private key for signing
+              console.log('Signing with stored private key')
+              const storedPrivkey = localStorage.getItem('nostr:privkey')
+
+              // Convert preimage from hex string to Uint8Array if needed
+              let preimageBytes
+              if (typeof preimage === 'string') {
+                preimageBytes = Uint8Array.from(
+                  preimage.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+                )
+              } else {
+                preimageBytes = preimage
+              }
+
+              // Sign the preimage using secp256k1.schnorr.sign
+              const signatureBytes = await secp256k1.schnorr.sign(
+                preimageBytes,
+                storedPrivkey
+              )
+              sign = secp256k1.utils.bytesToHex(signatureBytes)
+            } else {
+              // Check if nostr extension is available and has the signSchnorr method
+              if (
+                !window.nostr ||
+                typeof window.nostr.signSchnorr !== 'function'
+              ) {
+                Swal.fire({
+                  title: 'Signing Error',
+                  text: 'No private key found in localStorage and Nostr extension does not support Schnorr signatures. Please use a compatible extension like Alby or nos2x or login with your private key.',
+                  icon: 'error',
+                  confirmButtonColor: 'var(--primary)'
+                })
+                throw new Error(
+                  'Missing nostr.signSchnorr method and no stored private key'
+                )
+              }
+
+              // Sign the transaction using the extension
+              console.log('Signing with Nostr extension')
+              sign = await window.nostr.signSchnorr(preimage)
             }
 
-            // Sign the transaction
-            let sign = await window.nostr.signSchnorr(preimage)
             console.log('Your signed txhex:', Tx.encode(txCopy).hex)
             txCopy.vin[i].witness = [sign]
           } catch (error) {
             console.error('Transaction signing error:', error)
+
+            // Determine if the user is logged in at all
+            let errorMessage = ''
+
+            if (!isUserLoggedIn()) {
+              errorMessage =
+                'You need to login first. Please login with your private key or a compatible Nostr extension.'
+            } else if (
+              !hasStoredPrivkey() &&
+              (!window.nostr || typeof window.nostr.signSchnorr !== 'function')
+            ) {
+              errorMessage =
+                'Your Nostr extension does not support Schnorr signatures. Please login with your private key instead.'
+            } else {
+              errorMessage =
+                'Failed to sign the transaction. Please make sure you are logged in correctly.'
+            }
+
             Swal.fire({
               title: 'Transaction Signing Failed',
-              text: 'Failed to sign the transaction. Please make sure you are logged in with a compatible Nostr extension.',
+              text: errorMessage,
               icon: 'error',
               confirmButtonColor: 'var(--primary)'
             })
