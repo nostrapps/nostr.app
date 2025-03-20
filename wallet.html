@@ -429,17 +429,77 @@
     <script type="module">
       import {
         h,
-        render
-      } from 'https://unpkg.com/preact@10.10.6/dist/preact.module.js'
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
       import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
       import { bech32, bech32m } from 'https://esm.run/bech32'
       import { sha256 } from 'https://esm.run/js-sha256'
+      import Navbar from './navbar.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+
+      // Make libraries available globally
+      window.secp256k1 = secp256k1
+
+      // Initialize Swal
+      import Swal from 'https://cdn.jsdelivr.net/npm/sweetalert2@11/+esm'
+      window.Swal = Swal
+
       const { Signer, Tx } = window.tapscript
 
+      // Initialize htm with Preact
       const html = htm.bind(h)
 
       let currentUTXOs = []
       let pubkey
+
+      // Initialize the navbar separately first
+      const navbarContainer = document.getElementById('app')
+      const navbarComponent = html`<${Navbar}
+        onLogin=${handleNavbarLogin}
+        onLogout=${handleNavbarLogout}
+      />`
+
+      // Handle login callback from navbar
+      function handleNavbarLogin(newPubkey) {
+        console.log('User logged in with pubkey:', newPubkey)
+        pubkey = newPubkey
+
+        // Convert pubkey to taproot address
+        const taproot_prefix = 'tb'
+        const buffer = new Uint8Array(
+          newPubkey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+        )
+        const scriptVersion = 1
+        const words = bech32.toWords(buffer)
+        const taprootAddress = bech32m.encode(
+          taproot_prefix,
+          [scriptVersion, ...words],
+          1024
+        )
+
+        // Display the taproot address in the Receive tab
+        document.getElementById('receive-address').innerText = taprootAddress
+
+        // Fetch and render UTXOs
+        fetchUTXOs(taprootAddress)
+      }
+
+      // Handle logout callback from navbar
+      function handleNavbarLogout() {
+        pubkey = null
+        // Clear UTXO table and receive address
+        document.getElementById('utxo-table-container').innerHTML = ''
+        document.getElementById('balance-info').innerText =
+          'Connect to see balance...'
+        document.getElementById('receive-address').innerText =
+          'Connect to see address...'
+      }
+
+      // Render the navbar component
+      if (navbarContainer) {
+        render(navbarComponent, navbarContainer)
+      }
 
       document.getElementById('refresh-icon').addEventListener('click', () => {
         const taprootAddress =
@@ -739,10 +799,35 @@
 
           let hash = preimage
 
-          // const msg = new Uint8Array(preimage) // Convert hashout to a Buffer
-          let sign = await window.nostr.signSchnorr(preimage)
-          console.log('Your signed txhex:', Tx.encode(txCopy).hex)
-          txCopy.vin[i].witness = [sign]
+          try {
+            // Check if nostr is available and has the signSchnorr method
+            if (
+              !window.nostr ||
+              typeof window.nostr.signSchnorr !== 'function'
+            ) {
+              Swal.fire({
+                title: 'Signing Error',
+                text: 'Nostr extension does not support Schnorr signatures. Please use a compatible extension like Alby or nos2x.',
+                icon: 'error',
+                confirmButtonColor: 'var(--primary)'
+              })
+              throw new Error('Missing nostr.signSchnorr method')
+            }
+
+            // Sign the transaction
+            let sign = await window.nostr.signSchnorr(preimage)
+            console.log('Your signed txhex:', Tx.encode(txCopy).hex)
+            txCopy.vin[i].witness = [sign]
+          } catch (error) {
+            console.error('Transaction signing error:', error)
+            Swal.fire({
+              title: 'Transaction Signing Failed',
+              text: 'Failed to sign the transaction. Please make sure you are logged in with a compatible Nostr extension.',
+              icon: 'error',
+              confirmButtonColor: 'var(--primary)'
+            })
+            return ''
+          }
         }
 
         // preimage =
@@ -805,156 +890,6 @@
       const reverseHex = hex => {
         return hex.match(/.{2}/g).reverse().join('')
       }
-
-      const Navbar = () => {
-        const handleConnect = async () => {
-          try {
-            const result = await Swal.fire({
-              title: 'Connect Wallet',
-              text: 'Choose your wallet to connect',
-              icon: 'info',
-              showCloseButton: true,
-              showCancelButton: false,
-              confirmButtonText: 'Connect Alby',
-              confirmButtonColor: 'var(--primary)',
-              showDenyButton: true,
-              denyButtonText: 'Connect nos2x',
-              denyButtonColor: 'var(--primary-dark)',
-              customClass: {
-                popup: 'rounded-lg'
-              }
-            })
-
-            if (result.isConfirmed || result.isDenied) {
-              const publicKey = await window.nostr.getPublicKey()
-              pubkey = publicKey
-              console.log('publicKey', publicKey)
-
-              var taproot_prefix = 'tb'
-              var buffer = new Uint8Array(
-                publicKey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
-              )
-              const scriptVersion = 1
-              console.log('buffer', buffer)
-              var words = bech32.toWords(buffer)
-              words = [scriptVersion, ...words]
-              const taprootAddress = bech32m.encode(taproot_prefix, words, 1024)
-              console.log('taproot', taprootAddress)
-
-              const shortenedPublicKey = `${publicKey.slice(
-                0,
-                4
-              )}...${publicKey.slice(-3)}`
-
-              document.getElementById(
-                'auth-text'
-              ).innerHTML = `<span class="status-dot"></span>${shortenedPublicKey}`
-              document.querySelector('.avatar').style.display = 'block'
-              document.getElementById('auth-button').dataset.connected = 'true'
-              document.getElementById(
-                'view-address-link'
-              ).href = `https://mempool.space/testnet4/address/${taprootAddress}`
-
-              // Display the taproot address in the Receive tab
-              document.getElementById('receive-address').innerText =
-                taprootAddress
-
-              // Fetch and render UTXOs
-              fetchUTXOs(taprootAddress)
-            }
-          } catch (error) {
-            Swal.fire({
-              title: 'Failed to connect',
-              text: 'Please try again.',
-              icon: 'error',
-              confirmButtonColor: 'var(--primary)'
-            })
-          }
-        }
-
-        const handleLogout = event => {
-          event.stopPropagation()
-          document.getElementById(
-            'auth-text'
-          ).innerHTML = `<span class="status-dot"></span>Connect`
-          document.querySelector('.avatar').style.display = 'none'
-          document.getElementById('view-address-link').href = '#'
-          delete document.getElementById('auth-button').dataset.connected
-          document.getElementById('auth-dropdown').classList.remove('show')
-
-          // Clear UTXO table and receive address
-          document.getElementById('utxo-table-container').innerHTML = ''
-          document.getElementById('balance-info').innerText =
-            'Connect to see balance...'
-          document.getElementById('receive-address').innerText =
-            'Connect to see address...'
-        }
-
-        const toggleDropdown = event => {
-          if (event.target.id === 'disconnect-link') {
-            handleLogout(event)
-          } else {
-            const authButton = document.getElementById('auth-button')
-            if (authButton.dataset.connected === 'true') {
-              document.getElementById('auth-dropdown').classList.toggle('show')
-            } else {
-              handleConnect()
-            }
-          }
-        }
-
-        return html`
-          <nav class="navbar">
-            <div class="nav-links">
-              <a href="#" class="text-lg font-bold text-primary"
-                >Nostr Testnet Wallet</a
-              >
-              <a
-                href="https://faucet.testnet.com"
-                target="_blank"
-                class="hover:text-accent transition-colors"
-                >Get Coins</a
-              >
-              <a
-                href="./glyphs.html"
-                target="_blank"
-                class="hover:text-accent transition-colors"
-                >Glyphs</a
-              >
-            </div>
-            <div class="nav-search">
-              <input type="text" placeholder="Search..." id="navbar-search" />
-            </div>
-            <button
-              class="auth-button"
-              id="auth-button"
-              onClick=${toggleDropdown}
-            >
-              <span class="username" id="auth-text">
-                <span class="status-dot"></span>
-                Connect
-              </span>
-              <div class="avatar"></div>
-              <div class="dropdown" id="auth-dropdown">
-                <a
-                  id="view-address-link"
-                  target="_blank"
-                  class="hover:text-accent"
-                  >View Address</a
-                ><br />
-                <a
-                  id="disconnect-link"
-                  onClick=${handleLogout}
-                  class="hover:text-accent"
-                  >Disconnect</a
-                >
-              </div>
-            </button>
-          </nav>
-        `
-      }
-
-      render(html`<${Navbar} />`, document.getElementById('app'))
 
       // Tab Navigation
       window.openTab = function (evt, tabName) {
