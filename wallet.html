@@ -1064,6 +1064,7 @@
           vout: [
             {
               value: amount,
+              // For P2TR (taproot/tb1p), the scriptPubKey is OP_1 followed by the 32-byte program
               scriptPubKey: ['OP_1', recipient]
             }
           ]
@@ -1114,8 +1115,24 @@
             : 'Using Nostr extension for signing'
         }
 
+        // Extract recipient address from the transaction
+        const recipientPubkey = tx.vout.find(
+          output => output.scriptPubKey[0] === 'OP_1' && output.value > 0
+        )?.scriptPubKey[1]
+
+        // Extract original address from debug info
+        const debugEl = document.getElementById('debug-info')
+        let originalAddress = ''
+        if (debugEl.innerText.includes('Original Address:')) {
+          const match = debugEl.innerText.match(/Original Address: (.+)\n/)
+          if (match) originalAddress = match[1]
+        }
+
         const debugInfo = `
                           Signing Method: ${signingMethod}\n\n
+                          Address Info:\n
+                          Original Address: ${originalAddress}
+                          Decoded Pubkey: ${recipientPubkey}\n\n
                           Unsigned Transaction JSON:\n${JSON.stringify(
                             tx,
                             null,
@@ -1379,45 +1396,96 @@
         var recipient = document.getElementById('address').value.trim()
         const opReturnData = document.getElementById('op_return').value.trim()
 
+        // Save original address for debugging
+        const originalAddress = recipient
+        var decodedHex = ''
+
+        // Show initial debug status
+        document.getElementById(
+          'debug-info'
+        ).innerText = `Processing transaction...\n\nInput Address: ${originalAddress}`
+
         // Check if the recipient address starts with 'npub1'
         if (recipient.startsWith('npub1')) {
           try {
             const decoded = bech32.decode(recipient) // Decode the npub1 address
-            console.log('decoded', decoded)
-            recipient = bech32.fromWords(decoded.words)
-            console.log('recipient', recipient)
-            recipient = recipient
+            console.log('Decoded npub1:', decoded)
+            const bytes = bech32.fromWords(decoded.words)
+            console.log('npub1 bytes:', bytes)
+            decodedHex = bytes
               .map(byte => byte.toString(16).padStart(2, '0'))
               .join('') // Convert bytes to hex string
-            console.log('recipient', recipient)
-
-            // recipient = Buffer.from(recipient).toString('hex') // Convert to hex string (pubkey)
+            console.log('npub1 hex:', decodedHex)
+            recipient = decodedHex
           } catch (error) {
+            console.error('Error decoding npub1:', error)
             Swal.fire('Error', 'Invalid npub1 address.', 'error')
             return
           }
         }
-
-        if (recipient.startsWith('tb1')) {
+        // Check if the recipient address starts with 'tb1p' (taproot)
+        else if (recipient.startsWith('tb1p')) {
           try {
-            const decoded = bech32m.decode(recipient) // Decode the npub1 address
-            console.log('decoded', decoded)
-            recipient = bech32.fromWords(decoded.words)
-            console.log('recipient', recipient)
-            recipient = recipient
-              .map(byte => byte.toString(16).padStart(2, '0'))
-              .join('') // Convert bytes to hex string
-            console.log('recipient', recipient)
+            const decoded = bech32m.decode(recipient) // Decode the taproot address
+            console.log('Decoded tb1p:', decoded)
 
-            // recipient = Buffer.from(recipient).toString('hex') // Convert to hex string (pubkey)
+            // Remove witness version (first byte)
+            const programWords = decoded.words.slice(1)
+            const programBytes = bech32m.fromWords(programWords) // Convert to bytes
+
+            if (programBytes.length !== 32) {
+              throw new Error(
+                `Invalid taproot program length: ${programBytes.length}, expected 32`
+              )
+            }
+
+            // Convert to hex string
+            decodedHex = programBytes
+              .map(byte => byte.toString(16).padStart(2, '0'))
+              .join('')
+            console.log('tb1p program hex:', decodedHex)
+            recipient = decodedHex
+
+            // Update debug info
+            document.getElementById(
+              'debug-info'
+            ).innerText = `Processing transaction...\n\nInput Address: ${originalAddress}\nDecoded Program: ${recipient}`
           } catch (error) {
-            Swal.fire('Error', 'Invalid tb1 address.', 'error')
+            console.error('Error decoding tb1p:', error)
+            Swal.fire('Error', 'Invalid taproot address.', 'error')
+            return
+          }
+        }
+        // Check if the recipient address starts with 'tb1q' (segwit)
+        else if (recipient.startsWith('tb1q')) {
+          try {
+            const decoded = bech32.decode(recipient) // Decode the segwit address
+            console.log('Decoded tb1q:', decoded)
+
+            // Remove witness version (first byte)
+            const programWords = decoded.words.slice(1)
+            const programBytes = bech32.fromWords(programWords) // Convert to bytes
+
+            // Convert to hex string
+            decodedHex = programBytes
+              .map(byte => byte.toString(16).padStart(2, '0'))
+              .join('')
+            console.log('tb1q program hex:', decodedHex)
+            recipient = decodedHex
+          } catch (error) {
+            console.error('Error decoding tb1q:', error)
+            Swal.fire('Error', 'Invalid segwit address.', 'error')
             return
           }
         }
 
         const amount = parseInt(document.getElementById('amount').value, 10)
         if (recipient && amount > 0) {
+          // Update debug info with decoded data
+          document.getElementById(
+            'debug-info'
+          ).innerText = `Processing transaction...\n\nInput Address: ${originalAddress}\nDecoded Hex: ${recipient}`
+
           createTransaction(recipient, amount, opReturnData)
         } else {
           Swal.fire(
