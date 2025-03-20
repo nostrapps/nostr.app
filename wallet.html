@@ -368,6 +368,59 @@
         <span id="refresh-icon" class="cursor-pointer">&#x21bb;</span>
       </h2>
 
+      <div
+        id="user-identifiers"
+        class="mb-4 p-4 bg-gray-50 rounded-md shadow-sm hidden border border-gray-200"
+      >
+        <h3 class="text-lg font-semibold text-primary mb-3">
+          Your Identifiers
+        </h3>
+
+        <div class="mb-4 p-3 bg-white rounded border border-gray-100 shadow-sm">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-sm font-medium text-gray-600"
+              >Taproot Address:</span
+            >
+            <button
+              id="copy-address-balance"
+              class="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+          <div
+            id="taproot-address-display"
+            class="font-mono text-sm break-all text-primary-dark"
+          ></div>
+          <div class="text-xs text-gray-500 mt-1">
+            Your Bitcoin Testnet address for receiving and viewing transactions
+            on the blockchain.
+          </div>
+        </div>
+
+        <div class="p-3 bg-white rounded border border-gray-100 shadow-sm">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-sm font-medium text-gray-600"
+              >Nostr Identifier (npub):</span
+            >
+            <button
+              id="copy-npub"
+              class="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+          <div
+            id="npub-display"
+            class="font-mono text-sm break-all text-primary-dark"
+          ></div>
+          <div class="text-xs text-gray-500 mt-1">
+            Your public Nostr identifier for social interactions, events, and
+            proof of identity.
+          </div>
+        </div>
+      </div>
+
       <div id="balance-info" class="text-lg">Connect to see balance...</div>
       <div id="utxo-table-container"></div>
     </div>
@@ -538,6 +591,39 @@
           1024
         )
 
+        // Convert pubkey to npub
+        const npubWords = bech32.toWords(buffer)
+        const npub = bech32.encode('npub', npubWords)
+
+        // Display identifiers in Balance tab
+        const userIdSection = document.getElementById('user-identifiers')
+        userIdSection.classList.remove('hidden')
+
+        // Set and make the taproot address clickable in Balance tab
+        const taprootDisplayElement = document.getElementById(
+          'taproot-address-display'
+        )
+        const taprootMempoolUrl = `https://mempool.space/testnet4/address/${taprootAddress}`
+        taprootDisplayElement.innerHTML = `<a href="${taprootMempoolUrl}" target="_blank" class="text-primary hover:text-accent transition-colors">${taprootAddress}</a>`
+
+        // Set and make the npub clickable (to nostr.at profile)
+        const npubDisplayElement = document.getElementById('npub-display')
+        const nostrProfileUrl = `https://nostr.at/${npub}`
+        npubDisplayElement.innerHTML = `<a href="${nostrProfileUrl}" target="_blank" class="text-primary hover:text-accent transition-colors">${npub}</a>`
+
+        // Set up copy buttons for both identifiers
+        document.getElementById('copy-address-balance').onclick = () => {
+          copyToClipboard(
+            taprootAddress,
+            'copy-address-balance',
+            'Address copied!'
+          )
+        }
+
+        document.getElementById('copy-npub').onclick = () => {
+          copyToClipboard(npub, 'copy-npub', 'Npub copied!')
+        }
+
         // Display the taproot address in the Receive tab with a clickable link
         const receiveAddressElement = document.getElementById('receive-address')
         const mempoolUrl = `https://mempool.space/testnet4/address/${taprootAddress}`
@@ -547,33 +633,49 @@
         const copyButton = document.getElementById('copy-address')
         copyButton.classList.remove('hidden')
         copyButton.onclick = () => {
-          navigator.clipboard
-            .writeText(taprootAddress)
-            .then(() => {
-              // Give visual feedback to the user
-              const originalText = copyButton.textContent
-              copyButton.textContent = 'Copied!'
-              copyButton.classList.add('bg-green-500')
-
-              // Reset button after 2 seconds
-              setTimeout(() => {
-                copyButton.textContent = originalText
-                copyButton.classList.remove('bg-green-500')
-              }, 2000)
-            })
-            .catch(err => {
-              console.error('Failed to copy address: ', err)
-              Swal.fire({
-                title: 'Copy Failed',
-                text: 'Could not copy the address to clipboard.',
-                icon: 'error',
-                confirmButtonColor: 'var(--primary)'
-              })
-            })
+          copyToClipboard(taprootAddress, 'copy-address', 'Copied!')
         }
 
         // Fetch and render UTXOs
         fetchUTXOs(taprootAddress)
+      }
+
+      // Utility function for copying to clipboard with feedback
+      function copyToClipboard(text, buttonId, successMessage) {
+        // Prevent the event from propagating to parent elements
+        const button = document.getElementById(buttonId)
+        button.addEventListener(
+          'click',
+          function (e) {
+            e.stopPropagation()
+          },
+          { once: true }
+        )
+
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            // Give visual feedback to the user
+            const copyButton = document.getElementById(buttonId)
+            const originalText = copyButton.textContent
+            copyButton.textContent = successMessage
+            copyButton.classList.add('bg-green-500')
+
+            // Reset button after 2 seconds
+            setTimeout(() => {
+              copyButton.textContent = originalText
+              copyButton.classList.remove('bg-green-500')
+            }, 2000)
+          })
+          .catch(err => {
+            console.error('Failed to copy: ', err)
+            Swal.fire({
+              title: 'Copy Failed',
+              text: 'Could not copy to clipboard.',
+              icon: 'error',
+              confirmButtonColor: 'var(--primary)'
+            })
+          })
       }
 
       // Handle logout callback from navbar
@@ -585,6 +687,11 @@
           'Connect to see balance...'
         document.getElementById('receive-address').innerText =
           'Connect to see address...'
+
+        // Hide identifiers in Balance tab
+        document.getElementById('user-identifiers').classList.add('hidden')
+        document.getElementById('taproot-address-display').innerHTML = ''
+        document.getElementById('npub-display').innerHTML = ''
 
         // Hide the copy button
         document.getElementById('copy-address').classList.add('hidden')
