@@ -421,8 +421,16 @@
     <div id="Receive" class="tab-content">
       <h2 class="text-2xl font-bold text-primary mb-4">Receive Bitcoin</h2>
       <p class="text-gray-700 mb-2">Your taproot address:</p>
-      <div id="receive-address" class="font-mono break-all">
-        Connect to see address...
+      <div id="receive-address-container" class="flex items-center">
+        <div id="receive-address" class="font-mono break-all flex-grow">
+          Connect to see address...
+        </div>
+        <button
+          id="copy-address"
+          class="ml-2 px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark hidden"
+        >
+          Copy
+        </button>
       </div>
     </div>
 
@@ -535,6 +543,35 @@
         const mempoolUrl = `https://mempool.space/testnet4/address/${taprootAddress}`
         receiveAddressElement.innerHTML = `<a href="${mempoolUrl}" target="_blank" class="text-primary hover:text-accent transition-colors">${taprootAddress}</a>`
 
+        // Show and set up the copy button
+        const copyButton = document.getElementById('copy-address')
+        copyButton.classList.remove('hidden')
+        copyButton.onclick = () => {
+          navigator.clipboard
+            .writeText(taprootAddress)
+            .then(() => {
+              // Give visual feedback to the user
+              const originalText = copyButton.textContent
+              copyButton.textContent = 'Copied!'
+              copyButton.classList.add('bg-green-500')
+
+              // Reset button after 2 seconds
+              setTimeout(() => {
+                copyButton.textContent = originalText
+                copyButton.classList.remove('bg-green-500')
+              }, 2000)
+            })
+            .catch(err => {
+              console.error('Failed to copy address: ', err)
+              Swal.fire({
+                title: 'Copy Failed',
+                text: 'Could not copy the address to clipboard.',
+                icon: 'error',
+                confirmButtonColor: 'var(--primary)'
+              })
+            })
+        }
+
         // Fetch and render UTXOs
         fetchUTXOs(taprootAddress)
       }
@@ -548,6 +585,9 @@
           'Connect to see balance...'
         document.getElementById('receive-address').innerText =
           'Connect to see address...'
+
+        // Hide the copy button
+        document.getElementById('copy-address').classList.add('hidden')
       }
 
       // Render the navbar component
@@ -566,8 +606,16 @@
       }
 
       document.getElementById('refresh-icon').addEventListener('click', () => {
-        const taprootAddress =
-          document.getElementById('receive-address').innerText
+        const receiveElement = document.getElementById('receive-address')
+        // Extract the address - either from the link if present or directly from the text
+        let taprootAddress
+        const linkElement = receiveElement.querySelector('a')
+        if (linkElement) {
+          taprootAddress = linkElement.textContent
+        } else {
+          taprootAddress = receiveElement.textContent
+        }
+
         if (taprootAddress && taprootAddress !== 'Connect to see address...') {
           fetchUTXOs(taprootAddress)
         } else {
