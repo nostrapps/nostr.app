@@ -289,6 +289,80 @@
   <body>
     <div id="app"></div>
 
+    <script type="application/ld+json" id="app-data">
+      {
+        "appData": {
+          "sidebarItems": [
+            { "id": 1, "name": "All Apps", "icon": "▶", "active": true },
+            { "id": 2, "name": "Utilities", "icon": "▶" }
+          ],
+          "categories": [
+            {
+              "id": 1,
+              "name": "All Apps",
+              "items": [
+                {
+                  "id": 1,
+                  "name": "Todo App",
+                  "description": "Track your tasks and stay organized",
+                  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNEE2RkE1Ii8+PHBhdGggZD0iTTMwIDUwTDQ1IDY1TDcwIDM1IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iNSIvPjwvc3ZnPg==",
+                  "url": "todo.html"
+                },
+                {
+                  "id": 2,
+                  "name": "Bookmarks",
+                  "description": "Save and organize your favorite links",
+                  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjOGZiOGRlIi8+PHBhdGggZD0iTTM1IDI1TDY1IDI1TDY1IDc1TDUwIDYwTDM1IDc1WiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==",
+                  "url": "bookmark.html"
+                },
+                {
+                  "id": 3,
+                  "name": "Pastebin",
+                  "description": "Share code and text snippets",
+                  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjM2E1NjgzIi8+PHBhdGggZD0iTTMwIDMwTDcwIDMwTDcwIDcwTDMwIDcwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiLz48bGluZSB4MT0iNDAiIHkxPSI0MCIgeDI9IjYwIiB5Mj0iNDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjQwIiB5MT0iNTAiIHgyPSI2MCIgeTI9IjUwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSI0MCIgeTE9IjYwIiB4Mj0iNjAiIHkyPSI2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=",
+                  "url": "pastebin.html"
+                }
+              ]
+            },
+            {
+              "id": 2,
+              "name": "Utilities",
+              "items": [
+                {
+                  "id": 4,
+                  "name": "Profile",
+                  "description": "Manage your user profile",
+                  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjYzVkNWU1Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI0MCIgcj0iMTUiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjUgODVDMjUgNjUgNzUgNjUgNzUgODUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=",
+                  "url": "profile.html"
+                },
+                {
+                  "id": 5,
+                  "name": "Key Generator",
+                  "description": "Create a new Nostr identity and key pair",
+                  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjZjU5ZDYzIi8+PHBhdGggZD0iTTM1IDUwQzM1IDQwIDQ1IDMwIDU1IDMwQzY1IDMwIDc1IDQwIDc1IDUwQzc1IDYwIDY1IDcwIDU1IDcwIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNCIvPjxjaXJjbGUgY3g9IjM1IiBjeT0iNTAiIHI9IjgiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSI2MCIgeT0iNTUiIHdpZHRoPSIxMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==",
+                  "url": "keygen.html"
+                },
+                {
+                  "id": 6,
+                  "name": "Firehose",
+                  "description": "Simple starter application",
+                  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNjNjMGY1Ii8+PHBhdGggZD0iTTIwIDUwIEMzMCA1MCA0NCAzOCA0NSA2MCBDNDYgNzIgNTUgNzUgNTUgNzUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMTYgNTAgSDI1IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik01NSA3NSBMNjUgNjAgTDcwIDYyIEw4MCA0NSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjgwIiBjeT0iNDUiIHI9IjMiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI4NSIgY3k9IjQwIiByPSIyIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNzkiIGN5PSIzNSIgcj0iMiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==",
+                  "url": "firehose.html"
+                },
+                {
+                  "id": 7,
+                  "name": "Wallet",
+                  "description": "Manage your digital assets",
+                  "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNWRiNTc1Ii8+PHJlY3QgeD0iMjUiIHk9IjMwIiB3aWR0aD0iNTUiIGhlaWdodD0iNDAiIHJ4PSI1IiBmaWxsPSIjZmZmIi8+PHJlY3QgeD0iNjAiIHk9IjQwIiB3aWR0aD0iMjUiIGhlaWdodD0iMjAiIHJ4PSI0IiBmaWxsPSIjNWRiNTc1Ii8+PGNpcmNsZSBjeD0iNzAiIGN5PSI1MCIgcj0iMyIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0yMCA0MCBMMjUgMzBMNzAgMzAgTDYzIDQwIiBmaWxsPSIjZWVlIiBzdHJva2U9IiNkZGQiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==",
+                  "url": "wallet.html"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    </script>
+
     <script type="module">
       import {
         h,
@@ -305,132 +379,25 @@
       // Initialize htm with Preact
       const html = htm.bind(h)
 
-      // App data
-      const sidebarItems = [
-        { id: 1, name: 'All Apps', icon: '▶', active: true },
-        { id: 2, name: 'Utilities', icon: '▶' }
-      ]
-
-      const popularApps = [
-        {
-          id: 1,
-          name: 'Todo App',
-          description: 'Track your tasks and stay organized',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNEE2RkE1Ii8+PHBhdGggZD0iTTMwIDUwTDQ1IDY1TDcwIDM1IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iNSIvPjwvc3ZnPg==',
-          url: 'todo.html'
-        },
-        {
-          id: 2,
-          name: 'Bookmarks',
-          description: 'Save and organize your favorite links',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjOGZiOGRlIi8+PHBhdGggZD0iTTM1IDI1TDY1IDI1TDY1IDc1TDUwIDYwTDM1IDc1WiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==',
-          url: 'bookmark.html'
-        },
-        {
-          id: 3,
-          name: 'Pastebin',
-          description: 'Share code and text snippets',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjM2E1NjgzIi8+PHBhdGggZD0iTTMwIDMwTDcwIDMwTDcwIDcwTDMwIDcwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiLz48bGluZSB4MT0iNDAiIHkxPSI0MCIgeDI9IjYwIiB5Mj0iNDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjQwIiB5MT0iNTAiIHgyPSI2MCIgeTI9IjUwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSI0MCIgeTE9IjYwIiB4Mj0iNjAiIHkyPSI2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=',
-          url: 'pastebin.html'
-        }
-      ]
-
-      const utilityApps = [
-        {
-          id: 4,
-          name: 'Profile',
-          description: 'Manage your user profile',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjYzVkNWU1Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI0MCIgcj0iMTUiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjUgODVDMjUgNjUgNzUgNjUgNzUgODUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
-          url: 'profile.html'
-        },
-        {
-          id: 5,
-          name: 'Key Generator',
-          description: 'Create a new Nostr identity and key pair',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjZjU5ZDYzIi8+PHBhdGggZD0iTTM1IDUwQzM1IDQwIDQ1IDMwIDU1IDMwQzY1IDMwIDc1IDQwIDc1IDUwQzc1IDYwIDY1IDcwIDU1IDcwIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNCIvPjxjaXJjbGUgY3g9IjM1IiBjeT0iNTAiIHI9IjgiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSI2MCIgeT0iNTUiIHdpZHRoPSIxMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==',
-          url: 'keygen.html'
-        },
-        {
-          id: 6,
-          name: 'Firehose',
-          description: 'Simple starter application',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNjNjMGY1Ii8+PHBhdGggZD0iTTIwIDUwIEMzMCA1MCA0NCAzOCA0NSA2MCBDNDYgNzIgNTUgNzUgNTUgNzUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMTYgNTAgSDI1IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik01NSA3NSBMNjUgNjAgTDcwIDYyIEw4MCA0NSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjgwIiBjeT0iNDUiIHI9IjMiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI4NSIgY3k9IjQwIiByPSIyIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNzkiIGN5PSIzNSIgcj0iMiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==',
-          url: 'firehose.html'
-        },
-        {
-          id: 7,
-          name: 'Wallet',
-          description: 'Manage your digital assets',
-          icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNWRiNTc1Ii8+PHJlY3QgeD0iMjUiIHk9IjMwIiB3aWR0aD0iNTUiIGhlaWdodD0iNDAiIHJ4PSI1IiBmaWxsPSIjZmZmIi8+PHJlY3QgeD0iNjAiIHk9IjQwIiB3aWR0aD0iMjUiIGhlaWdodD0iMjAiIHJ4PSI0IiBmaWxsPSIjNWRiNTc1Ii8+PGNpcmNsZSBjeD0iNzAiIGN5PSI1MCIgcj0iMyIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0yMCA0MCBMMjUgMzBMNzAgMzAgTDYzIDQwIiBmaWxsPSIjZWVlIiBzdHJva2U9IiNkZGQiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==',
-          url: 'wallet.html'
-        }
-      ]
-
-      const apps = {
-        categories: [
-          {
-            id: 1,
-            name: 'All Apps',
-            items: [
-              {
-                id: 1,
-                name: 'Todo App',
-                description: 'Track your tasks and stay organized',
-                icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNEE2RkE1Ii8+PHBhdGggZD0iTTMwIDUwTDQ1IDY1TDcwIDM1IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iNSIvPjwvc3ZnPg==',
-                url: 'todo.html'
-              },
-              {
-                id: 2,
-                name: 'Bookmarks',
-                description: 'Save and organize your favorite links',
-                icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjOGZiOGRlIi8+PHBhdGggZD0iTTM1IDI1TDY1IDI1TDY1IDc1TDUwIDYwTDM1IDc1WiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==',
-                url: 'bookmark.html'
-              },
-              {
-                id: 3,
-                name: 'Pastebin',
-                description: 'Share code and text snippets',
-                icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjM2E1NjgzIi8+PHBhdGggZD0iTTMwIDMwTDcwIDMwTDcwIDcwTDMwIDcwWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjMiLz48bGluZSB4MT0iNDAiIHkxPSI0MCIgeDI9IjYwIiB5Mj0iNDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjQwIiB5MT0iNTAiIHgyPSI2MCIgeTI9IjUwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMiIvPjxsaW5lIHgxPSI0MCIgeTE9IjYwIiB4Mj0iNjAiIHkyPSI2MCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=',
-                url: 'pastebin.html'
-              }
-            ]
-          },
-          {
-            id: 2,
-            name: 'Utilities',
-            items: [
-              {
-                id: 4,
-                name: 'Profile',
-                description: 'Manage your user profile',
-                icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjYzVkNWU1Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI0MCIgcj0iMTUiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjUgODVDMjUgNjUgNzUgNjUgNzUgODUiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
-                url: 'profile.html'
-              },
-              {
-                id: 5,
-                name: 'Key Generator',
-                description: 'Create a new Nostr identity and key pair',
-                icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjZjU5ZDYzIi8+PHBhdGggZD0iTTM1IDUwQzM1IDQwIDQ1IDMwIDU1IDMwQzY1IDMwIDc1IDQwIDc1IDUwQzc1IDYwIDY1IDcwIDU1IDcwIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNCIvPjxjaXJjbGUgY3g9IjM1IiBjeT0iNTAiIHI9IjgiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSI2MCIgeT0iNTUiIHdpZHRoPSIxMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==',
-                url: 'keygen.html'
-              },
-              {
-                id: 6,
-                name: 'Firehose',
-                description: 'Simple starter application',
-                icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNjNjMGY1Ii8+PHBhdGggZD0iTTIwIDUwIEMzMCA1MCA0NCAzOCA0NSA2MCBDNDYgNzIgNTUgNzUgNTUgNzUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNMTYgNTAgSDI1IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik01NSA3NSBMNjUgNjAgTDcwIDYyIEw4MCA0NSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxjaXJjbGUgY3g9IjgwIiBjeT0iNDUiIHI9IjMiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI4NSIgY3k9IjQwIiByPSIyIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNzkiIGN5PSIzNSIgcj0iMiIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==',
-                url: 'firehose.html'
-              },
-              {
-                id: 7,
-                name: 'Wallet',
-                description: 'Manage your digital assets',
-                icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjNWRiNTc1Ii8+PHJlY3QgeD0iMjUiIHk9IjMwIiB3aWR0aD0iNTUiIGhlaWdodD0iNDAiIHJ4PSI1IiBmaWxsPSIjZmZmIi8+PHJlY3QgeD0iNjAiIHk9IjQwIiB3aWR0aD0iMjUiIGhlaWdodD0iMjAiIHJ4PSI0IiBmaWxsPSIjNWRiNTc1Ii8+PGNpcmNsZSBjeD0iNzAiIGN5PSI1MCIgcj0iMyIgZmlsbD0iI2ZmZiIvPjxwYXRoIGQ9Ik0yMCA0MCBMMjUgMzBMNzAgMzAgTDYzIDQwIiBmaWxsPSIjZWVlIiBzdHJva2U9IiNkZGQiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==',
-                url: 'wallet.html'
-              }
-            ]
+      // Load data from the data island
+      const loadAppData = () => {
+        try {
+          const dataElement = document.getElementById('app-data')
+          if (!dataElement) {
+            console.error('App data element not found')
+            return { sidebarItems: [], categories: [] }
           }
-        ]
+          const appData = JSON.parse(dataElement.textContent).appData
+          return appData || { sidebarItems: [], categories: [] }
+        } catch (error) {
+          console.error('Error loading app data:', error)
+          return { sidebarItems: [], categories: [] }
+        }
       }
+
+      // Get app data from the data island
+      const appData = loadAppData()
+      const { sidebarItems, categories } = appData
 
       // Header component
       const Header = ({ user, onLogin, onLogout }) => {
@@ -495,7 +462,7 @@
           <div class="main-content">
             <h1 class="section-title">App Directory</h1>
 
-            ${apps.categories.map(
+            ${apps.map(
               category => html`
                 <h2 class="category-title">${category.name}</h2>
                 <div class="card-grid">
@@ -513,7 +480,7 @@
           this.state = {
             user: null,
             sidebarItems,
-            apps,
+            categories,
             pubkey: localStorage.getItem('pubkey') || null,
             privkey: localStorage.getItem('nostr:privkey') || null
           }
@@ -705,7 +672,7 @@
         }
 
         render() {
-          const { user, sidebarItems, apps } = this.state
+          const { user, sidebarItems, categories } = this.state
 
           return html`
             <div>
@@ -715,7 +682,7 @@
                 onLogout=${this.handleLogout}
               />
               <${Sidebar} items=${sidebarItems} />
-              <${MainContent} apps=${apps} />
+              <${MainContent} apps=${categories} />
             </div>
           `
         }
