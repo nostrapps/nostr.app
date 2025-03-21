@@ -21,6 +21,11 @@
     <!-- Import DOMPurify for sanitizing HTML -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.1/dist/purify.min.js"></script>
 
+    <!-- Markmap dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-lib"></script>
+
     <style>
       body {
         font-family: 'Arial', sans-serif;
@@ -64,6 +69,20 @@
       .single-view #preview {
         width: 98%;
         margin: 1% auto;
+        display: block;
+      }
+
+      /* Hide the default preview when markmap is active */
+      .dual-view #preview.hidden,
+      .single-view #preview.hidden {
+        display: none;
+      }
+
+      /* Show markmap container when active */
+      #markmapContainer.active {
+        display: block;
+        width: 98%;
+        margin: 1% auto;
       }
 
       /* Textarea styles */
@@ -105,6 +124,33 @@
 
       #toggleViewButton {
         margin-left: 0;
+      }
+
+      #toggleMarkmapButton {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin: 5px;
+        flex: 0 0 auto;
+      }
+
+      #toggleMarkmapButton:hover {
+        background-color: #3e8e41;
+      }
+
+      #markmapContainer {
+        width: 100%;
+        height: calc(100vh - 150px);
+        display: none;
+      }
+
+      #markmapSvg {
+        width: 100%;
+        height: 100%;
       }
 
       #saveButton {
@@ -569,7 +615,8 @@
             isLoggedIn: localStorage.getItem('loggedIn') === 'true',
             pubkey: localStorage.getItem('pubkey') || null,
             isUploadingImage: false,
-            isDraggingOver: false
+            isDraggingOver: false,
+            isMarkmapView: false
           }
 
           // Bind methods
@@ -580,6 +627,7 @@
           this.handleDragLeave = this.handleDragLeave.bind(this)
           this.handleDrop = this.handleDrop.bind(this)
           this.handleKeyDown = this.handleKeyDown.bind(this)
+          this.toggleMarkmap = this.toggleMarkmap.bind(this)
         }
 
         // Add a dedicated method for applying syntax highlighting
@@ -971,7 +1019,13 @@ Try editing this content to see the live preview!
                 markdownInput,
                 markdownOutput: this.renderMarkdown(markdownInput)
               },
-              this.applyHighlighting
+              () => {
+                this.applyHighlighting()
+                // If markmap view is active, update it
+                if (this.state.isMarkmapView) {
+                  this.renderMarkmap()
+                }
+              }
             )
           } catch (error) {
             console.error('Error fetching markdown:', error)
@@ -1109,7 +1163,13 @@ Try editing this content to see the live preview!
             {
               markdownInput: e.target.value
             },
-            this.updateOutput
+            () => {
+              this.updateOutput()
+              // If markmap view is active, update it as well
+              if (this.state.isMarkmapView) {
+                this.renderMarkmap()
+              }
+            }
           )
         }
 
@@ -1134,8 +1194,76 @@ Try editing this content to see the live preview!
 
         toggleView = () => {
           this.setState({
-            isDualView: !this.state.isDualView
+            isDualView: !this.state.isDualView,
+            // If markmap view is active, deactivate it
+            isMarkmapView: false
           })
+        }
+
+        toggleMarkmap = () => {
+          this.setState(
+            {
+              isMarkmapView: !this.state.isMarkmapView
+            },
+            () => {
+              if (this.state.isMarkmapView) {
+                // Set a small timeout to ensure the container is visible
+                setTimeout(() => {
+                  this.renderMarkmap()
+                }, 50)
+              }
+            }
+          )
+        }
+
+        renderMarkmap = () => {
+          try {
+            // Get the markdown content
+            const markdown = this.state.markdownInput
+
+            // First clear the SVG
+            const svgEl = document.getElementById('markmapSvg')
+            if (svgEl) {
+              svgEl.innerHTML = ''
+
+              // Check if markmap libraries are available
+              if (
+                window.markmap &&
+                window.markmap.Transformer &&
+                window.markmap.Markmap
+              ) {
+                // Create the transformer
+                const transformer = new window.markmap.Transformer()
+
+                // Transform the markdown
+                const { root, features } = transformer.transform(markdown)
+
+                // Create the markmap
+                const mm = window.markmap.Markmap.create(
+                  '#markmapSvg',
+                  null,
+                  root
+                )
+
+                console.log('Markmap rendered successfully')
+              } else {
+                console.error('Markmap libraries not found')
+                Swal.fire({
+                  title: 'Error',
+                  text: 'Could not load markmap libraries. Please refresh and try again.',
+                  icon: 'error',
+                  timer: 3000
+                })
+              }
+            }
+          } catch (error) {
+            console.error('Error rendering markmap:', error)
+            Swal.fire({
+              title: 'Error',
+              text: `Failed to render markmap: ${error.message}`,
+              icon: 'error'
+            })
+          }
         }
 
         // Handle paste events
@@ -1426,6 +1554,9 @@ Try editing this content to see the live preview!
               <button id="toggleViewButton" onClick=${this.toggleView}>
                 ${toggleButtonText}
               </button>
+              <button id="toggleMarkmapButton" onClick=${this.toggleMarkmap}>
+                ${state.isMarkmapView ? 'Show Markdown' : 'Show Mind Map'}
+              </button>
             </div>
             <div class=${`${viewClass} clearfix`}>
               <div id="editor">
@@ -1439,8 +1570,15 @@ Try editing this content to see the live preview!
               <div
                 id="preview"
                 onClick=${this.handlePreviewClick}
+                class=${state.isMarkmapView ? 'hidden' : ''}
                 dangerouslySetInnerHTML=${{ __html: state.markdownOutput }}
               ></div>
+              <div
+                id="markmapContainer"
+                class=${state.isMarkmapView ? 'active' : ''}
+              >
+                <svg id="markmapSvg"></svg>
+              </div>
             </div>
             <button
               id="saveButton"
