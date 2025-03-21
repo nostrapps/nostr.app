@@ -1412,6 +1412,17 @@
         // Choose UTXOs to spend - include additional fee if OP_RETURN is present
         const opReturnFee = opReturnData ? 500 : 0 // Extra fee for OP_RETURN output
         let baseFee = 1000
+
+        // Use higher fees for Vertcoin (100 sats per vbyte)
+        if (
+          NETWORK_CONFIG.taproot_prefix === 'vtc' ||
+          NETWORK_CONFIG.taproot_prefix === 'tvtc'
+        ) {
+          // Rough estimate: typical transaction is around 250 vbytes
+          baseFee = 25000 // 100 sats × 250 vbytes
+          console.log('Using higher fee rate for Vertcoin:', baseFee, 'sats')
+        }
+
         let fee = baseFee + opReturnFee
         let selectedUTXOs = []
         let totalSelected = 0
