@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nostr Testnet Wallet</title>
+    <title>Multi-Coin Nostr Wallet</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -401,10 +401,26 @@
     </div>
 
     <div id="Balance" class="tab-content active">
-      <h2 class="text-2xl font-bold text-primary mb-4 flex items-center">
-        Your Balance
-        <span id="refresh-icon" class="cursor-pointer">&#x21bb;</span>
-      </h2>
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-primary flex items-center">
+          Your Balance
+          <span id="refresh-icon" class="cursor-pointer">&#x21bb;</span>
+        </h2>
+        <div class="network-selector">
+          <select
+            id="network-select"
+            class="p-2 border border-gray-300 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+          >
+            <option value="bitcoin_testnet4">Bitcoin Testnet4</option>
+            <option value="bitcoin_testnet3">Bitcoin Testnet3</option>
+            <option value="bitcoin_mainnet">Bitcoin Mainnet</option>
+            <option value="litecoin_testnet">Litecoin Testnet</option>
+            <option value="litecoin_mainnet">Litecoin Mainnet</option>
+            <option value="vertcoin_testnet">Vertcoin Testnet</option>
+            <option value="vertcoin_mainnet">Vertcoin Mainnet</option>
+          </select>
+        </div>
+      </div>
 
       <div
         id="user-identifiers"
@@ -559,8 +575,12 @@
     </div>
 
     <div id="Receive" class="tab-content">
-      <h2 class="text-2xl font-bold text-primary mb-4">Receive Bitcoin</h2>
-      <p class="text-gray-700 mb-2">Your taproot address:</p>
+      <h2 class="text-2xl font-bold text-primary mb-4">
+        Receive <span id="network-name-display"></span>
+      </h2>
+      <p class="text-gray-700 mb-2">
+        Your <span id="address-type-label">address</span>:
+      </p>
       <div id="receive-address-container" class="flex items-center">
         <div id="receive-address" class="font-mono break-all flex-grow">
           Connect to see address...
@@ -574,33 +594,15 @@
       </div>
 
       <div class="mt-8 p-4 bg-gray-50 rounded-md border border-gray-200">
-        <h3 class="text-lg font-semibold text-primary mb-2">
+        <h3 class="text-lg font-semibold text-primary mb-2" id="faucet-heading">
           Need testnet coins?
         </h3>
-        <p class="text-gray-600 mb-3">
-          Get free testnet4 coins from these faucets to test your wallet:
+        <p class="text-gray-600 mb-3" id="faucet-description">
+          Get free testnet coins from these faucets to test your wallet:
         </p>
-        <a
-          href="https://github.com/testnet4/awesome-testnet4?tab=readme-ov-file#faucets"
-          target="_blank"
-          class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5 mr-2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13 10V3L4 14h7v7l9-11h-7z"
-            />
-          </svg>
-          Testnet4 Faucets
-        </a>
+        <div id="faucet-links" class="space-y-2">
+          <!-- Faucet links will be inserted here dynamically -->
+        </div>
         <p class="text-xs text-gray-500 mt-2">
           These faucets provide free testnet coins for development and testing
           purposes.
@@ -632,6 +634,74 @@
       // Initialize htm with Preact
       const html = htm.bind(h)
 
+      // Network configuration
+      const NETWORKS = {
+        bitcoin_testnet4: {
+          name: 'Bitcoin Testnet4',
+          taproot_prefix: 'tb',
+          explorer_base_url: 'https://mempool.space/testnet4',
+          api_base_url: 'https://mempool.space/testnet4/api'
+        },
+        bitcoin_testnet3: {
+          name: 'Bitcoin Testnet3',
+          taproot_prefix: 'tb',
+          explorer_base_url: 'https://mempool.space/testnet',
+          api_base_url: 'https://mempool.space/testnet/api'
+        },
+        bitcoin_mainnet: {
+          name: 'Bitcoin',
+          taproot_prefix: 'bc',
+          explorer_base_url: 'https://mempool.space',
+          api_base_url: 'https://mempool.space/api'
+        },
+        litecoin_testnet: {
+          name: 'Litecoin Testnet',
+          taproot_prefix: 'tltc',
+          explorer_base_url: 'https://testnet.ltc.bitaps.com',
+          api_base_url: 'https://testnet.ltc.bitaps.com/api/v1'
+        },
+        litecoin_mainnet: {
+          name: 'Litecoin',
+          taproot_prefix: 'ltc',
+          explorer_base_url: 'https://ltc.bitaps.com',
+          api_base_url: 'https://ltc.bitaps.com/api/v1'
+        },
+        vertcoin_mainnet: {
+          name: 'Vertcoin',
+          taproot_prefix: 'vtc',
+          explorer_base_url: 'https://insight.vertcoin.org',
+          api_base_url: 'https://insight.vertcoin.org/insight-vtc-api'
+        },
+        vertcoin_testnet: {
+          name: 'Vertcoin Testnet',
+          taproot_prefix: 'tvtc',
+          explorer_base_url: 'https://testnet.vtconline.org',
+          api_base_url: 'https://testnet.vtconline.org/api'
+        }
+      }
+
+      // Parse query parameters
+      function getQueryParams() {
+        const searchParams = new URLSearchParams(window.location.search)
+        const networkParam = searchParams.get('network') || 'bitcoin_testnet4'
+
+        // Validate the network parameter
+        if (!NETWORKS[networkParam]) {
+          console.warn(
+            `Invalid network: ${networkParam}, falling back to bitcoin_testnet4`
+          )
+          return NETWORKS['bitcoin_testnet4']
+        }
+
+        return NETWORKS[networkParam]
+      }
+
+      // Get the current network configuration
+      const NETWORK_CONFIG = getQueryParams()
+
+      // Update page title to reflect selected network
+      document.title = `${NETWORK_CONFIG.name} Nostr Wallet`
+
       let currentUTXOs = []
       let pubkey
 
@@ -640,14 +710,206 @@
       const navbarComponent = html`<${Navbar}
         onLogin=${handleNavbarLogin}
         onLogout=${handleNavbarLogout}
+        networkName=${NETWORK_CONFIG.name}
       />`
+
+      // Set up network selector
+      function setupNetworkSelector() {
+        const networkSelect = document.getElementById('network-select')
+
+        // Set initial value based on current network
+        Object.keys(NETWORKS).forEach(key => {
+          if (NETWORKS[key].name === NETWORK_CONFIG.name) {
+            networkSelect.value = key
+          }
+        })
+
+        // Handle network changes
+        networkSelect.addEventListener('change', function () {
+          const selectedNetwork = this.value
+          // Reload the page with the new network parameter
+          window.location.href = `?network=${selectedNetwork}`
+        })
+      }
+
+      // Update network-specific UI elements
+      function updateNetworkUI() {
+        // Update network name in the Receive tab
+        const networkNameDisplay = document.getElementById(
+          'network-name-display'
+        )
+        if (networkNameDisplay) {
+          networkNameDisplay.textContent = NETWORK_CONFIG.name
+        }
+
+        // Update address type label
+        const addressTypeLabel = document.getElementById('address-type-label')
+        if (addressTypeLabel) {
+          addressTypeLabel.textContent = NETWORK_CONFIG.name + ' address'
+        }
+
+        // Update description of the address in the identifiers section
+        const addressDescription = document.querySelector(
+          '#user-identifiers .mb-4 .text-xs'
+        )
+        if (addressDescription) {
+          addressDescription.textContent = `Copy`
+        }
+
+        // Update the title to show the current network
+        document.title = `${NETWORK_CONFIG.name} Nostr Wallet`
+
+        // Update faucet section
+        updateFaucetSection()
+      }
+
+      // Update faucet section based on the selected network
+      function updateFaucetSection() {
+        const faucetHeading = document.getElementById('faucet-heading')
+        const faucetDescription = document.getElementById('faucet-description')
+        const faucetLinks = document.getElementById('faucet-links')
+
+        if (!faucetHeading || !faucetDescription || !faucetLinks) return
+
+        // Clear previous links
+        faucetLinks.innerHTML = ''
+
+        // Networks with testnet in the name are test networks
+        const isTestnet = NETWORK_CONFIG.name.toLowerCase().includes('testnet')
+
+        if (isTestnet) {
+          faucetHeading.textContent = `Need ${NETWORK_CONFIG.name} coins?`
+          faucetDescription.textContent = `Get free ${NETWORK_CONFIG.name} coins from these faucets to test your wallet:`
+
+          if (NETWORK_CONFIG.taproot_prefix === 'tb') {
+            // Bitcoin Testnet faucets
+            if (NETWORK_CONFIG.name === 'Bitcoin Testnet3') {
+              faucetLinks.innerHTML = `
+                <a href="https://coinfaucet.eu/en/btc-testnet/" target="_blank" 
+                  class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Bitcoin Testnet3 Faucet
+                </a>
+              `
+            } else {
+              faucetLinks.innerHTML = `
+                <a href="https://github.com/testnet4/awesome-testnet4?tab=readme-ov-file#faucets" target="_blank" 
+                  class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Bitcoin Testnet4 Faucets
+                </a>
+              `
+            }
+          } else if (NETWORK_CONFIG.taproot_prefix === 'tltc') {
+            // Litecoin Testnet faucets
+            faucetLinks.innerHTML = `
+              <a href="https://testnet-faucet.com/ltc-testnet/" target="_blank" 
+                class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Litecoin Testnet Faucet
+              </a>
+            `
+          } else if (NETWORK_CONFIG.taproot_prefix === 'tvtc') {
+            // Vertcoin Testnet faucets
+            faucetLinks.innerHTML = `
+              <a href="https://vtc.sovereignshare.com/faucet/" target="_blank" 
+                class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Vertcoin Testnet Faucet
+              </a>
+            `
+          }
+        } else {
+          // Mainnet info instead of faucets
+          faucetHeading.textContent = `Using ${NETWORK_CONFIG.name} Mainnet`
+          faucetDescription.textContent = `You are using the ${NETWORK_CONFIG.name} mainnet. These are real coins with real value.`
+
+          faucetLinks.innerHTML = `
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-4">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-yellow-700">
+                    Be careful when using this wallet with mainnet coins. This is experimental software.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <a href="${NETWORK_CONFIG.explorer_base_url}" target="_blank" 
+              class="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              ${NETWORK_CONFIG.name} Block Explorer
+            </a>
+          `
+        }
+      }
 
       const fetchUTXOs = async address => {
         try {
-          const response = await fetch(
-            `https://mempool.space/testnet4/api/address/${address}/utxo`
-          )
-          const utxos = await response.json()
+          let utxos = []
+
+          // Different APIs have different endpoints and response formats
+          if (
+            NETWORK_CONFIG.taproot_prefix === 'tb' ||
+            NETWORK_CONFIG.taproot_prefix === 'bc'
+          ) {
+            // Bitcoin (testnet or mainnet) uses mempool.space API
+            const response = await fetch(
+              `${NETWORK_CONFIG.api_base_url}/address/${address}/utxo`
+            )
+            utxos = await response.json()
+          } else if (
+            NETWORK_CONFIG.taproot_prefix === 'vtc' ||
+            NETWORK_CONFIG.taproot_prefix === 'tvtc'
+          ) {
+            // Vertcoin (mainnet or testnet) uses insight-api format
+            const response = await fetch(
+              `${NETWORK_CONFIG.api_base_url}/addr/${address}/utxo`
+            )
+
+            let data = await response.json()
+
+            // Transform insight-api response to our expected format
+            utxos = data.map(item => ({
+              txid: item.txid,
+              vout: item.vout,
+              value: item.satoshis // insight uses satoshis property instead of value
+            }))
+          } else {
+            // For other networks like Litecoin
+            const response = await fetch(
+              `${NETWORK_CONFIG.api_base_url}/address/${address}/utxo`
+            )
+            utxos = await response.json()
+
+            // Transform other API responses to a common format if needed
+            if (
+              !Array.isArray(utxos) &&
+              utxos.data &&
+              Array.isArray(utxos.data)
+            ) {
+              utxos = utxos.data.map(item => ({
+                txid: item.txid,
+                vout: item.vout,
+                value: item.value
+              }))
+            }
+          }
+
           currentUTXOs = utxos
           renderUTXOTable(utxos)
         } catch (error) {
@@ -677,13 +939,14 @@
                   .map(
                     utxo => `
                   <tr>
-                    <td title="${
+                    <td title="${utxo.txid}">
+                      <a href="${NETWORK_CONFIG.explorer_base_url}/tx/${
                       utxo.txid
-                    }"><a href="https://mempool.space/testnet4/tx/${
-                      utxo.txid
-                    }" target="_blank" class="text-primary hover:text-accent transition-colors">${
-                      utxo.txid
-                    }</a></td>
+                    }" 
+                         target="_blank" class="text-primary hover:text-accent transition-colors">
+                        ${utxo.txid}
+                      </a>
+                    </td>
                     <td>${utxo.vout}</td>
                     <td>${utxo.value.toLocaleString()}</td>
                   </tr>
@@ -707,8 +970,8 @@
         console.log('User logged in with pubkey:', newPubkey)
         pubkey = newPubkey
 
-        // Convert pubkey to taproot address
-        const taproot_prefix = 'tb'
+        // Convert pubkey to taproot address using the network-specific prefix
+        const taproot_prefix = NETWORK_CONFIG.taproot_prefix
         const buffer = new Uint8Array(
           newPubkey.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
         )
@@ -728,11 +991,33 @@
         const userIdSection = document.getElementById('user-identifiers')
         userIdSection.classList.remove('hidden')
 
+        // Update the header text to show the network
+        document.querySelector(
+          '#user-identifiers h3'
+        ).textContent = `Your ${NETWORK_CONFIG.name} Identifiers`
+
+        // Set appropriate address type label based on the network
+        let addressTypeLabel = 'Taproot Address'
+        if (
+          NETWORK_CONFIG.taproot_prefix === 'vtc' ||
+          NETWORK_CONFIG.taproot_prefix === 'tvtc'
+        ) {
+          addressTypeLabel = 'Vertcoin Address'
+        }
+
+        // Update the display label
+        const addressLabelSpan = document.querySelector(
+          '#user-identifiers .mb-4 .flex span'
+        )
+        if (addressLabelSpan) {
+          addressLabelSpan.textContent = addressTypeLabel
+        }
+
         // Set and make the taproot address clickable in Balance tab
         const taprootDisplayElement = document.getElementById(
           'taproot-address-display'
         )
-        const taprootMempoolUrl = `https://mempool.space/testnet4/address/${taprootAddress}`
+        const taprootMempoolUrl = `${NETWORK_CONFIG.explorer_base_url}/address/${taprootAddress}`
         taprootDisplayElement.innerHTML = `<a href="${taprootMempoolUrl}" target="_blank" class="text-primary hover:text-accent transition-colors">${taprootAddress}</a>`
 
         // Set and make the npub clickable (to nostr.at profile)
@@ -755,7 +1040,7 @@
 
         // Display the taproot address in the Receive tab with a clickable link
         const receiveAddressElement = document.getElementById('receive-address')
-        const mempoolUrl = `https://mempool.space/testnet4/address/${taprootAddress}`
+        const mempoolUrl = `${NETWORK_CONFIG.explorer_base_url}/address/${taprootAddress}`
         receiveAddressElement.innerHTML = `<a href="${mempoolUrl}" target="_blank" class="text-primary hover:text-accent transition-colors">${taprootAddress}</a>`
 
         // Show and set up the copy button
@@ -829,6 +1114,12 @@
       // Render the navbar component
       if (navbarContainer) {
         render(navbarComponent, navbarContainer)
+
+        // Setup network selector
+        setupNetworkSelector()
+
+        // Update network-specific UI
+        updateNetworkUI()
 
         // Check if user is already logged in via localStorage
         const storedPubkey = localStorage.getItem('pubkey')
@@ -916,21 +1207,53 @@
 
       async function sendTransaction() {
         try {
-          const response = await fetch(
-            'https://mempool.space/testnet4/api/tx',
-            {
+          let txResponse
+
+          // Handle different APIs for different networks
+          if (
+            NETWORK_CONFIG.taproot_prefix === 'vtc' ||
+            NETWORK_CONFIG.taproot_prefix === 'tvtc'
+          ) {
+            // Vertcoin uses insight-api with a different endpoint for transaction broadcast
+            txResponse = await fetch(`${NETWORK_CONFIG.api_base_url}/tx/send`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ rawtx: rawTxHex })
+            })
+
+            const result = await txResponse.json()
+            // Insight API returns the transaction ID in the txid field
+            const txid = result.txid
+
+            if (!txid) {
+              throw new Error(
+                'Failed to broadcast transaction: ' +
+                  (result.message || 'Unknown error')
+              )
+            }
+
+            const txUrl = `${NETWORK_CONFIG.explorer_base_url}/tx/${txid}`
+            const txResultElement = document.getElementById('tx-result')
+
+            // Set the result as a hyperlink
+            txResultElement.innerHTML = `Transaction Result: <a href="${txUrl}" target="_blank" class="text-accent hover:underline">${txid}</a>`
+          } else {
+            // Bitcoin and other networks typically use this format
+            txResponse = await fetch(`${NETWORK_CONFIG.api_base_url}/tx`, {
               method: 'POST',
               body: rawTxHex
-            }
-          )
+            })
 
-          const result = await response.text() // Get the result as plain text (transaction ID)
+            const result = await txResponse.text() // Get the result as plain text (transaction ID)
+            const txUrl = `${NETWORK_CONFIG.explorer_base_url}/tx/${result}`
+            const txResultElement = document.getElementById('tx-result')
 
-          const txUrl = `https://mempool.space/testnet4/tx/${result}`
-          const txResultElement = document.getElementById('tx-result')
+            // Set the result as a hyperlink
+            txResultElement.innerHTML = `Transaction Result: <a href="${txUrl}" target="_blank" class="text-accent hover:underline">${result}</a>`
+          }
 
-          // Set the result as a hyperlink
-          txResultElement.innerHTML = `Transaction Result: <a href="${txUrl}" target="_blank" class="text-accent hover:underline">${result}</a>`
           Swal.fire({
             title: 'Success',
             text: 'Transaction sent successfully!',
@@ -959,7 +1282,7 @@
           console.error('Failed to send transaction:', error)
           Swal.fire({
             title: 'Error',
-            text: 'Failed to send transaction.',
+            text: 'Failed to send transaction: ' + error.message,
             icon: 'error',
             confirmButtonColor: 'var(--primary)'
           })
@@ -1423,11 +1746,11 @@
             return
           }
         }
-        // Check if the recipient address starts with 'tb1p' (taproot)
-        else if (recipient.startsWith('tb1p')) {
+        // Check if the recipient address is a taproot address for the current network
+        else if (recipient.startsWith(`${NETWORK_CONFIG.taproot_prefix}1p`)) {
           try {
             const decoded = bech32m.decode(recipient) // Decode the taproot address
-            console.log('Decoded tb1p:', decoded)
+            console.log(`Decoded ${NETWORK_CONFIG.taproot_prefix}1p:`, decoded)
 
             // Remove witness version (first byte)
             const programWords = decoded.words.slice(1)
@@ -1443,7 +1766,10 @@
             decodedHex = programBytes
               .map(byte => byte.toString(16).padStart(2, '0'))
               .join('')
-            console.log('tb1p program hex:', decodedHex)
+            console.log(
+              `${NETWORK_CONFIG.taproot_prefix}1p program hex:`,
+              decodedHex
+            )
             recipient = decodedHex
 
             // Update debug info
@@ -1451,16 +1777,19 @@
               'debug-info'
             ).innerText = `Processing transaction...\n\nInput Address: ${originalAddress}\nDecoded Program: ${recipient}`
           } catch (error) {
-            console.error('Error decoding tb1p:', error)
+            console.error(
+              `Error decoding ${NETWORK_CONFIG.taproot_prefix}1p:`,
+              error
+            )
             Swal.fire('Error', 'Invalid taproot address.', 'error')
             return
           }
         }
-        // Check if the recipient address starts with 'tb1q' (segwit)
-        else if (recipient.startsWith('tb1q')) {
+        // Check if the recipient address is a segwit address for the current network
+        else if (recipient.startsWith(`${NETWORK_CONFIG.taproot_prefix}1q`)) {
           try {
             const decoded = bech32.decode(recipient) // Decode the segwit address
-            console.log('Decoded tb1q:', decoded)
+            console.log(`Decoded ${NETWORK_CONFIG.taproot_prefix}1q:`, decoded)
 
             // Remove witness version (first byte)
             const programWords = decoded.words.slice(1)
@@ -1470,10 +1799,16 @@
             decodedHex = programBytes
               .map(byte => byte.toString(16).padStart(2, '0'))
               .join('')
-            console.log('tb1q program hex:', decodedHex)
+            console.log(
+              `${NETWORK_CONFIG.taproot_prefix}1q program hex:`,
+              decodedHex
+            )
             recipient = decodedHex
           } catch (error) {
-            console.error('Error decoding tb1q:', error)
+            console.error(
+              `Error decoding ${NETWORK_CONFIG.taproot_prefix}1q:`,
+              error
+            )
             Swal.fire('Error', 'Invalid segwit address.', 'error')
             return
           }
