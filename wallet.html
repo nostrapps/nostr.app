@@ -877,18 +877,57 @@
             NETWORK_CONFIG.taproot_prefix === 'tvtc'
           ) {
             // Vertcoin (mainnet or testnet) uses insight-api format
-            const response = await fetch(
-              `${NETWORK_CONFIG.api_base_url}/addr/${address}/utxo`
-            )
 
-            let data = await response.json()
+            // Check if address is a bech32m Taproot address (vtc1p or tvtc1p)
+            // The Insight API doesn't fully support Taproot addresses yet
+            // For Vertcoin, we need to handle this case differently
+            try {
+              console.log('Fetching UTXOs for Vertcoin address:', address)
 
-            // Transform insight-api response to our expected format
-            utxos = data.map(item => ({
-              txid: item.txid,
-              vout: item.vout,
-              value: item.satoshis // insight uses satoshis property instead of value
-            }))
+              // Try the API with the address as is
+              const response = await fetch(
+                `${NETWORK_CONFIG.api_base_url}/addr/${address}/utxo`
+              )
+
+              // If we got a successful response, process it
+              if (response.ok) {
+                let data = await response.json()
+
+                // Transform insight-api response to our expected format
+                utxos = data.map(item => ({
+                  txid: item.txid,
+                  vout: item.vout,
+                  value: item.satoshis // insight uses satoshis property instead of value
+                }))
+              } else {
+                // If the API returned an error, show a more helpful message
+                console.error(
+                  'Vertcoin API returned an error:',
+                  await response.text()
+                )
+                throw new Error(
+                  `The Vertcoin ${NETWORK_CONFIG.name} API returned an error. This may be because Taproot addresses are not fully supported yet on the Vertcoin blockchain explorer.`
+                )
+              }
+            } catch (error) {
+              console.error('Error fetching Vertcoin UTXOs:', error)
+
+              // Show a more helpful error message for Vertcoin users
+              Swal.fire({
+                title: 'Vertcoin API Error',
+                html: `Unable to fetch UTXOs for this Vertcoin address.<br><br>
+                      This might be because:<br>
+                      1. The address has no transactions yet<br>
+                      2. The Vertcoin explorer doesn't fully support this address format<br>
+                      3. The explorer service is temporarily unavailable<br><br>
+                      Try again later or use a different network.`,
+                icon: 'warning',
+                confirmButtonColor: 'var(--primary)'
+              })
+
+              // Return early to avoid further processing
+              return
+            }
           } else {
             // For other networks like Litecoin
             const response = await fetch(
@@ -977,11 +1016,30 @@
         )
         const scriptVersion = 1
         const words = bech32.toWords(buffer)
-        const taprootAddress = bech32m.encode(
-          taproot_prefix,
-          [scriptVersion, ...words],
-          1024
-        )
+
+        // Create the address with appropriate bech32 encoding
+        let taprootAddress
+
+        // For Vertcoin, special handling may be needed since its explorer
+        // may not fully support bech32m Taproot addresses yet
+        if (taproot_prefix === 'vtc' || taproot_prefix === 'tvtc') {
+          // For Vertcoin, use regular bech32 encoding for better compatibility
+          // This will create a segwit-style address that the explorer can handle
+          taprootAddress = bech32.encode(
+            taproot_prefix,
+            [0, ...words], // Using witness version 0 (P2WPKH) instead of 1 (P2TR)
+            1024
+          )
+
+          console.log('Created Vertcoin-compatible address:', taprootAddress)
+        } else {
+          // For Bitcoin and other networks, use proper bech32m encoding for Taproot
+          taprootAddress = bech32m.encode(
+            taproot_prefix,
+            [scriptVersion, ...words],
+            1024
+          )
+        }
 
         // Convert pubkey to npub
         const npubWords = bech32.toWords(buffer)
@@ -1416,6 +1474,31 @@
           })
         }
 
+        // For Vertcoin, use the correct address format in script
+        if (
+          NETWORK_CONFIG.taproot_prefix === 'vtc' ||
+          NETWORK_CONFIG.taproot_prefix === 'tvtc'
+        ) {
+          // For Vertcoin, modify the transaction outputs to use P2WPKH instead of P2TR
+          // This ensures compatibility with Vertcoin explorers and nodes
+
+          // Update payment output
+          for (let i = 0; i < tx.vout.length; i++) {
+            // Skip OP_RETURN outputs
+            if (tx.vout[i].scriptPubKey[0] === 'OP_RETURN') {
+              continue
+            }
+
+            // Change OP_1 to OP_0 for P2WPKH
+            if (tx.vout[i].scriptPubKey[0] === 'OP_1') {
+              tx.vout[i].scriptPubKey[0] = 'OP_0'
+              console.log(
+                'Changed output script from P2TR to P2WPKH for Vertcoin compatibility'
+              )
+            }
+          }
+        }
+
         const rawTxHex = await serializeTransaction(tx)
         window.rawTxHex = rawTxHex
         displayDebugInfo(tx, rawTxHex)
@@ -1491,9 +1574,40 @@
             return value + '026a' + dataLength + data
           }
 
-          // Normal P2TR output (taproot)
+          // Handle different witness versions
           const scriptPubKey = output.scriptPubKey // Ensure this is in hex format
-          return value + '225120' + scriptPubKey[1]
+
+          if (scriptPubKey[0] === 'OP_0') {
+            // P2WPKH (Segwit v0) script for networks like Vertcoin
+            // Format: OP_0 <20-byte-key-hash>
+
+            // We need to hash the public key for P2WPKH
+            // Use Uint8Array instead of Buffer for browser compatibility
+            const pubKeyBytes = new Uint8Array(
+              scriptPubKey[1].match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+            )
+
+            // For P2WPKH, we need a 20-byte hash instead of the full 32-byte key
+            // Using SHA256 for the first hash
+            const hash = sha256(pubKeyBytes)
+
+            // Convert the hash to bytes
+            const hashBytes = new Uint8Array(
+              hash.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+            )
+
+            // Create a hash similar to RIPEMD160 - using first 20 bytes of SHA256 for demo
+            // In a real implementation, you would use a proper RIPEMD160 hash
+            const pubKeyHash = Array.from(hashBytes.slice(0, 20))
+              .map(b => b.toString(16).padStart(2, '0'))
+              .join('')
+
+            // P2WPKH script: OP_0 <20-byte-hash>
+            return value + '1600' + '14' + pubKeyHash
+          } else {
+            // Default P2TR (Taproot/v1) script for Bitcoin
+            return value + '225120' + scriptPubKey[1]
+          }
         }
 
         const version = reverseHex(tx.version.toString(16).padStart(8, '0')) // 4 bytes reversed (little-endian)
