@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nostr Follow</title>
+    <script src="https://unpkg.com/preact@10.13.1/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.13.1/dist/preact-compat.min.js"></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+    <script src="https://unpkg.com/nostr-tools@1.12.0/lib/nostr.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+      :root {
+        --primary: #4a6fa5;
+        --primary-dark: #3a5683;
+        --primary-light: #c5d5e5;
+        --secondary: #8fb8de;
+        --accent: #63c0f5;
+        --text-light: #ffffff;
+        --text-dark: #334155;
+        --card-bg: #f0f7ff;
+        --body-bg: #f8fafc;
+        --sidebar-width: 230px;
+        --header-height: 60px;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --radius-sm: 6px;
+        --radius-md: 12px;
+        --status-connected: #4ade80;
+        --status-disconnected: #f87171;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+
+      body {
+        background-color: var(--body-bg);
+        color: var(--text-dark);
+        line-height: 1.5;
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: var(--text-light);
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 25px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .logo {
+        font-size: 26px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        letter-spacing: -0.5px;
+      }
+
+      .logo-dot {
+        color: var(--accent);
+        font-size: 32px;
+        margin-left: -3px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 100px 20px 40px;
+      }
+
+      .section-title {
+        font-size: 30px;
+        font-weight: 700;
+        margin-bottom: 25px;
+        color: var(--primary-dark);
+        letter-spacing: -0.5px;
+      }
+
+      .card {
+        background-color: white;
+        border-radius: var(--radius-md);
+        padding: 24px;
+        margin-bottom: 25px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+      }
+
+      .card-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--primary-dark);
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: var(--primary-dark);
+      }
+
+      .form-input {
+        width: 100%;
+        background-color: var(--body-bg);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        font-size: 16px;
+        outline: none;
+        transition: all 0.2s ease;
+      }
+
+      .form-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(99, 192, 245, 0.2);
+      }
+
+      .form-input::placeholder {
+        color: #94a3b8;
+      }
+
+      .form-hint {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 6px;
+      }
+
+      .button {
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .button:hover {
+        background-color: var(--primary-dark);
+      }
+
+      .button:disabled {
+        background-color: #a0aec0;
+        cursor: not-allowed;
+      }
+
+      .button-secondary {
+        background-color: var(--body-bg);
+        color: var(--primary-dark);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .button-secondary:hover {
+        background-color: var(--primary-light);
+        color: var(--primary-dark);
+      }
+
+      .following-list {
+        margin-top: 30px;
+      }
+
+      .following-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-radius: var(--radius-sm);
+        background-color: var(--card-bg);
+        margin-bottom: 10px;
+      }
+
+      .following-pubkey {
+        font-family: monospace;
+        font-size: 14px;
+        color: var(--primary-dark);
+      }
+
+      .status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        margin-top: 16px;
+      }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+      }
+
+      .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .connected {
+        background-color: var(--status-connected);
+      }
+
+      .disconnected {
+        background-color: var(--status-disconnected);
+      }
+
+      .error-message {
+        color: var(--status-disconnected);
+        font-size: 14px;
+        margin-top: 8px;
+      }
+
+      .success-message {
+        color: var(--status-connected);
+        font-size: 14px;
+        margin-top: 8px;
+      }
+
+      .theme-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .theme-select {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: white;
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: 8px 16px;
+        outline: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .theme-select:hover {
+        background-color: rgba(255, 255, 255, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script>
+      const { h, render, Component } = preact
+      const html = htm.bind(h)
+
+      // Header component
+      const Header = ({ user, onLogin, onLogout }) => {
+        const displayText = user
+          ? user.pubkey.substring(0, 8)
+          : 'Login with Nostr'
+
+        return html`
+          <header class="header">
+            <a
+              href="/"
+              class="logo"
+              style="text-decoration: none; color: var(--text-light);"
+              >Nostr<span class="logo-dot">.</span>Follow</a
+            >
+            <div class="theme-container">
+              ${user
+                ? html`<button onClick=${onLogout} class="theme-select">
+                    Logout (${displayText})
+                  </button>`
+                : html`<button onClick=${onLogin} class="theme-select">
+                    Login with Nostr
+                  </button>`}
+            </div>
+          </header>
+        `
+      }
+
+      class NostrFollow extends Component {
+        constructor(props) {
+          super(props)
+          this.state = {
+            connected: false,
+            relay: 'wss://ditto.pub/relay', // Default relay
+            customRelay: '',
+            error: null,
+            success: null,
+            user: null,
+            pubkey: localStorage.getItem('pubkey') || null,
+            privkey: localStorage.getItem('nostr:privkey') || null,
+            followPubkey:
+              'de7ecd1e2976a6adb2ffa5f4db81a7d812c8bb6698aa00dcf1e76adb55efd645',
+            following: [],
+            relayConnections: {}
+          }
+
+          this.relayConnection = null
+          this.handleLogin = this.handleLogin.bind(this)
+          this.handleLogout = this.handleLogout.bind(this)
+          this.connectToRelay = this.connectToRelay.bind(this)
+          this.handleRelayChange = this.handleRelayChange.bind(this)
+          this.handleCustomRelaySubmit = this.handleCustomRelaySubmit.bind(this)
+          this.handleCustomRelayChange = this.handleCustomRelayChange.bind(this)
+          this.handleFollowPubkeyChange =
+            this.handleFollowPubkeyChange.bind(this)
+          this.handleFollowSubmit = this.handleFollowSubmit.bind(this)
+          this.fetchFollowingList = this.fetchFollowingList.bind(this)
+        }
+
+        componentDidMount() {
+          this.connectToRelay()
+          this.checkNostrLogin()
+        }
+
+        checkNostrLogin() {
+          if (
+            localStorage.getItem('loggedIn') === 'true' &&
+            localStorage.getItem('pubkey')
+          ) {
+            const pubkey = localStorage.getItem('pubkey')
+            this.setState({ user: { pubkey } }, () => {
+              this.fetchFollowingList()
+            })
+          }
+        }
+
+        handleLogin() {
+          Swal.fire({
+            title: 'Login',
+            html: `
+              <button id="extensionLogin" class="swal2-confirm swal2-styled" style="display:block; width:100%; margin:10px auto;">Sign in with Nostr extension</button>
+              <input id="privkeyInput" type="text" placeholder="Or enter your 64-character hex private key" class="swal2-input" style="display:block; width:100%; margin:10px auto;">
+              <p style="margin-top: 10px; font-size: 0.9em;"><a href="https://nostrapps.github.io/extensions/" target="_blank">What is a Nostr extension?</a></p>
+            `,
+            showConfirmButton: false,
+            showCloseButton: true,
+            focusConfirm: false,
+            didOpen: () => {
+              const extensionButton =
+                Swal.getPopup().querySelector('#extensionLogin')
+              const privkeyInput =
+                Swal.getPopup().querySelector('#privkeyInput')
+
+              extensionButton.addEventListener('click', () => {
+                Swal.clickConfirm()
+              })
+
+              privkeyInput.addEventListener('keyup', e => {
+                if (e.key === 'Enter') {
+                  Swal.clickConfirm()
+                }
+              })
+
+              privkeyInput.addEventListener('paste', e => {
+                setTimeout(() => {
+                  if (
+                    privkeyInput.value.length === 64 &&
+                    /^[0-9a-fA-F]+$/.test(privkeyInput.value)
+                  ) {
+                    Swal.clickConfirm()
+                  }
+                }, 0)
+              })
+            },
+            preConfirm: () => {
+              const privkey =
+                Swal.getPopup().querySelector('#privkeyInput').value
+              if (
+                privkey &&
+                (privkey.length !== 64 || !/^[0-9a-fA-F]+$/.test(privkey))
+              ) {
+                Swal.showValidationMessage(
+                  'Invalid private key format. Please enter a 64-character hex string.'
+                )
+                return false
+              }
+              return {
+                loginMethod: privkey ? 'privkey' : 'extension',
+                privkey
+              }
+            }
+          }).then(result => {
+            if (result.isConfirmed) {
+              if (result.value.loginMethod === 'privkey') {
+                this.loginWithPrivkey(result.value.privkey)
+              } else {
+                const storedPrivkey = localStorage.getItem('nostr:privkey')
+                if (storedPrivkey) {
+                  this.loginWithPrivkey(storedPrivkey)
+                } else {
+                  this.loginWithExtension()
+                }
+              }
+            }
+          })
+        }
+
+        loginWithExtension() {
+          if (window.nostr) {
+            try {
+              window.nostr
+                .getPublicKey()
+                .then(pubkey => {
+                  this.setState({ user: { pubkey } }, () => {
+                    localStorage.setItem('loggedIn', 'true')
+                    localStorage.setItem('pubkey', pubkey)
+                    Swal.fire({
+                      title: 'Logged in!',
+                      text: 'You have successfully logged in with your Nostr extension.',
+                      icon: 'success',
+                      timer: 1500,
+                      showConfirmButton: false
+                    })
+                    this.fetchFollowingList()
+                  })
+                })
+                .catch(err => {
+                  console.error('Login failed:', err)
+                  Swal.fire({
+                    title: 'Login Failed',
+                    text: 'There was an error logging in with your Nostr extension.',
+                    icon: 'error',
+                    showConfirmButton: true
+                  })
+                })
+            } catch (error) {
+              console.error('Login error:', error)
+              Swal.fire({
+                title: 'Login Error',
+                text: 'Error connecting to Nostr extension: ' + error.message,
+                icon: 'error',
+                showConfirmButton: true
+              })
+            }
+          } else {
+            Swal.fire({
+              title: 'Extension Not Found',
+              text: 'Nostr extension not found. Please install a Nostr browser extension.',
+              icon: 'warning',
+              showConfirmButton: true
+            })
+          }
+        }
+
+        loginWithPrivkey(privkey) {
+          if (privkey && window.NostrTools) {
+            try {
+              const pubkey = window.NostrTools.getPublicKey(privkey)
+              this.setState({ user: { pubkey }, privkey }, () => {
+                localStorage.setItem('loggedIn', 'true')
+                localStorage.setItem('pubkey', pubkey)
+                localStorage.setItem('nostr:privkey', privkey)
+                Swal.fire({
+                  title: 'Logged in!',
+                  text: 'You have successfully logged in with your private key.',
+                  icon: 'success',
+                  timer: 1500,
+                  showConfirmButton: false
+                })
+                this.fetchFollowingList()
+              })
+            } catch (error) {
+              console.error('Login failed:', error)
+              Swal.fire({
+                title: 'Login Failed',
+                text: 'There was an error generating the public key from the provided private key.',
+                icon: 'error',
+                showConfirmButton: true
+              })
+            }
+          }
+        }
+
+        handleLogout() {
+          this.setState(
+            {
+              user: null,
+              privkey: null,
+              following: []
+            },
+            () => {
+              localStorage.setItem('loggedIn', 'false')
+              localStorage.removeItem('pubkey')
+              localStorage.removeItem('nostr:privkey')
+
+              Swal.fire({
+                title: 'Logged out!',
+                text: 'You have successfully logged out.',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+              })
+            }
+          )
+        }
+
+        connectToRelay() {
+          try {
+            if (this.relayConnection) {
+              this.relayConnection.close()
+            }
+
+            this.setState({ connected: false, error: null })
+
+            console.log(`Connecting to relay: ${this.state.relay}`)
+
+            this.relayConnection = window.NostrTools.relayInit(this.state.relay)
+
+            this.relayConnection.on('connect', () => {
+              console.log(`Connected to ${this.state.relay}`)
+              this.setState({ connected: true, error: null })
+
+              // If user is logged in, fetch their following list
+              if (this.state.user && this.state.user.pubkey) {
+                this.fetchFollowingList()
+              }
+            })
+
+            this.relayConnection.on('error', error => {
+              console.error(`Relay error: ${error}`)
+              this.setState({
+                error: `Failed to connect: ${error}`,
+                connected: false
+              })
+            })
+
+            this.relayConnection.on('disconnect', () => {
+              console.log('Disconnected from relay')
+              this.setState({ connected: false })
+            })
+
+            this.relayConnection.connect()
+          } catch (error) {
+            console.error('Connection error:', error)
+            this.setState({
+              error: `Error: ${error.message}`,
+              connected: false
+            })
+          }
+        }
+
+        handleRelayChange(e) {
+          const relay = e.target.value
+          this.setState({ relay }, () => {
+            this.connectToRelay()
+          })
+        }
+
+        handleCustomRelayChange(e) {
+          this.setState({ customRelay: e.target.value })
+        }
+
+        handleCustomRelaySubmit(e) {
+          e.preventDefault()
+          if (this.state.customRelay) {
+            this.setState(
+              { relay: this.state.customRelay, customRelay: '' },
+              () => {
+                this.connectToRelay()
+              }
+            )
+          }
+        }
+
+        handleFollowPubkeyChange(e) {
+          this.setState({ followPubkey: e.target.value })
+        }
+
+        async handleFollowSubmit(e) {
+          e.preventDefault()
+
+          if (!this.state.connected) {
+            this.setState({
+              error: 'Please connect to a relay first.',
+              success: null
+            })
+            return
+          }
+
+          if (!this.state.user || !this.state.user.pubkey) {
+            this.setState({
+              error: 'Please login first.',
+              success: null
+            })
+            return
+          }
+
+          const pubkeyToFollow = this.state.followPubkey.trim()
+
+          // Validate pubkey format (hex string of length 64)
+          if (
+            !pubkeyToFollow ||
+            pubkeyToFollow.length !== 64 ||
+            !/^[0-9a-fA-F]+$/.test(pubkeyToFollow)
+          ) {
+            this.setState({
+              error:
+                'Invalid public key format. Please enter a 64-character hex string.',
+              success: null
+            })
+            return
+          }
+
+          try {
+            // Create a new following list that includes all current follows plus the new one
+            const updatedFollowing = [...this.state.following]
+
+            // Only add the pubkey if it's not already in the list
+            if (!updatedFollowing.includes(pubkeyToFollow)) {
+              updatedFollowing.push(pubkeyToFollow)
+            } else {
+              this.setState({
+                error: 'You are already following this user.',
+                success: null
+              })
+              return
+            }
+
+            // Create a kind 3 event with all follows as 'p' tags
+            const event = {
+              kind: 3,
+              created_at: Math.floor(Date.now() / 1000),
+              tags: updatedFollowing.map(key => ['p', key]),
+              content: '', // Content is typically empty for kind 3 events
+              pubkey: this.state.user.pubkey
+            }
+
+            // Sign the event
+            let signedEvent
+            if (window.nostr && !this.state.privkey) {
+              // Use extension to sign
+              try {
+                signedEvent = await window.nostr.signEvent(event)
+              } catch (error) {
+                console.error('Signing error:', error)
+                this.setState({
+                  error: 'Failed to sign the event with your extension.',
+                  success: null
+                })
+                return
+              }
+            } else if (this.state.privkey) {
+              // Use local private key to sign
+              event.id = window.NostrTools.getEventHash(event)
+              event.sig = window.NostrTools.signEvent(event, this.state.privkey)
+              signedEvent = event
+            } else {
+              throw new Error('No signing method available')
+            }
+
+            // Validate the event
+            const ok = window.NostrTools.validateEvent(signedEvent)
+            const veryOk = window.NostrTools.verifySignature(signedEvent)
+
+            if (!ok || !veryOk) {
+              throw new Error('Invalid event or signature')
+            }
+
+            // Publish the event
+            const pub = this.relayConnection.publish(signedEvent)
+
+            pub.on('ok', () => {
+              console.log('Follow event published successfully')
+              this.setState({
+                following: updatedFollowing,
+                followPubkey: '',
+                error: null,
+                success: `Successfully followed ${pubkeyToFollow.substring(
+                  0,
+                  8
+                )}...`
+              })
+            })
+
+            pub.on('failed', reason => {
+              console.error('Failed to publish follow event:', reason)
+              this.setState({
+                error: `Failed to publish follow event: ${reason}`,
+                success: null
+              })
+            })
+          } catch (error) {
+            console.error('Error publishing follow event:', error)
+            this.setState({
+              error: `Error creating or publishing follow event: ${error.message}`,
+              success: null
+            })
+          }
+        }
+
+        fetchFollowingList() {
+          // Only fetch if we have a user
+          if (
+            !this.state.user ||
+            !this.state.user.pubkey ||
+            !this.state.connected
+          ) {
+            return
+          }
+
+          console.log(
+            'Fetching following list for pubkey:',
+            this.state.user.pubkey
+          )
+
+          // Subscribe to kind 3 events from the user's pubkey
+          const sub = this.relayConnection.sub([
+            {
+              kinds: [3], // Contacts/follows
+              authors: [this.state.user.pubkey],
+              limit: 1 // Just get the most recent one
+            }
+          ])
+
+          sub.on('event', event => {
+            console.log('Found contacts event:', event)
+
+            // Extract the pubkeys from 'p' tags according to NIP-02
+            const follows = event.tags
+              .filter(tag => tag[0] === 'p' && tag.length > 1)
+              .map(tag => tag[1])
+
+            this.setState({ following: follows })
+            console.log(`Found ${follows.length} follows in contacts list`)
+          })
+
+          sub.on('eose', () => {
+            console.log('End of stored contacts events')
+            // We can unsubscribe after we get the end of stored events
+            sub.unsub()
+          })
+        }
+
+        render() {
+          const {
+            connected,
+            relay,
+            customRelay,
+            error,
+            success,
+            user,
+            followPubkey,
+            following
+          } = this.state
+
+          return html`
+            <${Header}
+              user=${user}
+              onLogin=${this.handleLogin}
+              onLogout=${this.handleLogout}
+            />
+            <div class="container">
+              <h1 class="section-title">Nostr Follow</h1>
+
+              <div class="card">
+                <h2 class="card-title">Relay Connection</h2>
+                <div class="form-group">
+                  <label class="form-label">Select Relay</label>
+                  <select
+                    class="form-input"
+                    value=${relay}
+                    onChange=${this.handleRelayChange}
+                  >
+                    <option value="wss://ditto.pub/relay">
+                      Ditto (wws://ditto.pub/relay)
+                    </option>
+                    <option value="wss://relay.damus.io">
+                      Damus (wss://relay.damus.io)
+                    </option>
+                    <option value="wss://relay.primal.net">
+                      Primal (wss://relay.primal.net)
+                    </option>
+                    <option value="wss://relay.nostr.band">
+                      Nostr.band (wss://relay.nostr.band)
+                    </option>
+                    <option value="wss://nos.lol">
+                      nos.lol (wss://nos.lol)
+                    </option>
+                    <option value="wss://relay.snort.social">
+                      Snort (wss://relay.snort.social)
+                    </option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Custom Relay URL</label>
+                  <form
+                    onSubmit=${this.handleCustomRelaySubmit}
+                    style="display: flex; gap: 10px;"
+                  >
+                    <input
+                      type="text"
+                      class="form-input"
+                      placeholder="wss://..."
+                      value=${customRelay}
+                      onChange=${this.handleCustomRelayChange}
+                    />
+                    <button type="submit" class="button">Connect</button>
+                  </form>
+                </div>
+
+                <div class="status-row">
+                  <div class="connection-status">
+                    <div
+                      class="status-indicator ${connected
+                        ? 'connected'
+                        : 'disconnected'}"
+                    ></div>
+                    <span
+                      >${connected
+                        ? 'Connected to ' + relay
+                        : 'Disconnected'}</span
+                    >
+                  </div>
+                </div>
+              </div>
+
+              ${user
+                ? html`
+                    <div class="card">
+                      <h2 class="card-title">Follow a User</h2>
+                      <form onSubmit=${this.handleFollowSubmit}>
+                        <div class="form-group">
+                          <label class="form-label"
+                            >Enter Nostr Public Key to Follow</label
+                          >
+                          <input
+                            type="text"
+                            class="form-input"
+                            placeholder="npub... or hex public key"
+                            value=${followPubkey}
+                            onChange=${this.handleFollowPubkeyChange}
+                          />
+                          <div class="form-hint">
+                            Enter a 64-character hex public key or an npub
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          class="button"
+                          disabled=${!connected}
+                        >
+                          Follow User
+                        </button>
+
+                        ${error &&
+                        html`<div class="error-message">${error}</div>`}
+                        ${success &&
+                        html`<div class="success-message">${success}</div>`}
+                      </form>
+
+                      ${following.length > 0 &&
+                      html`
+                        <div class="following-list">
+                          <h3 class="card-title">
+                            Users You Follow (${following.length})
+                          </h3>
+                          ${following.map(
+                            pubkey => html`
+                              <div class="following-item">
+                                <span class="following-pubkey">
+                                  ${pubkey.substring(
+                                    0,
+                                    8
+                                  )}...${pubkey.substring(pubkey.length - 4)}
+                                </span>
+                              </div>
+                            `
+                          )}
+                        </div>
+                      `}
+                    </div>
+                  `
+                : html`
+                    <div class="card">
+                      <h2 class="card-title">Login Required</h2>
+                      <p style="margin-bottom: 20px;">
+                        Please login with your Nostr account to follow users.
+                      </p>
+                      <button class="button" onClick=${this.handleLogin}>
+                        Login with Nostr
+                      </button>
+                    </div>
+                  `}
+            </div>
+          `
+        }
+      }
+
+      render(html`<${NostrFollow} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
