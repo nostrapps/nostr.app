@@ -419,6 +419,13 @@
             <option value="vertcoin_testnet">Vertcoin Testnet</option>
             <option value="vertcoin_mainnet">Vertcoin Mainnet</option>
           </select>
+          <button
+            id="cors-proxy-button"
+            class="ml-2 text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+            style="display: none"
+          >
+            Change CORS Proxy
+          </button>
         </div>
       </div>
 
@@ -669,8 +676,9 @@
         vertcoin_mainnet: {
           name: 'Vertcoin',
           taproot_prefix: 'vtc',
-          explorer_base_url: 'https://insight.vertcoin.org',
-          api_base_url: 'https://insight.vertcoin.org/insight-vtc-api'
+          explorer_base_url: 'https://vtc5.trezor.io',
+          api_base_url: 'https://vtc5.trezor.io/api/v2',
+          cors_proxy: 'https://corsproxy.io/?url='
         },
         vertcoin_testnet: {
           name: 'Vertcoin Testnet',
@@ -730,6 +738,9 @@
           // Reload the page with the new network parameter
           window.location.href = `?network=${selectedNetwork}`
         })
+
+        // Initialize CORS proxy button and handlers
+        setupCorsProxy()
       }
 
       // Update network-specific UI elements
@@ -761,6 +772,9 @@
 
         // Update faucet section
         updateFaucetSection()
+
+        // Update CORS proxy button state
+        setupCorsProxy()
       }
 
       // Update faucet section based on the selected network
@@ -876,57 +890,113 @@
             NETWORK_CONFIG.taproot_prefix === 'vtc' ||
             NETWORK_CONFIG.taproot_prefix === 'tvtc'
           ) {
-            // Vertcoin (mainnet or testnet) uses insight-api format
+            // Vertcoin using Trezor blockbook API
+            if (
+              NETWORK_CONFIG.taproot_prefix === 'vtc' &&
+              NETWORK_CONFIG.cors_proxy
+            ) {
+              try {
+                console.log(
+                  'Fetching UTXOs for Vertcoin address using Trezor API:',
+                  address
+                )
 
-            // Check if address is a bech32m Taproot address (vtc1p or tvtc1p)
-            // The Insight API doesn't fully support Taproot addresses yet
-            // For Vertcoin, we need to handle this case differently
-            try {
-              console.log('Fetching UTXOs for Vertcoin address:', address)
+                // Use CORS proxy with Trezor API - Using correct endpoint format: /api/v2/utxo/{address}
+                const corsProxy = NETWORK_CONFIG.cors_proxy || ''
+                const apiUrl = `${corsProxy}${NETWORK_CONFIG.api_base_url}/utxo/${address}`
 
-              // Try the API with the address as is
-              const response = await fetch(
-                `${NETWORK_CONFIG.api_base_url}/addr/${address}/utxo`
-              )
+                console.log('Requesting from:', apiUrl)
+                const response = await fetch(apiUrl)
 
-              // If we got a successful response, process it
-              if (response.ok) {
-                let data = await response.json()
+                if (response.ok) {
+                  let data = await response.json()
+                  console.log('Trezor API response:', data)
 
-                // Transform insight-api response to our expected format
-                utxos = data.map(item => ({
-                  txid: item.txid,
-                  vout: item.vout,
-                  value: item.satoshis // insight uses satoshis property instead of value
-                }))
-              } else {
-                // If the API returned an error, show a more helpful message
+                  // Transform Trezor blockbook API response to our expected format
+                  utxos = data.map(item => ({
+                    txid: item.txid,
+                    vout: item.vout,
+                    value: parseInt(item.value) // Trezor API returns value as string
+                  }))
+                } else {
+                  console.error(
+                    'Vertcoin Trezor API returned an error:',
+                    await response.text()
+                  )
+                  throw new Error(
+                    `The Vertcoin Trezor API returned an error. This may be because the address format is not supported or there are no UTXOs for this address.`
+                  )
+                }
+              } catch (error) {
                 console.error(
-                  'Vertcoin API returned an error:',
-                  await response.text()
+                  'Error fetching Vertcoin UTXOs from Trezor API:',
+                  error
                 )
-                throw new Error(
-                  `The Vertcoin ${NETWORK_CONFIG.name} API returned an error. This may be because Taproot addresses are not fully supported yet on the Vertcoin blockchain explorer.`
-                )
+
+                Swal.fire({
+                  title: 'Vertcoin API Error',
+                  html: `Unable to fetch UTXOs for this Vertcoin address.<br><br>
+                        This might be because:<br>
+                        1. The address has no transactions yet<br>
+                        2. The CORS proxy is not available or rate-limited<br>
+                        3. The explorer service is temporarily unavailable<br><br>
+                        Try again later or try a different CORS proxy.`,
+                  icon: 'warning',
+                  confirmButtonColor: 'var(--primary)'
+                })
+
+                // Return early to avoid further processing
+                return
               }
-            } catch (error) {
-              console.error('Error fetching Vertcoin UTXOs:', error)
+            } else {
+              // Fallback to insight-api for testnet or if cors_proxy is not available
+              try {
+                console.log('Fetching UTXOs for Vertcoin address:', address)
 
-              // Show a more helpful error message for Vertcoin users
-              Swal.fire({
-                title: 'Vertcoin API Error',
-                html: `Unable to fetch UTXOs for this Vertcoin address.<br><br>
-                      This might be because:<br>
-                      1. The address has no transactions yet<br>
-                      2. The Vertcoin explorer doesn't fully support this address format<br>
-                      3. The explorer service is temporarily unavailable<br><br>
-                      Try again later or use a different network.`,
-                icon: 'warning',
-                confirmButtonColor: 'var(--primary)'
-              })
+                // Try the API with the address as is
+                const response = await fetch(
+                  `${NETWORK_CONFIG.api_base_url}/addr/${address}/utxo`
+                )
 
-              // Return early to avoid further processing
-              return
+                // If we got a successful response, process it
+                if (response.ok) {
+                  let data = await response.json()
+
+                  // Transform insight-api response to our expected format
+                  utxos = data.map(item => ({
+                    txid: item.txid,
+                    vout: item.vout,
+                    value: item.satoshis // insight uses satoshis property instead of value
+                  }))
+                } else {
+                  // If the API returned an error, show a more helpful message
+                  console.error(
+                    'Vertcoin API returned an error:',
+                    await response.text()
+                  )
+                  throw new Error(
+                    `The Vertcoin ${NETWORK_CONFIG.name} API returned an error. This may be because Taproot addresses are not fully supported yet on the Vertcoin blockchain explorer.`
+                  )
+                }
+              } catch (error) {
+                console.error('Error fetching Vertcoin UTXOs:', error)
+
+                // Show a more helpful error message for Vertcoin users
+                Swal.fire({
+                  title: 'Vertcoin API Error',
+                  html: `Unable to fetch UTXOs for this Vertcoin address.<br><br>
+                        This might be because:<br>
+                        1. The address has no transactions yet<br>
+                        2. The Vertcoin explorer doesn't fully support this address format<br>
+                        3. The explorer service is temporarily unavailable<br><br>
+                        Try again later or use a different network.`,
+                  icon: 'warning',
+                  confirmButtonColor: 'var(--primary)'
+                })
+
+                // Return early to avoid further processing
+                return
+              }
             }
           } else {
             // For other networks like Litecoin
@@ -1266,9 +1336,54 @@
       async function sendTransaction() {
         try {
           let txResponse
+          let txid
 
           // Handle different APIs for different networks
           if (
+            NETWORK_CONFIG.taproot_prefix === 'vtc' &&
+            NETWORK_CONFIG.cors_proxy
+          ) {
+            // Vertcoin using Trezor blockbook API with CORS proxy
+            const corsProxy = NETWORK_CONFIG.cors_proxy || ''
+            // Using correct Trezor API format: POST to /api/v2/sendtx/
+            const sendTxEndpoint = `${corsProxy}${NETWORK_CONFIG.api_base_url}/sendtx/`
+
+            console.log(
+              'Broadcasting transaction via Trezor API:',
+              sendTxEndpoint
+            )
+
+            // Trezor API expects the raw transaction as the body
+            txResponse = await fetch(sendTxEndpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: rawTxHex
+            })
+
+            if (!txResponse.ok) {
+              const errorText = await txResponse.text()
+              console.error('Trezor API error response:', errorText)
+              throw new Error(`Failed to broadcast transaction: ${errorText}`)
+            }
+
+            const result = await txResponse.json()
+            txid = result.result // Trezor API returns txid in result field
+
+            if (!txid) {
+              throw new Error(
+                'Failed to broadcast transaction: ' +
+                  (result.error ? result.error.message : 'Unknown error')
+              )
+            }
+
+            const txUrl = `${NETWORK_CONFIG.explorer_base_url}/tx/${txid}`
+            const txResultElement = document.getElementById('tx-result')
+
+            // Set the result as a hyperlink
+            txResultElement.innerHTML = `Transaction Result: <a href="${txUrl}" target="_blank" class="text-accent hover:underline">${txid}</a>`
+          } else if (
             NETWORK_CONFIG.taproot_prefix === 'vtc' ||
             NETWORK_CONFIG.taproot_prefix === 'tvtc'
           ) {
@@ -1283,7 +1398,7 @@
 
             const result = await txResponse.json()
             // Insight API returns the transaction ID in the txid field
-            const txid = result.txid
+            txid = result.txid
 
             if (!txid) {
               throw new Error(
@@ -1345,6 +1460,96 @@
             confirmButtonColor: 'var(--primary)'
           })
         }
+      }
+
+      // Initialize and handle CORS proxy settings
+      function setupCorsProxy() {
+        const corsProxyButton = document.getElementById('cors-proxy-button')
+
+        // Only show the button when using Vertcoin mainnet
+        if (NETWORK_CONFIG.taproot_prefix === 'vtc') {
+          corsProxyButton.style.display = 'inline-block'
+
+          // Set initial text to show current CORS proxy
+          updateCorsProxyButtonText()
+
+          // Handle button click
+          corsProxyButton.addEventListener('click', changeCorsProxy)
+        } else {
+          corsProxyButton.style.display = 'none'
+        }
+      }
+
+      // Update the button text to show current CORS proxy
+      function updateCorsProxyButtonText() {
+        const corsProxyButton = document.getElementById('cors-proxy-button')
+        const currentProxy = NETWORK_CONFIG.cors_proxy || 'None'
+        corsProxyButton.title = `Current: ${currentProxy}`
+      }
+
+      // Handle changing the CORS proxy
+      function changeCorsProxy() {
+        Swal.fire({
+          title: 'Change CORS Proxy',
+          html: `
+            <p class="mb-2 text-sm text-gray-600">Enter a new CORS proxy URL (including the trailing slash):</p>
+            <input id="cors-proxy-input" class="w-full p-2 border rounded" 
+                   value="${NETWORK_CONFIG.cors_proxy || ''}" 
+                   placeholder="https://cors-proxy.example.com/">
+            <p class="mt-2 text-xs text-gray-500">
+              Examples:<br>
+              - https://cors-anywhere.herokuapp.com/<br>
+              - https://corsproxy.io/?<br>
+              - https://proxy.cors.sh/
+            </p>
+          `,
+          showCancelButton: true,
+          confirmButtonColor: 'var(--primary)',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Save',
+          preConfirm: () => {
+            return document.getElementById('cors-proxy-input').value.trim()
+          }
+        }).then(result => {
+          if (result.isConfirmed) {
+            const newProxy = result.value
+
+            // Ensure the proxy URL ends with a slash or appropriate character
+            let formattedProxy = newProxy
+            if (
+              newProxy &&
+              !newProxy.endsWith('/') &&
+              !newProxy.endsWith('?')
+            ) {
+              formattedProxy = newProxy + '/'
+            }
+
+            // Update the network configuration
+            NETWORK_CONFIG.cors_proxy = formattedProxy
+
+            // Update button text
+            updateCorsProxyButtonText()
+
+            Swal.fire(
+              'Updated!',
+              `CORS proxy changed to: ${formattedProxy || 'None'}`,
+              'success'
+            )
+
+            // Refresh UTXOs with the new proxy if logged in
+            const receiveElement = document.getElementById('receive-address')
+            const linkElement = receiveElement.querySelector('a')
+            if (linkElement) {
+              const taprootAddress = linkElement.textContent
+              if (
+                taprootAddress &&
+                taprootAddress !== 'Connect to see address...'
+              ) {
+                fetchUTXOs(taprootAddress)
+              }
+            }
+          }
+        })
       }
 
       window.sendTransaction = sendTransaction
