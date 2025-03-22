@@ -1093,15 +1093,14 @@
         // For Vertcoin, special handling may be needed since its explorer
         // may not fully support bech32m Taproot addresses yet
         if (taproot_prefix === 'vtc' || taproot_prefix === 'tvtc') {
-          // For Vertcoin, use regular bech32 encoding for better compatibility
-          // This will create a segwit-style address that the explorer can handle
-          taprootAddress = bech32.encode(
+          // For Vertcoin, use bech32m encoding for Taproot addresses (vtc1p)
+          taprootAddress = bech32m.encode(
             taproot_prefix,
-            [0, ...words], // Using witness version 0 (P2WPKH) instead of 1 (P2TR)
+            [scriptVersion, ...words],
             1024
           )
 
-          console.log('Created Vertcoin-compatible address:', taprootAddress)
+          console.log('Created Vertcoin Taproot address:', taprootAddress)
         } else {
           // For Bitcoin and other networks, use proper bech32m encoding for Taproot
           taprootAddress = bech32m.encode(
@@ -1130,7 +1129,7 @@
           NETWORK_CONFIG.taproot_prefix === 'vtc' ||
           NETWORK_CONFIG.taproot_prefix === 'tvtc'
         ) {
-          addressTypeLabel = 'Vertcoin Address'
+          addressTypeLabel = 'Vertcoin Taproot Address'
         }
 
         // Update the display label
@@ -1695,24 +1694,8 @@
           NETWORK_CONFIG.taproot_prefix === 'vtc' ||
           NETWORK_CONFIG.taproot_prefix === 'tvtc'
         ) {
-          // For Vertcoin, modify the transaction outputs to use P2WPKH instead of P2TR
-          // This ensures compatibility with Vertcoin explorers and nodes
-
-          // Update payment output
-          for (let i = 0; i < tx.vout.length; i++) {
-            // Skip OP_RETURN outputs
-            if (tx.vout[i].scriptPubKey[0] === 'OP_RETURN') {
-              continue
-            }
-
-            // Change OP_1 to OP_0 for P2WPKH
-            if (tx.vout[i].scriptPubKey[0] === 'OP_1') {
-              tx.vout[i].scriptPubKey[0] = 'OP_0'
-              console.log(
-                'Changed output script from P2TR to P2WPKH for Vertcoin compatibility'
-              )
-            }
-          }
+          // Using Taproot (P2TR) for Vertcoin now
+          console.log('Using Taproot format for Vertcoin transactions')
         }
 
         const rawTxHex = await serializeTransaction(tx)
