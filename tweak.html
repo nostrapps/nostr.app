@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hex String Tweaker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'light-blue': '#a5c4ff',
+              'light-purple': '#d5c1ff'
+            }
+          }
+        }
+      }
+    </script>
+    <!-- Add SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style type="text/tailwindcss">
+      body {
+        @apply bg-gradient-to-br from-white to-light-blue min-h-screen;
+      }
+      .tweak-card {
+        @apply bg-white bg-opacity-50 backdrop-blur-sm rounded-xl p-8 shadow-lg;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .tweak-card:hover {
+        transform: translateY(-5px);
+        @apply shadow-xl;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="min-h-screen flex flex-col"></div>
+
+    <!-- Import modules -->
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      class TweakApp extends Component {
+        constructor() {
+          super()
+          this.state = {
+            hexString: '',
+            addValue: '',
+            result: '',
+            history: [],
+            error: null
+          }
+        }
+
+        isValidHex(str) {
+          return /^[0-9a-fA-F]+$/.test(str)
+        }
+
+        handleInputChange = event => {
+          const { name, value } = event.target
+          this.setState({ [name]: value, error: null })
+        }
+
+        addHexValues = () => {
+          const { hexString, addValue } = this.state
+
+          // Validate inputs
+          if (!hexString || !addValue) {
+            this.setState({ error: 'Both fields are required' })
+            return
+          }
+
+          if (!this.isValidHex(hexString)) {
+            this.setState({ error: 'Invalid base hex string format' })
+            return
+          }
+
+          if (!this.isValidHex(addValue)) {
+            this.setState({ error: 'Invalid value to add (must be hex)' })
+            return
+          }
+
+          try {
+            // Convert hex strings to BigInts
+            const base = BigInt('0x' + hexString)
+            const add = BigInt('0x' + addValue)
+
+            // Perform addition
+            let sum = base + add
+
+            // Convert back to hex and pad to 64 characters
+            let result = sum.toString(16)
+            while (result.length < 64) {
+              result = '0' + result
+            }
+
+            // Add to history
+            const historyEntry = {
+              base: hexString,
+              added: addValue,
+              result: result,
+              timestamp: new Date().toLocaleTimeString()
+            }
+
+            this.setState(prevState => ({
+              result,
+              history: [historyEntry, ...prevState.history].slice(0, 5),
+              error: null
+            }))
+
+            // Show success message
+            Swal.fire({
+              title: 'Success!',
+              text: 'Hex values added successfully',
+              icon: 'success',
+              timer: 1500,
+              showConfirmButton: false
+            })
+          } catch (error) {
+            this.setState({ error: 'Error performing hex addition' })
+          }
+        }
+
+        copyToClipboard = text => {
+          navigator.clipboard.writeText(text).then(() => {
+            Swal.fire({
+              title: 'Copied!',
+              text: 'Value copied to clipboard',
+              icon: 'success',
+              timer: 1500,
+              showConfirmButton: false
+            })
+          })
+        }
+
+        render() {
+          const { hexString, addValue, result, history, error } = this.state
+
+          return html`
+            <div class="container mx-auto px-4 py-8 flex-grow">
+              <div class="flex justify-center items-center min-h-[70vh]">
+                <div class="tweak-card max-w-2xl w-full">
+                  <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
+                    Hex String Tweaker
+                  </h2>
+
+                  <div class="space-y-4">
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Base Hex String (64 bytes)
+                      </label>
+                      <input
+                        type="text"
+                        name="hexString"
+                        value=${hexString}
+                        onChange=${this.handleInputChange}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple font-mono"
+                        placeholder="Enter 64-byte hex string"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Value to Add (hex)
+                      </label>
+                      <input
+                        type="text"
+                        name="addValue"
+                        value=${addValue}
+                        onChange=${this.handleInputChange}
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple font-mono"
+                        placeholder="Enter hex value to add"
+                      />
+                    </div>
+
+                    ${error &&
+                    html`
+                      <div class="text-red-500 text-sm font-medium py-2">
+                        ${error}
+                      </div>
+                    `}
+
+                    <button
+                      onClick=${this.addHexValues}
+                      class="w-full px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
+                    >
+                      Add Values
+                    </button>
+
+                    ${result &&
+                    html`
+                      <div class="mt-6">
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Result
+                        </label>
+                        <div class="relative">
+                          <input
+                            type="text"
+                            value=${result}
+                            readonly
+                            class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md font-mono"
+                          />
+                          <button
+                            onClick=${() => this.copyToClipboard(result)}
+                            class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-light-purple"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-5 w-5"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"
+                              />
+                              <path
+                                d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    `}
+                    ${history.length > 0 &&
+                    html`
+                      <div class="mt-8">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">
+                          Recent Operations
+                        </h3>
+                        <div class="space-y-2">
+                          ${history.map(
+                            entry => html`
+                              <div
+                                class="bg-white bg-opacity-75 p-3 rounded-lg shadow-sm"
+                              >
+                                <div
+                                  class="flex justify-between items-center text-sm text-gray-500 mb-1"
+                                >
+                                  <span>Operation at ${entry.timestamp}</span>
+                                  <button
+                                    onClick=${() =>
+                                      this.copyToClipboard(entry.result)}
+                                    class="text-light-purple hover:text-opacity-80"
+                                  >
+                                    Copy Result
+                                  </button>
+                                </div>
+                                <div class="font-mono text-sm truncate">
+                                  <span class="text-gray-600">Base: </span>
+                                  <span class="text-gray-800"
+                                    >${entry.base}</span
+                                  >
+                                </div>
+                                <div class="font-mono text-sm truncate">
+                                  <span class="text-gray-600">Added: </span>
+                                  <span class="text-gray-800"
+                                    >${entry.added}</span
+                                  >
+                                </div>
+                                <div class="font-mono text-sm truncate">
+                                  <span class="text-gray-600">Result: </span>
+                                  <span class="text-gray-800"
+                                    >${entry.result}</span
+                                  >
+                                </div>
+                              </div>
+                            `
+                          )}
+                        </div>
+                      </div>
+                    `}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `
+        }
+      }
+
+      // Render the app
+      render(html`<${TweakApp} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
