@@ -141,9 +141,6 @@
                 : undefined
             }
 
-            // const runestone = Runestone.create(json, 'etch')
-            // const encodedHex = runestone.encipher().toString('hex')
-
             if (json.name) {
               const name = json.name.toUpperCase().replace(/[^A-Z]/g, '')
               this.setState({ name })
@@ -160,61 +157,68 @@
               var amount = json.amount
               var amount128 = amount.toString(16).padStart(2, '0')
 
-              const fullHex = `${this.state.prefix}${this.state.opcode} ${this.state.bytes} 020304 ${encodedHex}${this.state.suffix}${amount128}0601`
-
-              this.setState(
-                { encodedHex, bytes, amount, amount128: amount128 },
-                () => {
-                  // Show popup with instructions after updating state
-                  Swal.fire({
-                    title: 'Glyph Created!',
-                    html: `
-                    <p class="mb-3">Your glyph <strong>${name}</strong> has been created.</p>
-                    <p class="mb-3">Copy the hex code below and use it as an OP_RETURN in your wallet for a new transaction:</p>
-                    <div class="bg-gray-100 p-3 rounded-md text-sm font-mono overflow-auto">
-                      ${fullHex}
-                    </div>
-                  `,
-                    icon: 'success',
-                    confirmButtonText: 'Copy to Clipboard',
-                    confirmButtonColor: '#4a6fa5',
-                    showCancelButton: true,
-                    cancelButtonText: 'Close'
-                  }).then(result => {
-                    if (result.isConfirmed) {
-                      navigator.clipboard
-                        .writeText(fullHex)
-                        .then(() => {
-                          Swal.fire({
-                            title: 'Copied!',
-                            text: 'The hex code has been copied to your clipboard.',
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                          })
-                        })
-                        .catch(err => {
-                          console.error('Failed to copy: ', err)
-                          Swal.fire({
-                            title: 'Copy Failed',
-                            text: 'Please manually select and copy the hex code.',
-                            icon: 'error',
-                            timer: 2000,
-                            showConfirmButton: false
-                          })
-                        })
-                    }
-                  })
-                }
-              )
+              this.setState({ encodedHex, bytes, amount, amount128: amount128 })
             } else {
               this.setState({ encodedHex: '' })
             }
           } catch (error) {
             this.setState({ encodedHex: 'Invalid input' })
+          }
+        }
+
+        // New method for button click that will show the popup
+        createGlyphWithPopup = () => {
+          // First update the state
+          this.createEtching()
+
+          // Then show the popup only if we have a valid name
+          if (this.state.name) {
+            const name = this.state.name.toUpperCase()
+            const fullHex = `${this.state.prefix}${this.state.opcode} ${this.state.bytes} 020304 ${this.state.encodedHex}${this.state.suffix}${this.state.amount128}0601`
+
+            Swal.fire({
+              title: 'Glyph Created!',
+              html: `
+                <p class="mb-3">Your glyph <strong>${name}</strong> has been created.</p>
+                <p class="mb-3">Copy the hex code below and use it as an OP_RETURN in your wallet for a new transaction:</p>
+                <div class="bg-gray-100 p-3 rounded-md text-sm font-mono overflow-auto">
+                  ${fullHex}
+                </div>
+              `,
+              icon: 'success',
+              confirmButtonText: 'Copy to Clipboard',
+              confirmButtonColor: '#4a6fa5',
+              showCancelButton: true,
+              cancelButtonText: 'Close'
+            }).then(result => {
+              if (result.isConfirmed) {
+                navigator.clipboard
+                  .writeText(fullHex)
+                  .then(() => {
+                    Swal.fire({
+                      title: 'Copied!',
+                      text: 'The hex code has been copied to your clipboard.',
+                      icon: 'success',
+                      timer: 1500,
+                      showConfirmButton: false
+                    })
+                  })
+                  .catch(err => {
+                    console.error('Failed to copy: ', err)
+                    Swal.fire({
+                      title: 'Copy Failed',
+                      text: 'Please manually select and copy the hex code.',
+                      icon: 'error',
+                      timer: 2000,
+                      showConfirmButton: false
+                    })
+                  })
+              }
+            })
+          } else {
             Swal.fire({
               title: 'Error',
-              text: 'There was an error creating your glyph. Please check your inputs.',
+              text: 'Please enter a glyph name.',
               icon: 'error',
               confirmButtonColor: '#4a6fa5'
             })
@@ -306,7 +310,7 @@
                     </div>
 
                     <button
-                      onClick=${this.createEtching}
+                      onClick=${this.createGlyphWithPopup}
                       class="w-full bg-gradient-to-r from-primary-light to-primary text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity shadow-md mb-6"
                     >
                       Create Glyph
