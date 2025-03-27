@@ -393,6 +393,14 @@ class Navbar extends Component {
     const { isLoggedIn, pubkey } = this.state;
     const displayText = pubkey ? pubkey.substring(0, 8) : 'Login with Nostr';
 
+    // Generate a color from the last 6 characters of the pubkey
+    const pubkeyColor = pubkey ? `#${pubkey.slice(-6)}` : '';
+
+    // Create style object for the login button
+    const loginButtonStyle = isLoggedIn && pubkey
+      ? { backgroundColor: pubkeyColor, borderColor: pubkeyColor }
+      : {};
+
     return html`
       <header class="header">
         <a href="index.html" class="logo">Nostr<span class="logo-dot">.</span>App</a>
@@ -405,7 +413,7 @@ class Navbar extends Component {
         
         <div class="theme-container">
           ${isLoggedIn
-        ? html`<button onClick=${this.handleLogout} class="theme-select">
+        ? html`<button onClick=${this.handleLogout} class="theme-select" style=${loginButtonStyle}>
                 Logout (${displayText})
               </button>`
         : html`<button onClick=${this.handleLogin} class="theme-select">
