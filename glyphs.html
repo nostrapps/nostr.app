@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Glyph Creator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/preact/10.11.3/preact.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/htm/3.1.1/htm.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#4a6fa5',
+              'primary-dark': '#3a5683',
+              'primary-light': '#c5d5e5',
+              secondary: '#8fb8de',
+              accent: '#63c0f5',
+              purple: '#a78bfa',
+              'light-purple': '#c4b5fd'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --primary: #4a6fa5;
+        --primary-dark: #3a5683;
+        --primary-light: #c5d5e5;
+        --secondary: #8fb8de;
+        --accent: #63c0f5;
+        --text-light: #ffffff;
+        --text-dark: #334155;
+        --card-bg: #f0f7ff;
+        --body-bg: #f8fafc;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --radius-sm: 6px;
+        --radius-md: 12px;
+      }
+
+      .gradient-bg {
+        background: linear-gradient(
+          135deg,
+          var(--primary-light, #c5d5e5) 0%,
+          var(--primary, #4a6fa5) 100%
+        );
+      }
+
+      .input-container {
+        transition: all 0.3s ease;
+      }
+
+      .input-container:hover {
+        transform: translateY(-2px);
+      }
+
+      body {
+        background-color: var(--body-bg);
+        color: var(--text-dark);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+          Roboto, sans-serif;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <div id="app"></div>
+    <script type="module">
+      import { base26Encode, base26Decode } from './js/base26.js'
+      import { encodeLEB128, decodeLEB128 } from './js/leb128.js'
+      import Navbar from './navbar.js'
+      import './nosdav-shim.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+      import Swal from 'https://cdn.jsdelivr.net/npm/sweetalert2@11/+esm'
+
+      window.secp256k1 = secp256k1
+
+      const { h, render, Component } = preact
+      const html = htm.bind(h)
+
+      class App extends Component {
+        constructor() {
+          super()
+          // var opcode = '54'
+          // var opcode = '5d'
+          var opcode = '60'
+          this.state = {
+            opcode: opcode,
+            prefix: '6a ',
+            suffix: ' 05a4010a0108',
+            bytes: 7,
+            name: '',
+            divisibility: '',
+            premine: 1,
+            premine128: 1,
+            symbol: '',
+            amount: 1,
+            amount128: 1,
+            cap: 1,
+            cap128: 1,
+            startHeight: '',
+            endHeight: '',
+            startOffset: '',
+            endOffset: '',
+            encodedNum: 0n,
+            encodedHex: ''
+          }
+        }
+
+        handleInputChange = e => {
+          const { name, value } = e.target
+          this.setState({ [name]: value })
+        }
+
+        createEtching = () => {
+          try {
+            const json = {
+              name: this.state.name,
+              divisibility: this.state.divisibility
+                ? parseInt(this.state.divisibility)
+                : undefined,
+              premine: this.state.premine
+                ? parseInt(this.state.premine)
+                : undefined,
+              symbol: this.state.symbol,
+              amount: parseInt(this.state.amount),
+              cap: parseInt(this.state.cap),
+              startHeight: this.state.startHeight
+                ? parseInt(this.state.startHeight)
+                : undefined,
+              endHeight: this.state.endHeight
+                ? parseInt(this.state.endHeight)
+                : undefined,
+              startOffset: this.state.startOffset
+                ? parseInt(this.state.startOffset)
+                : undefined,
+              endOffset: this.state.endOffset
+                ? parseInt(this.state.endOffset)
+                : undefined
+            }
+
+            // const runestone = Runestone.create(json, 'etch')
+            // const encodedHex = runestone.encipher().toString('hex')
+
+            if (json.name) {
+              const name = json.name.toUpperCase().replace(/[^A-Z]/g, '')
+              this.setState({ name })
+
+              const encodedNum = base26Encode(json.name)
+              var encodedHex = encodeLEB128(encodedNum)
+              encodedHex = encodedHex
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('')
+
+              var bytes = 10 + encodedHex.length / 2
+              bytes = bytes.toString(16).padStart(2, '0')
+
+              var amount = json.amount
+              var amount128 = amount.toString(16).padStart(2, '0')
+
+              const fullHex = `${this.state.prefix}${this.state.opcode} ${this.state.bytes} 020304 ${encodedHex}${this.state.suffix}${amount128}0601`
+
+              this.setState(
+                { encodedHex, bytes, amount, amount128: amount128 },
+                () => {
+                  // Show popup with instructions after updating state
+                  Swal.fire({
+                    title: 'Glyph Created!',
+                    html: `
+                    <p class="mb-3">Your glyph <strong>${name}</strong> has been created.</p>
+                    <p class="mb-3">Copy the hex code below and use it as an OP_RETURN in your wallet for a new transaction:</p>
+                    <div class="bg-gray-100 p-3 rounded-md text-sm font-mono overflow-auto">
+                      ${fullHex}
+                    </div>
+                  `,
+                    icon: 'success',
+                    confirmButtonText: 'Copy to Clipboard',
+                    confirmButtonColor: '#4a6fa5',
+                    showCancelButton: true,
+                    cancelButtonText: 'Close'
+                  }).then(result => {
+                    if (result.isConfirmed) {
+                      navigator.clipboard
+                        .writeText(fullHex)
+                        .then(() => {
+                          Swal.fire({
+                            title: 'Copied!',
+                            text: 'The hex code has been copied to your clipboard.',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                          })
+                        })
+                        .catch(err => {
+                          console.error('Failed to copy: ', err)
+                          Swal.fire({
+                            title: 'Copy Failed',
+                            text: 'Please manually select and copy the hex code.',
+                            icon: 'error',
+                            timer: 2000,
+                            showConfirmButton: false
+                          })
+                        })
+                    }
+                  })
+                }
+              )
+            } else {
+              this.setState({ encodedHex: '' })
+            }
+          } catch (error) {
+            this.setState({ encodedHex: 'Invalid input' })
+            Swal.fire({
+              title: 'Error',
+              text: 'There was an error creating your glyph. Please check your inputs.',
+              icon: 'error',
+              confirmButtonColor: '#4a6fa5'
+            })
+          }
+        }
+
+        render() {
+          return html`
+            <div>
+              <${Navbar} />
+              <div class="container mx-auto px-4 py-8">
+                <div class="max-w-3xl mx-auto">
+                  <div class="bg-white rounded-lg shadow-md p-6 md:p-8">
+                    <h1
+                      class="text-4xl font-bold mb-6 text-center text-transparent bg-clip-text gradient-bg"
+                    >
+                      Glyph Creator
+                    </h1>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div class="input-container">
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          for="name"
+                          >Name:</label
+                        >
+                        <input
+                          onKeyUp=${this.createEtching}
+                          id="name"
+                          name="name"
+                          type="text"
+                          value=${this.state.name}
+                          onInput=${this.handleInputChange}
+                          placeholder="Enter glyph name"
+                          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light transition-colors"
+                        />
+                      </div>
+
+                      <div class="input-container">
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          for="premine"
+                          >Initial Amount:</label
+                        >
+                        <input
+                          id="premine"
+                          name="premine"
+                          type="text"
+                          value=${this.state.premine}
+                          onInput=${this.handleInputChange}
+                          placeholder="Enter premine amount (optional)"
+                          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light transition-colors"
+                        />
+                      </div>
+
+                      <div class="input-container">
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          for="cap"
+                          >Number of Mints:</label
+                        >
+                        <input
+                          id="cap"
+                          name="cap"
+                          type="text"
+                          value=${this.state.cap}
+                          onInput=${this.handleInputChange}
+                          placeholder="Enter cap"
+                          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light transition-colors"
+                        />
+                      </div>
+
+                      <div class="input-container">
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                          for="amount"
+                          >Mint Amount:</label
+                        >
+                        <input
+                          onKeyUp=${this.createEtching}
+                          id="amount"
+                          name="amount"
+                          type="text"
+                          value=${this.state.amount}
+                          onInput=${this.handleInputChange}
+                          placeholder="Enter amount per mint"
+                          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick=${this.createEtching}
+                      class="w-full bg-gradient-to-r from-primary-light to-primary text-white px-6 py-3 rounded-md hover:opacity-90 transition-opacity shadow-md mb-6"
+                    >
+                      Create Glyph
+                    </button>
+
+                    <div class="mb-2">
+                      <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        for="encodedHex"
+                        >Encoded Hex:</label
+                      >
+                      <textarea
+                        id="encodedHex"
+                        rows="5"
+                        readonly
+                        value="${this.state.prefix}${this.state.opcode} ${this
+                          .state.bytes} 020304 ${this.state.encodedHex}${this
+                          .state.suffix}${this.state.amount128}0601"
+                        placeholder="Encoded hex will appear here"
+                        class="w-full p-3 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-light"
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `
+        }
+      }
+
+      render(html`<${App} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>

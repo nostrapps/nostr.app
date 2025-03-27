@@ -553,6 +553,14 @@
               placeholder="Enter message to store on blockchain (max 80 bytes)"
               class="w-full md:w-3/4 mr-2"
             />
+            <button
+              type="button"
+              id="op_return_format_toggle"
+              class="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+              data-format="ascii"
+            >
+              ASCII
+            </button>
             <div class="text-xs text-gray-500 mt-1 ml-2">
               <span id="op_return_bytes">0</span>/80 bytes
             </div>
@@ -1708,6 +1716,19 @@
           ? 'Send Transaction (Private Key)'
           : 'Send Transaction (Extension)'
         sendTxButton.style.display = 'block'
+
+        // Add this inside the createTransaction function, just before the OP_RETURN check
+        // Check if OP_RETURN data is in HEX format and convert if needed
+        const opReturnFormatToggle = document.getElementById(
+          'op_return_format_toggle'
+        )
+        if (
+          opReturnData &&
+          opReturnFormatToggle.getAttribute('data-format') === 'hex'
+        ) {
+          // Data is already in hex format, we'll use it directly in the transaction
+          console.log('Using hex format directly for OP_RETURN data')
+        }
       }
 
       const displayDebugInfo = (tx, rawTxHex) => {
@@ -2143,6 +2164,55 @@
           )
         }
       }
+
+      // Toggle between ASCII and HEX for OP_RETURN input
+      document
+        .getElementById('op_return_format_toggle')
+        .addEventListener('click', function () {
+          const opReturnInput = document.getElementById('op_return')
+          const currentFormat = this.getAttribute('data-format')
+          const currentValue = opReturnInput.value.trim()
+
+          if (currentFormat === 'ascii' && currentValue) {
+            // Convert ASCII to HEX
+            const hexValue = Array.from(new TextEncoder().encode(currentValue))
+              .map(b => b.toString(16).padStart(2, '0'))
+              .join('')
+            opReturnInput.value = hexValue
+            this.setAttribute('data-format', 'hex')
+            this.textContent = 'HEX'
+            opReturnInput.placeholder =
+              'Enter hex data to store on blockchain (max 80 bytes)'
+          } else if (currentFormat === 'hex' && currentValue) {
+            try {
+              // Convert HEX to ASCII
+              const hexBytes = currentValue.match(/.{1,2}/g)
+              if (hexBytes) {
+                const bytes = new Uint8Array(
+                  hexBytes.map(byte => parseInt(byte, 16))
+                )
+                const asciiValue = new TextDecoder().decode(bytes)
+                opReturnInput.value = asciiValue
+              }
+            } catch (e) {
+              console.error('Invalid hex format:', e)
+              Swal.fire({
+                title: 'Invalid Hex Format',
+                text: 'The current input is not valid hexadecimal.',
+                icon: 'error',
+                confirmButtonColor: 'var(--primary)'
+              })
+            }
+            this.setAttribute('data-format', 'ascii')
+            this.textContent = 'ASCII'
+            opReturnInput.placeholder =
+              'Enter message to store on blockchain (max 80 bytes)'
+          }
+
+          // Update byte counter after conversion
+          const event = new Event('input')
+          opReturnInput.dispatchEvent(event)
+        })
     </script>
   </body>
 </html>
