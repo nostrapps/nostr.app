@@ -1676,10 +1676,20 @@
 
         // Add OP_RETURN output if specified
         if (opReturnData) {
-          // Convert the string to hex format
-          const hexData = Array.from(new TextEncoder().encode(opReturnData))
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('')
+          let hexData
+          const opReturnFormatToggle = document.getElementById(
+            'op_return_format_toggle'
+          )
+
+          if (opReturnFormatToggle.getAttribute('data-format') === 'hex') {
+            // Data is already in hex format, use it directly
+            hexData = opReturnData
+          } else {
+            // Convert ASCII string to hex format
+            hexData = Array.from(new TextEncoder().encode(opReturnData))
+              .map(b => b.toString(16).padStart(2, '0'))
+              .join('')
+          }
 
           // Add OP_RETURN output at the beginning of outputs array (before payment output)
           tx.vout.unshift({
