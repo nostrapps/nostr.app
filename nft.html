@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paddy Penguin #6740 | Exclusive NFT</title>
+    <!-- Preload the libraries -->
+    <script src="https://unpkg.com/preact@10.11.3/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.11.3/hooks/dist/hooks.umd.js"></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+    <style>
+      :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary: #10b981;
+        --accent: #8b5cf6;
+        --background: #ffffff;
+        --card-bg: #f9fafb;
+        --text: #1f2937;
+        --text-light: #6b7280;
+        --border: #e5e7eb;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --penguin-bg: #d8b4fe;
+        --penguin-mohawk: #4ade80;
+        --penguin-scarf: #4ade80;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+          Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue',
+          sans-serif;
+      }
+
+      body {
+        background-color: var(--background);
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      #app {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .app {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* Header Styles */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        background-color: var(--background);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+      }
+
+      nav ul {
+        display: flex;
+        list-style: none;
+        gap: 2rem;
+      }
+
+      nav a {
+        text-decoration: none;
+        color: var(--text);
+        font-weight: 500;
+        transition: color 0.2s;
+      }
+
+      nav a:hover {
+        color: var(--primary);
+      }
+
+      .connect-wallet {
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .connect-wallet:hover {
+        background-color: var(--primary-dark);
+      }
+
+      /* Main Content Styles */
+      main {
+        flex: 1;
+        padding: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* Hero Section */
+      .hero {
+        display: flex;
+        gap: 3rem;
+        margin-bottom: 4rem;
+        flex-wrap: wrap;
+      }
+
+      .nft-showcase {
+        flex: 1;
+        min-width: 300px;
+      }
+
+      .nft-card {
+        position: relative;
+        background-color: var(--penguin-bg);
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      }
+
+      .nft-image {
+        width: 100%;
+        height: auto;
+        display: block;
+        transition: transform 0.3s ease;
+      }
+
+      .nft-card:hover .nft-image {
+        transform: scale(1.02);
+      }
+
+      .nft-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
+
+      .nft-details {
+        flex: 1;
+        min-width: 300px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .nft-details h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--text);
+      }
+
+      .collection {
+        color: var(--text-light);
+        margin-bottom: 2rem;
+      }
+
+      .collection span {
+        color: var(--primary);
+        font-weight: 600;
+      }
+
+      .price-container {
+        background-color: var(--card-bg);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border);
+      }
+
+      .current-price {
+        margin-bottom: 1.5rem;
+      }
+
+      .label {
+        display: block;
+        color: var(--text-light);
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .price {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text);
+        display: block;
+      }
+
+      .usd-price {
+        color: var(--text-light);
+        font-size: 1rem;
+      }
+
+      .countdown {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--danger);
+        display: block;
+      }
+
+      .purchase-btn {
+        background-color: var(--success);
+        color: white;
+        border: none;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-bottom: 1rem;
+      }
+
+      .purchase-btn:hover {
+        background-color: #0ca678;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .secondary-btn {
+        flex: 1;
+        background-color: var(--background);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .secondary-btn:hover {
+        background-color: var(--card-bg);
+      }
+
+      /* About Section */
+      .about-section {
+        margin-bottom: 4rem;
+      }
+
+      h2 {
+        font-size: 1.875rem;
+        margin-bottom: 1.5rem;
+        color: var(--text);
+      }
+
+      .about-section p {
+        margin-bottom: 2rem;
+        color: var(--text);
+        font-size: 1.125rem;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .stat-card {
+        background-color: var(--card-bg);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        border: 1px solid var(--border);
+      }
+
+      .stat-card h3 {
+        font-size: 1rem;
+        color: var(--text-light);
+        margin-bottom: 0.5rem;
+      }
+
+      .stat-card p {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0;
+      }
+
+      /* Features Section */
+      .features-section {
+        margin-bottom: 4rem;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .feature-card {
+        background-color: var(--card-bg);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        border: 1px solid var(--border);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      }
+
+      .feature-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      .feature-card h3 {
+        font-size: 1.125rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .feature-card p {
+        color: var(--text-light);
+      }
+
+      /* Transaction History */
+      .transaction-history {
+        margin-bottom: 4rem;
+      }
+
+      .price-chart {
+        background-color: var(--card-bg);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border);
+        height: 200px;
+        position: relative;
+      }
+
+      .chart-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+      .chart-line {
+        position: absolute;
+        width: 90%;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          var(--primary) 0%,
+          var(--success) 100%
+        );
+        top: 50%;
+        left: 5%;
+      }
+
+      .chart-line::before {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 50px;
+        background: linear-gradient(
+          180deg,
+          rgba(99, 102, 241, 0.2) 0%,
+          rgba(16, 185, 129, 0) 100%
+        );
+        bottom: 0;
+        border-radius: 4px;
+      }
+
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .history-table th,
+      .history-table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .history-table th {
+        color: var(--text-light);
+        font-weight: 500;
+      }
+
+      /* Collection Preview */
+      .collection-preview {
+        margin-bottom: 4rem;
+      }
+
+      .collection-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .mini-card {
+        background-color: var(--card-bg);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        transition: transform 0.2s;
+        border: 1px solid var(--border);
+      }
+
+      .mini-card:hover {
+        transform: translateY(-5px);
+      }
+
+      .mini-card img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .mini-card p {
+        padding: 0.75rem 0.75rem 0;
+        font-weight: 600;
+      }
+
+      .mini-card span {
+        padding: 0 0.75rem 0.75rem;
+        color: var(--primary);
+        display: block;
+        font-weight: 500;
+      }
+
+      /* Modal */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .modal-content {
+        background-color: var(--background);
+        border-radius: 1rem;
+        padding: 2rem;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+
+      .modal-content h2 {
+        margin-bottom: 1rem;
+      }
+
+      .wallet-details {
+        background-color: var(--card-bg);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin: 1.5rem 0;
+        border: 1px solid var(--border);
+      }
+
+      .purchase-summary {
+        margin-bottom: 1.5rem;
+      }
+
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .summary-row.total {
+        font-weight: 700;
+        font-size: 1.125rem;
+        border-top: 2px solid var(--border);
+        border-bottom: none;
+        padding-top: 1rem;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .confirm-btn {
+        flex: 1;
+        background-color: var(--success);
+        color: white;
+        border: none;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .cancel-btn {
+        flex: 1;
+        background-color: var(--background);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      /* Footer */
+      footer {
+        background-color: var(--card-bg);
+        border-top: 1px solid var(--border);
+        padding: 3rem 2rem;
+      }
+
+      .footer-content {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .footer-section {
+        flex: 1;
+        min-width: 250px;
+      }
+
+      .footer-section h3 {
+        margin-bottom: 1rem;
+        font-size: 1.25rem;
+      }
+
+      .footer-section ul {
+        list-style: none;
+      }
+
+      .footer-section li {
+        margin-bottom: 0.5rem;
+      }
+
+      .footer-section a {
+        color: var(--text-light);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      .footer-section a:hover {
+        color: var(--primary);
+      }
+
+      .social-links {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .social-icon {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: var(--background);
+        border-radius: 0.5rem;
+        border: 1px solid var(--border);
+      }
+
+      .copyright {
+        text-align: center;
+        margin-top: 3rem;
+        color: var(--text-light);
+        font-size: 0.875rem;
+      }
+
+      /* Responsive Adjustments */
+      @media (max-width: 768px) {
+        header {
+          flex-direction: column;
+          gap: 1rem;
+          padding: 1rem;
+        }
+
+        nav ul {
+          gap: 1rem;
+        }
+
+        .hero {
+          gap: 2rem;
+        }
+
+        .stats-grid,
+        .features-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .history-table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .action-buttons {
+          flex-direction: column;
+        }
+
+        .collection-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script>
+      // Initialize htm with Preact
+      const html = htm.bind(preact.h)
+      const { useState, useEffect } = preactHooks
+
+      function App() {
+        const [countdown, setCountdown] = useState(24 * 60 * 60) // 24 hours in seconds
+        const [showModal, setShowModal] = useState(false)
+        const currency = 'Sats' // Currency variable for easy updates
+        const creature = 'Worm' // Creature type variable for easy updates
+        const collectionName = 'DuneVerse' // Collection name variable
+
+        // Format price with currency
+        const formatPrice = amount => `${amount} ${currency}`
+
+        // Format creature ID
+        const formatCreatureId = id => `${creature} #${id}`
+
+        useEffect(() => {
+          const timer = setInterval(() => {
+            setCountdown(prev => (prev > 0 ? prev - 1 : 0))
+          }, 1000)
+          return () => clearInterval(timer)
+        }, [])
+
+        const formatTime = seconds => {
+          const hours = Math.floor(seconds / 3600)
+          const minutes = Math.floor((seconds % 3600) / 60)
+          const secs = seconds % 60
+          return `${hours.toString().padStart(2, '0')}:${minutes
+            .toString()
+            .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        }
+
+        const handlePurchase = () => {
+          setShowModal(true)
+        }
+
+        return html`
+          <div class="app">
+            <header>
+              <div class="logo">NFT</div>
+              <nav>
+                <ul>
+                  <li><a href="#about">About</a></li>
+                  <li><a href="#features">Features</a></li>
+                  <li><a href="#purchase">Purchase</a></li>
+                </ul>
+              </nav>
+              <button class="connect-wallet">Connect Wallet</button>
+            </header>
+
+            <main>
+              <section class="hero">
+                <div class="nft-showcase">
+                  <div class="nft-card">
+                    <img
+                      src="images/worm.png"
+                      alt="${formatCreatureId('6740')} NFT"
+                      class="nft-image"
+                    />
+                    <div class="nft-badge">Limited Edition</div>
+                  </div>
+                </div>
+                <div class="nft-details">
+                  <h1>${formatCreatureId('6740')}</h1>
+                  <p class="collection">
+                    Part of the <span>${collectionName} Collection</span>
+                  </p>
+                  <div class="price-container">
+                    <div class="current-price">
+                      <span class="label">Current Price</span>
+                      <span class="price">${formatPrice('10077')}</span>
+                      <span class="usd-price">($10.54 USD)</span>
+                    </div>
+                    <div class="time-remaining">
+                      <span class="label">Auction ends in</span>
+                      <span class="countdown">${formatTime(countdown)}</span>
+                    </div>
+                  </div>
+                  <button class="purchase-btn" onClick=${handlePurchase}>
+                    Purchase Now
+                  </button>
+                  <div class="action-buttons">
+                    <button class="secondary-btn">Make Offer</button>
+                    <button class="secondary-btn">Add to Watchlist</button>
+                  </div>
+                </div>
+              </section>
+
+              <section id="about" class="about-section">
+                <h2>About This NFT</h2>
+                <p>
+                  ${formatCreatureId('6740')} is a rare collectible from the
+                  exclusive ${collectionName} collection. This unique creature
+                  features a segmented body and sand-colored patterns, making it
+                  one of the most sought-after designs in the series.
+                </p>
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <h3>Rarity</h3>
+                    <p>Ultra Rare (Top 5%)</p>
+                  </div>
+                  <div class="stat-card">
+                    <h3>Traits</h3>
+                    <p>Green Mohawk, Green Scarf, Rosy Cheeks</p>
+                  </div>
+                  <div class="stat-card">
+                    <h3>Minted</h3>
+                    <p>April 2023</p>
+                  </div>
+                  <div class="stat-card">
+                    <h3>Creator</h3>
+                    <p>NFT Studios</p>
+                  </div>
+                </div>
+              </section>
+
+              <section id="features" class="features-section">
+                <h2>Special Features</h2>
+                <div class="features-grid">
+                  <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Verified Authenticity</h3>
+                    <p>Blockchain-verified ownership and provenance</p>
+                  </div>
+                  <div class="feature-card">
+                    <div class="feature-icon">🎮</div>
+                    <h3>Tradable</h3>
+                    <p>Use your ${creature} in compatible trading platforms</p>
+                  </div>
+                  <div class="feature-card">
+                    <div class="feature-icon">🎁</div>
+                    <h3>Exclusive Benefits</h3>
+                    <p>Access to NFT events and future drops</p>
+                  </div>
+                  <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Resale Royalties</h3>
+                    <p>
+                      Smart contract ensures creator royalties on future sales
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section id="purchase" class="transaction-history">
+                <h2>Transaction History</h2>
+                <div class="price-chart">
+                  <div class="chart-placeholder">
+                    <!-- Price chart would go here in a real implementation -->
+                    <div class="chart-line"></div>
+                  </div>
+                </div>
+                <table class="history-table">
+                  <thead>
+                    <tr>
+                      <th>Price</th>
+                      <th>Date</th>
+                      <th>Transaction</th>
+                      <th>From</th>
+                      <th>To</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>${formatPrice('10.77')}</td>
+                      <td>Current</td>
+                      <td>Listed</td>
+                      <td>PenguinOwner</td>
+                      <td>-</td>
+                    </tr>
+                    <tr>
+                      <td>${formatPrice('8.50')}</td>
+                      <td>2 weeks ago</td>
+                      <td>Sale</td>
+                      <td>OriginalMinter</td>
+                      <td>PenguinOwner</td>
+                    </tr>
+                    <tr>
+                      <td>${formatPrice('5.25')}</td>
+                      <td>1 month ago</td>
+                      <td>Minted</td>
+                      <td>NFT</td>
+                      <td>OriginalMinter</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </section>
+
+              <section class="collection-preview">
+                <h2>More From This Collection</h2>
+                <div class="collection-grid">
+                  ${[
+                    { id: 6741, price: '9.5', color: '#f87171' },
+                    { id: 6742, price: '11.2', color: '#60a5fa' },
+                    { id: 6743, price: '8.7', color: '#4ade80' },
+                    { id: 6744, price: '12.5', color: '#fbbf24' }
+                  ].map(
+                    item => html`
+                      <div
+                        class="mini-card"
+                        style="background-color: ${item.color}20"
+                      >
+                        <div
+                          style="height: 150px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem;"
+                        >
+                          🪱
+                        </div>
+                        <p>${formatCreatureId(item.id)}</p>
+                        <span>${formatPrice(item.price)}</span>
+                      </div>
+                    `
+                  )}
+                </div>
+              </section>
+            </main>
+
+            ${showModal
+              ? html`
+                  <div
+                    class="modal-overlay"
+                    onClick=${() => setShowModal(false)}
+                  >
+                    <div
+                      class="modal-content"
+                      onClick=${e => e.stopPropagation()}
+                    >
+                      <h2>Complete Your Purchase</h2>
+                      <p>
+                        You are about to purchase ${formatCreatureId('6740')}
+                        for ${formatPrice('10.77')}
+                      </p>
+                      <div class="wallet-details">
+                        <p>Connected Wallet: 0x1a2...3b4c</p>
+                        <p>Balance: ${formatPrice('15.42')}</p>
+                      </div>
+                      <div class="purchase-summary">
+                        <div class="summary-row">
+                          <span>Item Price</span>
+                          <span>${formatPrice('10.77')}</span>
+                        </div>
+                        <div class="summary-row">
+                          <span>Gas Fee (est.)</span>
+                          <span>${formatPrice('0.003')}</span>
+                        </div>
+                        <div class="summary-row total">
+                          <span>Total</span>
+                          <span>${formatPrice('10.773')}</span>
+                        </div>
+                      </div>
+                      <div class="modal-actions">
+                        <button class="confirm-btn">Confirm Purchase</button>
+                        <button
+                          class="cancel-btn"
+                          onClick=${() => setShowModal(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `
+              : null}
+
+            <footer>
+              <div class="footer-content">
+                <div class="footer-section">
+                  <h3>${collectionName}</h3>
+                  <p>
+                    The premier NFT marketplace for exclusive digital
+                    ${creature.toLowerCase()} collectibles.
+                  </p>
+                </div>
+                <div class="footer-section">
+                  <h3>Links</h3>
+                  <ul>
+                    <li><a href="#">Terms of Service</a></li>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">FAQ</a></li>
+                  </ul>
+                </div>
+                <div class="footer-section">
+                  <h3>Connect</h3>
+                  <div class="social-links">
+                    <a href="#" class="social-icon">Twitter</a>
+                    <a href="#" class="social-icon">Discord</a>
+                    <a href="#" class="social-icon">Instagram</a>
+                  </div>
+                </div>
+              </div>
+              <div class="copyright">
+                © 2025 ${collectionName}. All rights reserved.
+              </div>
+            </footer>
+          </div>
+        `
+      }
+
+      // Render the app
+      preact.render(html`<${App} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
