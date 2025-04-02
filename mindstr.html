@@ -34,6 +34,8 @@
       import { html, render, Component } from './js/standalone.module.js'
       import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
 
+      console.log('Script loaded')
+
       window.secp256k1 = secp256k1
 
       class ActionButton extends Component {
@@ -105,6 +107,8 @@
         }
 
         componentDidMount() {
+          console.log('Component did mount')
+
           this.canvas = this.base.querySelector('canvas')
           this.ctx = this.canvas.getContext('2d')
           this.updateCanvasSize()
@@ -127,6 +131,38 @@
             'touchend',
             this.handleTouchEnd.bind(this)
           )
+
+          const urlParams = new URLSearchParams(window.location.search)
+          const mapFile = urlParams.get('map')
+          const titleParam = urlParams.get('title')
+          const relay = urlParams.get('relay')
+          console.log('Relay:', relay)
+
+          // Simple NIP-98 event listener
+          if (relay) {
+            console.log('Relay:', relay)
+            const socket = new WebSocket(relay)
+            socket.onopen = () => {
+              socket.send(
+                JSON.stringify([
+                  'REQ',
+                  'nip98',
+                  {
+                    authors: [
+                      'f0af4014cb7338fab15f68e116cb537d4008cdd63c7cc0a3a7efcb2db23c0a68'
+                    ]
+                  }
+                ])
+              )
+            }
+            socket.onmessage = e => {
+              const data = JSON.parse(e.data)
+              if (data[0] === 'EVENT' && data[1] === 'nip98') {
+                console.log('NIP-98 event received:', data[2])
+                this.reloadMap()
+              }
+            }
+          }
         }
 
         componentWillUnmount() {
@@ -1078,6 +1114,32 @@
       const urlParams = new URLSearchParams(window.location.search)
       const mapFile = urlParams.get('map')
       const titleParam = urlParams.get('title')
+      const relay = urlParams.get('relay')
+
+      // Simple NIP-98 event listener
+      if (relay) {
+        const socket = new WebSocket(relay)
+        socket.onopen = () => {
+          socket.send(
+            JSON.stringify([
+              'REQ',
+              'nip98',
+              {
+                authors: [
+                  'f0af4014cb7338fab15f68e116cb537d4008cdd63c7cc0a3a7efcb2db23c0a68'
+                ]
+              }
+            ])
+          )
+        }
+        socket.onmessage = e => {
+          const data = JSON.parse(e.data)
+          if (data[0] === 'EVENT' && data[1] === 'nip98')
+            console.log('NIP-98 event received:', data[2])
+
+          this.reloadMap()
+        }
+      }
 
       if (mapFile) {
         fetch(mapFile)
