@@ -835,6 +835,12 @@ Try editing this content to see the live preview!
             e.preventDefault() // Prevent browser's save dialog
             this.saveMarkdown()
           }
+
+          // Escape key to exit markmap mode
+          if (e.key === 'Escape' && this.state.isMarkmapView) {
+            e.preventDefault()
+            this.setState({ isMarkmapView: false })
+          }
         }
 
         checkLoginStatus() {
