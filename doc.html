@@ -20,6 +20,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <!-- Import DOMPurify for sanitizing HTML -->
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.1/dist/purify.min.js"></script>
+    <!-- Import Mermaid for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 
     <!-- Markmap dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
@@ -449,6 +451,19 @@
         box-sizing: border-box;
         padding: 0 1%;
       }
+
+      #preview pre.mermaid {
+        background-color: transparent;
+        padding: 0;
+      }
+
+      .mermaid {
+        text-align: center;
+      }
+
+      .mermaid svg {
+        max-width: 100%;
+      }
     </style>
   </head>
   <body>
@@ -511,6 +526,11 @@
         smartLists: true,
         smartypants: true, // Use "smart" typographic punctuation
         highlight: function (code, lang) {
+          // Skip highlighting for Mermaid blocks
+          if (lang === 'mermaid') {
+            return code
+          }
+
           // Use highlight.js for syntax highlighting
           if (code && lang && window.hljs) {
             try {
@@ -536,6 +556,11 @@
       renderer.code = function (code, language) {
         // Ensure code is not undefined
         code = code || ''
+
+        // Special handling for Mermaid diagrams
+        if (language === 'mermaid') {
+          return `<div class="mermaid">${code}</div>`
+        }
 
         // Check if hljs is available
         if (!window.hljs) {
@@ -670,7 +695,29 @@
             } catch (error) {
               console.error('Error in applyHighlighting:', error)
             }
+
+            // Process Mermaid diagrams after highlighting
+            this.processMermaid()
           }, 100)
+        }
+
+        // Process Mermaid diagrams
+        processMermaid() {
+          if (!window.mermaid) {
+            console.warn(
+              'Mermaid library not available for processing diagrams'
+            )
+            return
+          }
+
+          try {
+            window.mermaid.run({
+              querySelector: '.mermaid'
+            })
+            console.log('Mermaid diagrams processed')
+          } catch (error) {
+            console.error('Error processing Mermaid diagrams:', error)
+          }
         }
 
         // Method to load highlight.js if it's not available
@@ -702,6 +749,22 @@
           // Ensure highlight.js is loaded
           if (!window.hljs) {
             this.loadHighlightJs()
+          }
+
+          // Initialize Mermaid.js
+          if (window.mermaid) {
+            try {
+              window.mermaid.initialize({
+                startOnLoad: false,
+                theme: 'default',
+                securityLevel: 'loose'
+              })
+              console.log('Mermaid initialized successfully')
+            } catch (e) {
+              console.error('Error initializing Mermaid:', e)
+            }
+          } else {
+            console.warn('Mermaid library not available')
           }
 
           if (this.state.uri) {
@@ -742,6 +805,27 @@ Inline \`code\` looks like this.
 function hello() {
   console.log('Hello, world!');
 }
+\`\`\`
+
+## Mermaid Diagrams
+
+You can create diagrams using Mermaid syntax:
+
+\`\`\`mermaid
+graph TD
+    A[Start] --> B{Is it working?}
+    B -->|Yes| C[Great!]
+    B -->|No| D[Debug]
+    D --> B
+\`\`\`
+
+\`\`\`mermaid
+sequenceDiagram
+    participant User
+    participant System
+    User->>System: Perform action
+    System->>System: Process action
+    System-->>User: Return result
 \`\`\`
 
 ## Tables
