@@ -862,7 +862,19 @@
                                           : ''
                                       }.json&title=${encodeURIComponent(
                                         todo.title || todo.text
-                                      )}`
+                                      )}${(() => {
+                                        // Check if relay parameter exists in current URL
+                                        const urlParams = new URLSearchParams(
+                                          window.location.search
+                                        )
+                                        const relayParam =
+                                          urlParams.get('relay')
+                                        return relayParam
+                                          ? `&relay=${encodeURIComponent(
+                                              relayParam
+                                            )}`
+                                          : ''
+                                      })()}`
                                     })()}
                                     target="_blank"
                                     class="ml-2 hover:text-primary-dark"
