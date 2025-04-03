@@ -1041,7 +1041,8 @@ Try editing this content to see the live preview!
                 uri,
                 markdownInput: '',
                 markdownOutput: this.renderMarkdown(''),
-                isDualView: true // Switch to dual view when there's an error like 404
+                isDualView: true, // Switch to dual view when there's an error like 404
+                isMarkmapView: false // Ensure markmap view is disabled
               },
               () => {
                 this.applyHighlighting()
