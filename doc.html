@@ -1035,11 +1035,23 @@ Try editing this content to see the live preview!
             )
           } catch (error) {
             console.error('Error fetching markdown:', error)
-            Swal.fire({
-              title: 'Error',
-              text: `Failed to fetch document: ${error.message}`,
-              icon: 'error'
-            })
+            // Instead of showing an error, initialize with empty text and show dual view
+            this.setState(
+              {
+                uri,
+                markdownInput: '',
+                markdownOutput: this.renderMarkdown(''),
+                isDualView: true // Switch to dual view when there's an error like 404
+              },
+              () => {
+                this.applyHighlighting()
+                if (this.state.isMarkmapView) {
+                  this.renderMarkmap()
+                }
+                // Focus on the editor textarea for immediate typing
+                document.getElementById('markdownInput')?.focus()
+              }
+            )
           }
         }
 
