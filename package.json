@@ -1,10 +1,14 @@
 {
   "name": "nostr-app",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "nostr app",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "node ./bin/serve.js",
+    "build": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "bin": {
     "nostr-app": "./bin/serve.js"
@@ -27,5 +31,30 @@
     "http": "^0.0.1-security",
     "path": "^0.12.7",
     "url": "^0.11.4"
+  },
+  "devDependencies": {
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.nostr.app",
+    "productName": "Nostr.App",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**/*",
+      "!node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "category": "Utility"
+    },
+    "win": {
+      "target": "portable"
+    }
   }
 }

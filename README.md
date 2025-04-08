@@ -60,3 +60,50 @@ Due to the licensing terms, contributions are by invitation only. Please contact
 ## 📞 Contact
 
 For questions, permissions, or more information, please reach out through the Nostr protocol or open an issue in this repository.
+
+## Running as an Electron Desktop App
+
+This app can also be run as a standalone desktop application using Electron.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (version 14 or higher)
+- npm (comes with Node.js)
+
+### Installation
+
+1. Clone this repository:
+
+   ```
+   git clone https://github.com/nostrapps/nostr.app.git
+   cd nostr.app
+   ```
+
+2. Install dependencies:
+   ```
+   npm install
+   ```
+
+### Running the App
+
+Start the application in development mode:
+
+```
+npm start
+```
+
+### Building the App
+
+To build a distributable package:
+
+```
+npm run dist
+```
+
+This will create distribution packages in the `dist` directory.
+
+### Building for specific platforms
+
+- Windows: `npm run dist -- --win`
+- macOS: `npm run dist -- --mac`
+- Linux: `npm run dist -- --linux`
