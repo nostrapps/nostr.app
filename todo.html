@@ -585,6 +585,16 @@
           })
         }
 
+        // Handle logout, clear todos state
+        handleLogout = () => {
+          this.setState({
+            todos: [],
+            newTodo: '',
+            saveError: null
+          })
+          console.log('Todos cleared on logout')
+        }
+
         render() {
           // Filter todos to only display items with @type "Task"
           const taskItems = this.state.todos.filter(
@@ -608,7 +618,7 @@
 
           return html`
             <div class="min-h-screen flex flex-col">
-              <${Navbar} />
+              <${Navbar} onLogout=${this.handleLogout} />
 
               <div
                 class="container mx-auto px-4 py-8 flex-grow flex flex-col items-center"
