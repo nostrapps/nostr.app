@@ -4,6 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NFT Showcase</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org/",
+        "@type": "DigitalDocument",
+        "name": "Voilin",
+        "creator": {
+          "@type": "Person",
+          "name": "FOAF Labs"
+        },
+        "description": "A high-end cinematic product shot of a futuristic violin designed with polished wood accents and advanced tech features. The violin body merges dark varnished mahogany with glowing translucent polymer panels. Light-emitting strings stretch over a hybrid tech-wood bridge, and small interactive buttons are embedded near the chinrest and tuning pegs. The bow rests nearby, featuring a glowing smart ribbon. The prop is showcased on a black studio surface with dramatic lighting, elegant shadows, and high contrast detail. Photorealistic, professional concept photography style.",
+        "image": "https://nosdav.net/c3e1d836e279b52ebdf309a4bfb3e18715995cc292604bd7054ee553d8c23473/public/images/voilin.png",
+        "dateCreated": "2025",
+        "contentUrl": "txo:btc:7a96034dd6ed9c0e4c7eb9e7f9a2e657b6c0433ce9562d54be0bcbc38b0e3a68:0?amount=21001",
+        "identifier": "txo:btc:7a96034dd6ed9c0e4c7eb9e7f9a2e657b6c0433ce9562d54be0bcbc38b0e3a68:0?amount=21001",
+        "contentSize": "21001",
+        "isPartOf": {
+          "@type": "Collection",
+          "name": "NFT Gallery",
+          "collectionSize": 1
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "2100000",
+          "priceCurrency": "Satoshi",
+          "availability": "https://schema.org/InStock"
+        }
+      }
+    </script>
     <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
     <script src="https://unpkg.com/preact@10.13.1/dist/preact.min.js"></script>
     <script src="https://unpkg.com/preact@10.13.1/hooks/dist/hooks.umd.js"></script>
@@ -83,29 +111,47 @@
 
       const App = () => {
         const [loading, setLoading] = useState(true)
+        const [nft, setNft] = useState(null)
 
         useEffect(() => {
+          // Get NFT data from the structured data island
+          const ldJsonScript = document.querySelector(
+            'script[type="application/ld+json"]'
+          )
+          if (ldJsonScript) {
+            try {
+              const ldData = JSON.parse(ldJsonScript.textContent)
+              // Map schema.org properties to our NFT object structure
+              const mappedNft = {
+                title: ldData.name,
+                artist: ldData.creator?.name || '',
+                description: ldData.description,
+                image: ldData.image,
+                price: parseInt(ldData.offers?.price) || 0,
+                edition: '1 of 1', // Default if not in schema
+                created: ldData.dateCreated,
+                txo: ldData.contentUrl
+              }
+              setNft(mappedNft)
+            } catch (error) {
+              console.error('Error parsing JSON-LD:', error)
+            }
+          }
+
           // Simulate loading
           setTimeout(() => setLoading(false), 1000)
         }, [])
-
-        const nft = {
-          title: 'Stone Tiger',
-          artist: 'Digital Dreams ',
-          description:
-            "A striking sculpture of a tiger's face meticulously crafted from natural stones and pebbles. Each carefully placed stone contributes to the fierce yet elegant expression, creating a powerful piece that blends natural materials with artistic vision.",
-          image:
-            'https://nosdav.net/9683cc031577d1fb63b22f0c8a2ef22aceaa7bc3900fbdd6585555b1e6350f96/public/images/tiger.png',
-          price: 2100000, // 2.1M satoshis (0.021 BTC)
-          edition: '1 of 1',
-          created: '2025'
-        }
 
         const formatSatoshis = sats => {
           return new Intl.NumberFormat().format(sats)
         }
 
-        if (loading) {
+        const getTxoAmount = txo => {
+          const amountMatch = txo?.match(/\?amount=(\d+)/)
+          return amountMatch ? parseInt(amountMatch[1]) : 0
+        }
+
+        if (loading || !nft) {
           return html`
             <div
               class="min-h-screen flex items-center justify-center bg-neutral-50"
@@ -212,6 +258,33 @@
                             <p class="text-neutral-800 font-medium">
                               ${nft.created}
                             </p>
+                          </div>
+                        </div>
+
+                        <div class="mt-4">
+                          <p class="text-neutral-500 text-sm">
+                            Blockchain Reference
+                          </p>
+                          <div class="bg-secondary-50 rounded-lg p-3 mt-1">
+                            <p
+                              class="text-neutral-800 text-sm font-mono truncate"
+                            >
+                              ${nft.txo}
+                            </p>
+                            <div class="flex justify-between mt-1">
+                              <p class="text-neutral-800 text-sm">
+                                Value: ${formatSatoshis(getTxoAmount(nft.txo))}
+                              </p>
+                              <a
+                                href="https://mempool.space/tx/${nft.txo.split(
+                                  ':'
+                                )[2]}"
+                                target="_blank"
+                                class="text-primary-600 hover:text-primary-700 text-xs inline-block transition-colors"
+                              >
+                                View on Block Explorer →
+                              </a>
+                            </div>
                           </div>
                         </div>
                       </div>
