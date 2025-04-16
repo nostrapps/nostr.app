@@ -8,17 +8,17 @@
       {
         "@context": "https://schema.org/",
         "@type": "DigitalDocument",
-        "name": "Voilin",
+        "name": "Free to do as We Tell You",
         "creator": {
           "@type": "Person",
-          "name": "FOAF Labs"
+          "name": "SolidPay"
         },
-        "description": "A high-end cinematic product shot of a futuristic violin designed with polished wood accents and advanced tech features. The violin body merges dark varnished mahogany with glowing translucent polymer panels. Light-emitting strings stretch over a hybrid tech-wood bridge, and small interactive buttons are embedded near the chinrest and tuning pegs. The bow rests nearby, featuring a glowing smart ribbon. The prop is showcased on a black studio surface with dramatic lighting, elegant shadows, and high contrast detail. Photorealistic, professional concept photography style.",
-        "image": "https://nosdav.net/c3e1d836e279b52ebdf309a4bfb3e18715995cc292604bd7054ee553d8c23473/public/images/voilin.png",
+        "description": "a high end cinematic product shot of a highly detailed giant robotic eyeball, which is a sentinel floating above a futuristic dystopian city",
+        "image": "https://nosdav.net/f0af41696ddd61a55efa6bf843054138372e4a7ac60fb80974af77d6f57ef1ba/public/images/eye.png",
         "dateCreated": "2025",
-        "contentUrl": "txo:btc:7a96034dd6ed9c0e4c7eb9e7f9a2e657b6c0433ce9562d54be0bcbc38b0e3a68:0?amount=21001",
-        "identifier": "txo:btc:7a96034dd6ed9c0e4c7eb9e7f9a2e657b6c0433ce9562d54be0bcbc38b0e3a68:0?amount=21001",
-        "contentSize": "21001",
+        "contentUrl": "txo:btc:7a96034dd6ed9c0e4c7eb9e7f9a2e657b6c0433ce9562d54be0bcbc38b0e3a68:0?amount=10000",
+        "identifier": "txo:btc:7a96034dd6ed9c0e4c7eb9e7f9a2e657b6c0433ce9562d54be0bcbc38b0e3a68:0?amount=10000",
+        "contentSize": "10000",
         "isPartOf": {
           "@type": "Collection",
           "name": "NFT Gallery",
@@ -26,10 +26,11 @@
         },
         "offers": {
           "@type": "Offer",
-          "price": "2100000",
+          "price": "1000",
           "priceCurrency": "Satoshi",
           "availability": "https://schema.org/InStock"
-        }
+        },
+        "status": "For Sale"
       }
     </script>
     <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
@@ -114,32 +115,73 @@
         const [nft, setNft] = useState(null)
 
         useEffect(() => {
-          // Get NFT data from the structured data island
-          const ldJsonScript = document.querySelector(
-            'script[type="application/ld+json"]'
-          )
-          if (ldJsonScript) {
-            try {
-              const ldData = JSON.parse(ldJsonScript.textContent)
-              // Map schema.org properties to our NFT object structure
-              const mappedNft = {
-                title: ldData.name,
-                artist: ldData.creator?.name || '',
-                description: ldData.description,
-                image: ldData.image,
-                price: parseInt(ldData.offers?.price) || 0,
-                edition: '1 of 1', // Default if not in schema
-                created: ldData.dateCreated,
-                txo: ldData.contentUrl
+          // Function to get NFT data from JSON-LD
+          const getNftFromDataIsland = () => {
+            const ldJsonScript = document.querySelector(
+              'script[type="application/ld+json"]'
+            )
+            if (ldJsonScript) {
+              try {
+                const ldData = JSON.parse(ldJsonScript.textContent)
+                return mapDataToNft(ldData)
+              } catch (error) {
+                console.error('Error parsing JSON-LD:', error)
+                return null
               }
-              setNft(mappedNft)
-            } catch (error) {
-              console.error('Error parsing JSON-LD:', error)
+            }
+            return null
+          }
+
+          // Function to map JSON data to NFT object structure
+          const mapDataToNft = data => {
+            return {
+              title: data.name,
+              artist: data.creator?.name || '',
+              description: data.description,
+              image: data.image,
+              price: parseInt(data.offers?.price) || 0,
+              edition: '1 of 1', // Default if not in schema
+              created: data.dateCreated,
+              txo: data.contentUrl,
+              status: data.status || 'Unknown' // Add status with fallback
             }
           }
 
-          // Simulate loading
-          setTimeout(() => setLoading(false), 1000)
+          // Check if URI parameter exists in query string
+          const params = new URLSearchParams(window.location.search)
+          const uri = params.get('uri')
+
+          if (uri) {
+            // Fetch JSON data from the provided URI
+            fetch(uri)
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error('Failed to fetch data from URI')
+                }
+                return response.json()
+              })
+              .then(data => {
+                setNft(mapDataToNft(data))
+                setLoading(false)
+              })
+              .catch(error => {
+                console.error('Error fetching data from URI:', error)
+                // Fallback to data island if URI fetch fails
+                const fallbackNft = getNftFromDataIsland()
+                if (fallbackNft) {
+                  setNft(fallbackNft)
+                }
+                setLoading(false)
+              })
+          } else {
+            // Use embedded data island
+            const nftData = getNftFromDataIsland()
+            if (nftData) {
+              setNft(nftData)
+            }
+            // Simulate loading
+            setTimeout(() => setLoading(false), 1000)
+          }
         }, [])
 
         const formatSatoshis = sats => {
@@ -220,6 +262,11 @@
                       >
                         ${nft.edition}
                       </div>
+                      <div
+                        class="absolute top-4 right-4 bg-primary-600 px-3 py-1 rounded-full text-sm font-medium text-white"
+                      >
+                        ${nft.status}
+                      </div>
                     </div>
                   </div>
                   <div
@@ -257,6 +304,12 @@
                             <p class="text-neutral-500 text-sm">Created</p>
                             <p class="text-neutral-800 font-medium">
                               ${nft.created}
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-neutral-500 text-sm">Status</p>
+                            <p class="text-neutral-800 font-medium">
+                              ${nft.status}
                             </p>
                           </div>
                         </div>
@@ -308,12 +361,20 @@
 
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <button
-                          class="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                          class="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-4 rounded-lg transition-colors ${nft.status !==
+                          'For Sale'
+                            ? 'opacity-50 cursor-not-allowed'
+                            : ''}"
+                          ${nft.status !== 'For Sale' ? 'disabled' : ''}
                         >
                           Buy now
                         </button>
                         <button
-                          class="w-full bg-white border border-primary-600 text-primary-600 hover:bg-primary-50 font-medium py-3 px-4 rounded-lg transition-colors"
+                          class="w-full bg-white border border-primary-600 text-primary-600 hover:bg-primary-50 font-medium py-3 px-4 rounded-lg transition-colors ${nft.status !==
+                          'For Sale'
+                            ? 'opacity-50 cursor-not-allowed'
+                            : ''}"
+                          ${nft.status !== 'For Sale' ? 'disabled' : ''}
                         >
                           Make offer
                         </button>
