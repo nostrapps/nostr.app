@@ -131,14 +131,41 @@
             return null
           }
 
-          // Get wallet data
-          const walletData = getWalletFromDataIsland()
-          if (walletData) {
-            setWallet(walletData)
-          }
+          // Check if URI parameter exists in query string
+          const params = new URLSearchParams(window.location.search)
+          const uri = params.get('uri')
 
-          // Simulate loading
-          setTimeout(() => setLoading(false), 800)
+          if (uri) {
+            // Fetch JSON data from the provided URI
+            fetch(uri)
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error('Failed to fetch data from URI')
+                }
+                return response.json()
+              })
+              .then(data => {
+                setWallet(data)
+                setLoading(false)
+              })
+              .catch(error => {
+                console.error('Error fetching data from URI:', error)
+                // Fallback to data island if URI fetch fails
+                const fallbackWallet = getWalletFromDataIsland()
+                if (fallbackWallet) {
+                  setWallet(fallbackWallet)
+                }
+                setLoading(false)
+              })
+          } else {
+            // Use embedded data island
+            const walletData = getWalletFromDataIsland()
+            if (walletData) {
+              setWallet(walletData)
+            }
+            // Simulate loading
+            setTimeout(() => setLoading(false), 800)
+          }
         }, [])
 
         const formatSatoshis = sats => {
