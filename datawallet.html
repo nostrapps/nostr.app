@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wallet Dashboard</title>
+    <script type="application/ld+json">
+      {
+        "walletName": "Unique Digital Art",
+        "walletId": "12345btc98765",
+        "owner": {
+          "name": "John Satoshi",
+          "contactEmail": "john@example.com"
+        },
+        "createdDate": "2023-09-15",
+        "lastUpdated": "2023-12-20",
+        "nftCollection": [
+          {
+            "id": "nft001",
+            "title": "Free to do as We Tell You",
+            "uri": "https://nosdav.net/f0af41696ddd61a55efa6bf843054138372e4a7ac60fb80974af77d6f57ef1ba/public/wallet/nft1.json",
+            "previewImage": "https://nosdav.net/f0af41696ddd61a55efa6bf843054138372e4a7ac60fb80974af77d6f57ef1ba/public/images/eye.png",
+            "status": "Owned",
+            "acquiredDate": "2023-11-10"
+          }
+        ],
+        "totalValue": 45000,
+        "valueCurrency": "Satoshi",
+        "stats": {
+          "totalNftsOwned": 4,
+          "forSale": 1,
+          "locked": 3
+        }
+      }
+    </script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+    <script src="https://unpkg.com/preact@10.13.1/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.13.1/hooks/dist/hooks.umd.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: '#f5f3ff',
+                100: '#ede9fe',
+                200: '#ddd6fe',
+                300: '#c4b5fd',
+                400: '#a78bfa',
+                500: '#8b5cf6',
+                600: '#7c3aed',
+                700: '#6d28d9',
+                800: '#5b21b6',
+                900: '#4c1d95'
+              },
+              secondary: {
+                50: '#f0fdfa',
+                100: '#ccfbf1',
+                200: '#99f6e4',
+                300: '#5eead4',
+                400: '#2dd4bf',
+                500: '#14b8a6',
+                600: '#0d9488',
+                700: '#0f766e',
+                800: '#115e59',
+                900: '#134e4a'
+              },
+              neutral: {
+                50: '#fafafa',
+                100: '#f5f5f5',
+                200: '#e5e5e5',
+                300: '#d4d4d4',
+                400: '#a3a3a3',
+                500: '#737373',
+                600: '#525252',
+                700: '#404040',
+                800: '#262626',
+                900: '#171717'
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8f7ff;
+      }
+
+      .glow {
+        box-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
+        transition: all 0.3s ease;
+      }
+
+      .glow:hover {
+        box-shadow: 0 0 35px rgba(139, 92, 246, 0.25);
+        transform: translateY(-5px);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script>
+      const { h, render } = preact
+      const html = htm.bind(h)
+      const { useState, useEffect } = preactHooks
+
+      const App = () => {
+        const [loading, setLoading] = useState(true)
+        const [wallet, setWallet] = useState(null)
+
+        useEffect(() => {
+          // Function to get wallet data from JSON-LD
+          const getWalletFromDataIsland = () => {
+            const ldJsonScript = document.querySelector(
+              'script[type="application/ld+json"]'
+            )
+            if (ldJsonScript) {
+              try {
+                return JSON.parse(ldJsonScript.textContent)
+              } catch (error) {
+                console.error('Error parsing JSON-LD:', error)
+                return null
+              }
+            }
+            return null
+          }
+
+          // Get wallet data
+          const walletData = getWalletFromDataIsland()
+          if (walletData) {
+            setWallet(walletData)
+          }
+
+          // Simulate loading
+          setTimeout(() => setLoading(false), 800)
+        }, [])
+
+        const formatSatoshis = sats => {
+          return new Intl.NumberFormat().format(sats)
+        }
+
+        if (loading || !wallet) {
+          return html`
+            <div
+              class="min-h-screen flex items-center justify-center bg-neutral-50"
+            >
+              <div class="animate-pulse flex flex-col items-center">
+                <div class="w-24 h-24 rounded-full bg-primary-200"></div>
+                <div class="mt-4 text-primary-600 text-xl">
+                  Loading wallet data...
+                </div>
+              </div>
+            </div>
+          `
+        }
+
+        return html`
+          <div
+            class="min-h-screen bg-gradient-to-br from-neutral-50 to-primary-50 py-12 px-4 sm:px-6 lg:px-8"
+          >
+            <header class="max-w-7xl mx-auto mb-12">
+              <div class="flex justify-between items-center">
+                <h1 class="text-3xl font-bold text-neutral-800">
+                  <span class="text-primary-600">${wallet.walletName}</span>
+                </h1>
+                <nav>
+                  <ul class="flex space-x-6">
+                    <li>
+                      <a
+                        href="#"
+                        class="text-neutral-600 hover:text-primary-600 transition-colors"
+                        >Overview</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="#"
+                        class="text-neutral-600 hover:text-primary-600 transition-colors"
+                        >NFTs</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="#"
+                        class="text-neutral-600 hover:text-primary-600 transition-colors"
+                        >Settings</a
+                      >
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+            </header>
+
+            <main class="max-w-7xl mx-auto">
+              <!-- Wallet Overview Card -->
+              <div
+                class="bg-white rounded-2xl shadow-xl overflow-hidden glow max-w-5xl mx-auto mb-8"
+              >
+                <div class="p-8">
+                  <div class="flex justify-between items-start mb-6">
+                    <div>
+                      <p class="text-neutral-500 text-sm">Wallet ID</p>
+                      <p class="text-neutral-800 font-medium font-mono">
+                        ${wallet.walletId}
+                      </p>
+                    </div>
+                    <div
+                      class="bg-primary-100 text-primary-800 px-4 py-2 rounded-full text-sm font-medium"
+                    >
+                      Last Updated: ${wallet.lastUpdated}
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+                    <div>
+                      <h2 class="text-2xl font-bold text-neutral-800 mb-4">
+                        Owner Information
+                      </h2>
+                      <div class="bg-neutral-50 rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                          <div
+                            class="bg-primary-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-xl font-bold"
+                          >
+                            ${wallet.owner.name.charAt(0)}
+                          </div>
+                          <div class="ml-4">
+                            <p class="text-lg font-semibold">
+                              ${wallet.owner.name}
+                            </p>
+                            <p class="text-neutral-500">
+                              ${wallet.owner.contactEmail}
+                            </p>
+                          </div>
+                        </div>
+                        <p class="text-neutral-500 text-sm">
+                          Wallet created on ${wallet.createdDate}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h2 class="text-2xl font-bold text-neutral-800 mb-4">
+                        Wallet Value
+                      </h2>
+                      <div class="bg-primary-50 rounded-xl p-6">
+                        <div class="mb-2">
+                          <p class="text-neutral-500 text-sm">Total Value</p>
+                          <p class="text-4xl font-bold text-neutral-800">
+                            ${formatSatoshis(wallet.totalValue)}
+                            <span class="text-sm font-normal text-neutral-500"
+                              >${wallet.valueCurrency}</span
+                            >
+                          </p>
+                        </div>
+                        <div class="bg-white/60 rounded-lg p-3 mt-4">
+                          <p class="text-neutral-600 mb-1">
+                            Bitcoin Equivalent
+                          </p>
+                          <p class="text-lg font-semibold">
+                            ≈ ${(wallet.totalValue / 100000000).toFixed(8)} BTC
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stats and NFT Collection -->
+              <div
+                class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+              >
+                <!-- Stats -->
+                <div
+                  class="bg-white rounded-2xl shadow-xl overflow-hidden glow p-6"
+                >
+                  <h2 class="text-xl font-bold text-neutral-800 mb-4">
+                    Statistics
+                  </h2>
+                  <div class="space-y-4">
+                    <div class="bg-neutral-50 rounded-lg p-4">
+                      <p class="text-neutral-500 text-sm">Total NFTs Owned</p>
+                      <p class="text-2xl font-bold text-neutral-800">
+                        ${wallet.stats.totalNftsOwned}
+                      </p>
+                    </div>
+                    <div class="bg-secondary-50 rounded-lg p-4">
+                      <p class="text-neutral-500 text-sm">NFTs For Sale</p>
+                      <p class="text-2xl font-bold text-secondary-700">
+                        ${wallet.stats.forSale}
+                      </p>
+                    </div>
+                    <div class="bg-primary-50 rounded-lg p-4">
+                      <p class="text-neutral-500 text-sm">Locked NFTs</p>
+                      <p class="text-2xl font-bold text-primary-700">
+                        ${wallet.stats.locked}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- NFT Collection Preview -->
+                <div
+                  class="bg-white rounded-2xl shadow-xl overflow-hidden glow p-6 md:col-span-2"
+                >
+                  <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-neutral-800">
+                      NFT Collection
+                    </h2>
+                    <a
+                      href="#"
+                      class="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                      >View All</a
+                    >
+                  </div>
+
+                  ${wallet.nftCollection.length > 0
+                    ? html`
+                        <div
+                          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                        >
+                          ${wallet.nftCollection.map(
+                            nft => html`
+                              <div
+                                class="bg-neutral-50 rounded-lg overflow-hidden border border-neutral-100"
+                              >
+                                <div class="h-40 overflow-hidden relative">
+                                  <img
+                                    src=${nft.previewImage}
+                                    alt=${nft.title}
+                                    class="w-full h-full object-cover"
+                                  />
+                                  <div
+                                    class="absolute top-2 right-2 bg-primary-600 px-2 py-1 rounded-full text-xs font-medium text-white"
+                                  >
+                                    ${nft.status}
+                                  </div>
+                                </div>
+                                <div class="p-4">
+                                  <h3 class="font-medium text-neutral-800 mb-1">
+                                    ${nft.title}
+                                  </h3>
+                                  <p class="text-neutral-500 text-xs">
+                                    Acquired: ${nft.acquiredDate}
+                                  </p>
+                                  <div class="mt-3 flex justify-end">
+                                    <a
+                                      href=${nft.uri}
+                                      class="text-primary-600 hover:text-primary-800 text-xs font-medium"
+                                      >View Details</a
+                                    >
+                                  </div>
+                                </div>
+                              </div>
+                            `
+                          )}
+                        </div>
+                      `
+                    : html`
+                        <div class="bg-neutral-50 rounded-lg p-10 text-center">
+                          <p class="text-neutral-500">No NFTs in collection</p>
+                        </div>
+                      `}
+                </div>
+              </div>
+            </main>
+
+            <footer
+              class="max-w-7xl mx-auto mt-16 text-center text-neutral-500 text-sm"
+            >
+              <p>© 2025 ${wallet.walletName}. All rights reserved.</p>
+            </footer>
+          </div>
+        `
+      }
+
+      render(html`<${App} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
