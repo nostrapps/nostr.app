@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Type Index Viewer</title>
+
+    <!-- Preact -->
+    <script src="https://unpkg.com/preact@10.15.1/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.15.1/hooks/dist/hooks.umd.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: '#f5f7ff',
+                100: '#ebf0fe',
+                200: '#d6e0fd',
+                300: '#b3c7fc',
+                400: '#8aa6f9',
+                500: '#6684f6',
+                600: '#4c64eb',
+                700: '#3e4fd8',
+                800: '#3642b0',
+                900: '#303c8c'
+              },
+              secondary: {
+                50: '#f5fdf9',
+                100: '#ecfaf3',
+                200: '#d0f5e6',
+                300: '#a7ebd1',
+                400: '#6ddab3',
+                500: '#41c79a',
+                600: '#2aa47f',
+                700: '#238468',
+                800: '#1f6954',
+                900: '#1b5646'
+              },
+              accent: {
+                50: '#fdf6f5',
+                100: '#fbecea',
+                200: '#f8d5d1',
+                300: '#f3b3ac',
+                400: '#ea8277',
+                500: '#e05d4f',
+                600: '#cf3c2d',
+                700: '#ac3126',
+                800: '#8c2c24',
+                900: '#732a23'
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <style type="text/css">
+      body {
+        background-color: #f9f7f7;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Helvetica, Arial, sans-serif;
+      }
+
+      .card-hover {
+        transition: all 0.3s ease;
+      }
+
+      .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script type="module">
+      const { h, render } = preact
+      const { useState, useEffect } = preactHooks
+
+      const App = () => {
+        const [typeIndex, setTypeIndex] = useState([])
+        const [loading, setLoading] = useState(true)
+        const [error, setError] = useState(null)
+
+        useEffect(() => {
+          // Fetch the type index data
+          fetch('./publicTypeIndex.json')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Failed to load type index')
+              }
+              return response.json()
+            })
+            .then(data => {
+              setTypeIndex(data)
+              setLoading(false)
+            })
+            .catch(err => {
+              console.error('Error loading type index:', err)
+              setError(err.message)
+              setLoading(false)
+
+              // Use the example data as fallback
+              const exampleData = [
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'Tracker',
+                  instance: '/public/todo/todo.json'
+                },
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'Tracker',
+                  instance: '/public/todo/later.json'
+                },
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'Tracker',
+                  instance: '/public/todo/someday.json'
+                },
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'Tracker',
+                  instance: '/public/todo/chores.json'
+                },
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'BookmarkCollection',
+                  instance: '/public/bookmark/bookmark.json'
+                },
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'BookmarkCollection',
+                  instance: '/public/bookmark/toread.json'
+                },
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'BookmarkCollection',
+                  instance: '/public/bookmark/work.json'
+                },
+                {
+                  type: 'TypeRegistration',
+                  forClass: 'Wallet',
+                  instance: '/public/wallet/index.json'
+                }
+              ]
+              setTypeIndex(exampleData)
+            })
+        }, [])
+
+        // Group the type index by forClass
+        const groupedByClass = typeIndex.reduce((acc, item) => {
+          const { forClass } = item
+          if (!acc[forClass]) {
+            acc[forClass] = []
+          }
+          acc[forClass].push(item)
+          return acc
+        }, {})
+
+        // Get icon for each type
+        const getIconForType = type => {
+          switch (type) {
+            case 'Tracker':
+              return `
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            `
+            case 'BookmarkCollection':
+              return `
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            `
+            case 'Wallet':
+              return `
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            `
+            default:
+              return `
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+            `
+          }
+        }
+
+        // Get color for each type
+        const getColorForType = type => {
+          switch (type) {
+            case 'Tracker':
+              return 'primary'
+            case 'BookmarkCollection':
+              return 'secondary'
+            case 'Wallet':
+              return 'accent'
+            default:
+              return 'primary'
+          }
+        }
+
+        // Get a friendly name from the instance path
+        const getFriendlyName = instance => {
+          // Extract the filename without extension
+          const parts = instance.split('/')
+          const filename = parts[parts.length - 1]
+          const nameWithoutExt = filename.replace('.json', '')
+
+          // Convert to title case and replace hyphens/underscores with spaces
+          return nameWithoutExt
+            .replace(/[-_]/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())
+        }
+
+        if (loading) {
+          return h(
+            'div',
+            { class: 'flex items-center justify-center min-h-screen' },
+            h(
+              'div',
+              { class: 'text-center' },
+              h('div', {
+                class:
+                  'animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto'
+              }),
+              h(
+                'p',
+                { class: 'mt-4 text-lg text-gray-600' },
+                'Loading type index...'
+              )
+            )
+          )
+        }
+
+        return h(
+          'div',
+          { class: 'container mx-auto px-4 py-8 max-w-6xl' },
+          h(
+            'header',
+            { class: 'mb-12 text-center' },
+            h(
+              'h1',
+              { class: 'text-4xl font-bold text-gray-800 mb-4' },
+              'Type Index Viewer'
+            ),
+            h(
+              'p',
+              { class: 'text-lg text-gray-600 max-w-2xl mx-auto' },
+              'Click on any item to open the corresponding application with the selected instance.'
+            ),
+            error &&
+              h(
+                'div',
+                { class: 'mt-4 p-4 bg-red-100 text-red-800 rounded-lg' },
+                h('p', {}, `Error: ${error}`),
+                h(
+                  'p',
+                  { class: 'text-sm mt-2' },
+                  'Using example data as fallback.'
+                )
+              )
+          ),
+
+          Object.entries(groupedByClass).map(([className, items]) => {
+            const colorClass = getColorForType(className)
+
+            return h(
+              'section',
+              { class: 'mb-12' },
+              h(
+                'div',
+                { class: `mb-6 flex items-center` },
+                h('div', {
+                  class: `w-10 h-10 rounded-full flex items-center justify-center mr-3 bg-${colorClass}-100 text-${colorClass}-600`,
+                  dangerouslySetInnerHTML: { __html: getIconForType(className) }
+                }),
+                h(
+                  'h2',
+                  { class: 'text-2xl font-bold text-gray-800' },
+                  className
+                )
+              ),
+              h(
+                'div',
+                {
+                  class: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                },
+                items.map(item => {
+                  const appUrl = `?uri=${encodeURIComponent(item.instance)}`
+                  const friendlyName = getFriendlyName(item.instance)
+
+                  return h(
+                    'a',
+                    {
+                      href: appUrl,
+                      class: `card-hover block p-6 rounded-lg bg-white shadow-md border border-${colorClass}-100 hover:border-${colorClass}-300`
+                    },
+                    h(
+                      'div',
+                      { class: 'flex items-start' },
+                      h('div', {
+                        class: `w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-${colorClass}-100 text-${colorClass}-600`,
+                        dangerouslySetInnerHTML: {
+                          __html: getIconForType(className)
+                        }
+                      }),
+                      h(
+                        'div',
+                        { class: 'flex-1' },
+                        h(
+                          'h3',
+                          {
+                            class: `text-lg font-semibold text-${colorClass}-700 mb-1`
+                          },
+                          friendlyName
+                        ),
+                        h(
+                          'p',
+                          { class: 'text-sm text-gray-500 break-all' },
+                          item.instance
+                        )
+                      )
+                    )
+                  )
+                })
+              )
+            )
+          })
+        )
+      }
+
+      render(h(App), document.getElementById('app'))
+    </script>
+  </body>
+</html>
