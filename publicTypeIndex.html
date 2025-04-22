@@ -106,50 +106,58 @@
               setError(err.message)
               setLoading(false)
 
-              // Use the example data as fallback
-              const exampleData = [
+              // Use the provided sample data as fallback
+              const sampleData = [
                 {
                   type: 'TypeRegistration',
                   forClass: 'Tracker',
-                  instance: '/public/todo/todo.json'
+                  instance: '../public/todo/todo.json',
+                  registeredWith: 'https://nostr.app/todo.html'
                 },
                 {
                   type: 'TypeRegistration',
                   forClass: 'Tracker',
-                  instance: '/public/todo/later.json'
+                  instance: '../public/todo/later.json',
+                  registeredWith: 'https://nostr.app/todo.html'
                 },
                 {
                   type: 'TypeRegistration',
                   forClass: 'Tracker',
-                  instance: '/public/todo/someday.json'
+                  instance: '../public/todo/someday.json',
+                  registeredWith: 'https://nostr.app/todo.html'
                 },
                 {
                   type: 'TypeRegistration',
                   forClass: 'Tracker',
-                  instance: '/public/todo/chores.json'
+                  instance: '../public/todo/chores.json',
+                  registeredWith: 'https://nostr.app/todo.html'
                 },
                 {
                   type: 'TypeRegistration',
                   forClass: 'BookmarkCollection',
-                  instance: '/public/bookmark/bookmark.json'
+                  instance: '../public/bookmark/bookmark.json',
+                  registeredWith: 'https://nostr.app/bookmark.html'
                 },
                 {
                   type: 'TypeRegistration',
                   forClass: 'BookmarkCollection',
-                  instance: '/public/bookmark/toread.json'
+                  instance: '../public/bookmark/toread.json',
+                  registeredWith: 'https://nostr.app/bookmark.html'
                 },
                 {
                   type: 'TypeRegistration',
                   forClass: 'BookmarkCollection',
-                  instance: '/public/bookmark/work.json'
+                  instance: '../public/bookmark/work.json',
+                  registeredWith: 'https://nostr.app/bookmark.html'
                 },
                 {
                   type: 'TypeRegistration',
                   forClass: 'Wallet',
-                  instance: '/public/wallet/index.json'
+                  instance: '../public/wallet/index.json',
+                  registeredWith: 'https://nostr.app/datawallet.html'
                 }
               ]
-              setTypeIndex(exampleData)
+              setTypeIndex(sampleData)
             })
         }, [])
 
@@ -294,7 +302,12 @@
                   class: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
                 },
                 items.map(item => {
-                  const appUrl = `?uri=${encodeURIComponent(item.instance)}`
+                  // Construct app URL based on registeredWith if available
+                  const appUrl = item.registeredWith
+                    ? `${item.registeredWith}?uri=${encodeURIComponent(
+                        item.instance
+                      )}`
+                    : `?uri=${encodeURIComponent(item.instance)}`
                   const friendlyName = getFriendlyName(item.instance)
 
                   return h(
