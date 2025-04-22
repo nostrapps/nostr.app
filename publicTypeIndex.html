@@ -302,12 +302,28 @@
                   class: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
                 },
                 items.map(item => {
+                  // Handle relative instance paths by making them relative to window location
+                  let instanceUri = item.instance
+                  if (
+                    instanceUri.startsWith('../') ||
+                    !instanceUri.startsWith('http')
+                  ) {
+                    // Convert relative path to absolute path based on window location
+                    const baseUrl = window.location.href.substring(
+                      0,
+                      window.location.href.lastIndexOf('/') + 1
+                    )
+                    // Remove leading ../ and construct full path
+                    const relativePath = instanceUri.replace(/^\.\.\//, '')
+                    instanceUri = new URL(relativePath, baseUrl).href
+                  }
+
                   // Construct app URL based on registeredWith if available
                   const appUrl = item.registeredWith
                     ? `${item.registeredWith}?uri=${encodeURIComponent(
-                        item.instance
+                        instanceUri
                       )}`
-                    : `?uri=${encodeURIComponent(item.instance)}`
+                    : `?uri=${encodeURIComponent(instanceUri)}`
                   const friendlyName = getFriendlyName(item.instance)
 
                   return h(
