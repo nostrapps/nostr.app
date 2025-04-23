@@ -308,14 +308,21 @@
                     instanceUri.startsWith('../') ||
                     !instanceUri.startsWith('http')
                   ) {
-                    // Convert relative path to absolute path based on window location
+                    // Convert relative path to absolute path based on the publicTypeIndex.json location
+                    // Get the base URL (where publicTypeIndex.json would be)
                     const baseUrl = window.location.href.substring(
                       0,
                       window.location.href.lastIndexOf('/') + 1
                     )
-                    // Remove leading ../ and construct full path
-                    const relativePath = instanceUri.replace(/^\.\.\//, '')
-                    instanceUri = new URL(relativePath, baseUrl).href
+
+                    // For paths starting with '../', resolve them relative to publicTypeIndex.json location
+                    if (instanceUri.startsWith('../')) {
+                      // Keep the ../ prefix intact for proper relative path resolution
+                      instanceUri = new URL(instanceUri, baseUrl).href
+                    } else if (!instanceUri.startsWith('http')) {
+                      // For non-absolute paths without ../, also resolve relative to publicTypeIndex.json
+                      instanceUri = new URL(instanceUri, baseUrl).href
+                    }
                   }
 
                   // Construct app URL based on registeredWith if available
