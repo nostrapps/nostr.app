@@ -189,10 +189,39 @@
 
               // Convert instance paths to full URLs
               const trackerUris = trackerRegistrations.map(reg => {
+                let instancePath = reg.instance
+
+                // Handle relative paths that start with ../
+                if (instancePath.startsWith('../')) {
+                  // Remove the publicTypeIndex.json from the path and go up one directory
+                  const baseUrl = new URL(typeIndexUrl)
+                  const pathParts = baseUrl.pathname.split('/')
+                  // Remove the filename (publicTypeIndex.json)
+                  pathParts.pop()
+                  // Remove one directory for each ../ at the start
+                  const relativeParts = instancePath.split('/')
+                  let dotDotCount = 0
+                  while (
+                    relativeParts.length > 0 &&
+                    relativeParts[0] === '..'
+                  ) {
+                    relativeParts.shift()
+                    dotDotCount++
+                  }
+                  // Remove that many directories from the path
+                  for (let i = 0; i < dotDotCount; i++) {
+                    pathParts.pop()
+                  }
+                  // Reconstruct the path with the remaining relative parts
+                  const newPath = [...pathParts, ...relativeParts].join('/')
+                  return `${baseUrl.origin}${newPath}`
+                }
+
+                // Original code for absolute paths
                 // Make sure the instance path starts with a slash
-                const instancePath = reg.instance.startsWith('/')
-                  ? reg.instance
-                  : `/${reg.instance}`
+                instancePath = instancePath.startsWith('/')
+                  ? instancePath
+                  : `/${instancePath}`
 
                 return `https://nosdav.net/${pubkey}${instancePath}`
               })
