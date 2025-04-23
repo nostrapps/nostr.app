@@ -146,6 +146,7 @@
               })
               .then(data => {
                 setWallet(data)
+                window.walletUri = uri // Store the URI for later use
                 setLoading(false)
               })
               .catch(error => {
@@ -200,7 +201,8 @@
                   <ul class="flex space-x-6">
                     <li>
                       <a
-                        href="#"
+                        href=${window.walletUri ||
+                        'https://nosdav.net/f0af41696ddd61a55efa6bf843054138372e4a7ac60fb80974af77d6f57ef1ba/public/wallet/nft1.json'}
                         class="text-neutral-600 hover:text-primary-600 transition-colors"
                         >Overview</a
                       >
