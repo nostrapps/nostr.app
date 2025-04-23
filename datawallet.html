@@ -14,7 +14,7 @@
         },
         "createdDate": "2023-09-15",
         "lastUpdated": "2023-12-20",
-        "nftCollection": [
+        "hasPart": [
           {
             "id": "nft001",
             "title": "Free to do as We Tell You",
@@ -349,12 +349,12 @@
                     >
                   </div>
 
-                  ${wallet.nftCollection.length > 0
+                  ${wallet.hasPart.length > 0
                     ? html`
                         <div
                           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
                         >
-                          ${wallet.nftCollection.map(
+                          ${wallet.hasPart.map(
                             nft => html`
                               <div
                                 class="bg-neutral-50 rounded-lg overflow-hidden border border-neutral-100"
