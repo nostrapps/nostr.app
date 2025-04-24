@@ -902,7 +902,15 @@
                                       }.json&title=${encodeURIComponent(
                                         todo.title || todo.text
                                       )}${(() => {
-                                        // Check if relay parameter exists in current URL
+                                        // First check localStorage's updatesVia
+                                        const updatesVia =
+                                          localStorage.getItem('updatesVia')
+                                        if (updatesVia) {
+                                          return `&relay=${encodeURIComponent(
+                                            updatesVia
+                                          )}`
+                                        }
+                                        // If no updatesVia, check URL params as before
                                         const urlParams = new URLSearchParams(
                                           window.location.search
                                         )
