@@ -92,7 +92,8 @@
             lastTouchY: null,
             scale: 1,
             initialPinchDistance: null,
-            shortcutsDialogOpen: false
+            shortcutsDialogOpen: false,
+            activeVideo: null
           }
         }
 
@@ -181,6 +182,21 @@
             'touchend',
             this.handleTouchEnd.bind(this)
           )
+
+          // Remove all video elements, image elements and containers
+          this.state.nodes.forEach((node, index) => {
+            if (node.link?.endsWith('.mp4')) {
+              const container = document.getElementById(
+                `video-container-${index}`
+              )
+              if (container) container.remove()
+            } else if (node.link?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+              const container = document.getElementById(
+                `img-container-${index}`
+              )
+              if (container) container.remove()
+            }
+          })
         }
 
         openInNewWindowWithMap() {
@@ -243,24 +259,178 @@
             this.ctx.stroke()
           })
 
-          // Draw nodes
+          // Draw nodes, videos, and images
           this.state.nodes.forEach((node, index) => {
             const textWidth = this.ctx.measureText(node.name).width
 
-            // Calculate the width and height of the oval based on the text width
-            const ovalWidth = Math.max(textWidth + 10, 40) // 40 is the minimum width
-            const ovalHeight = 40 // fixed height
+            // Check if this node has a video or image link
+            if (node.link?.endsWith('.mp4')) {
+              // Handle video nodes (existing code)
+              let videoElement = document.getElementById(`video-${index}`)
+              if (!videoElement) {
+                // Create a container for the video
+                const container = document.createElement('div')
+                container.id = `video-container-${index}`
+                container.style.position = 'fixed'
+                container.style.zIndex = '1000'
+                container.style.pointerEvents = 'all'
+                container.style.width = '160px'
+                container.style.height = '120px'
+                container.style.backgroundColor = 'black'
+                container.style.borderRadius = '4px'
+                container.style.overflow = 'visible'
 
-            this.ctx.beginPath()
-            this.ctx.ellipse(
-              node.x,
-              node.y,
-              ovalWidth / 2,
-              ovalHeight / 2,
-              0,
-              0,
-              2 * Math.PI
-            )
+                // Create video element
+                videoElement = document.createElement('video')
+                videoElement.id = `video-${index}`
+                videoElement.src = node.link
+                videoElement.style.width = '100%'
+                videoElement.style.height = '100%'
+                videoElement.style.pointerEvents = 'all'
+                videoElement.controls = true
+                videoElement.loop = true
+                videoElement.muted = true
+                videoElement.autoplay = true
+                videoElement.style.display = 'block'
+
+                container.appendChild(videoElement)
+                document.body.appendChild(container)
+
+                container.addEventListener('mousedown', e => {
+                  e.stopPropagation()
+                })
+
+                videoElement.onerror = e => {
+                  console.error('Video error:', e)
+                  alert('Error loading video: ' + videoElement.error.message)
+                }
+
+                videoElement.onloadeddata = () => {
+                  console.log('Video loaded successfully')
+                }
+              }
+
+              // Update video container position
+              const container = document.getElementById(
+                `video-container-${index}`
+              )
+              if (container) {
+                const canvasRect = this.canvas.getBoundingClientRect()
+                const nodeXInCanvas =
+                  node.x * this.state.scale + this.state.canvasOffset.x
+                const nodeYInCanvas =
+                  node.y * this.state.scale + this.state.canvasOffset.y
+                container.style.left = `${canvasRect.left + nodeXInCanvas}px`
+                container.style.top = `${canvasRect.top + nodeYInCanvas}px`
+                container.style.transform = 'translate(-50%, -50%)'
+              }
+
+              // Draw a larger oval around the video
+              const ovalWidth = 180
+              const ovalHeight = 140
+              this.ctx.beginPath()
+              this.ctx.ellipse(
+                node.x,
+                node.y,
+                ovalWidth / 2,
+                ovalHeight / 2,
+                0,
+                0,
+                2 * Math.PI
+              )
+            } else if (node.link?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+              // Handle image nodes
+              let imgElement = document.getElementById(`img-${index}`)
+              if (!imgElement) {
+                // Create a container for the image
+                const container = document.createElement('div')
+                container.id = `img-container-${index}`
+                container.style.position = 'fixed'
+                container.style.zIndex = '1000'
+                container.style.pointerEvents = 'all'
+                container.style.width = '160px'
+                container.style.height = '120px'
+                container.style.backgroundColor = 'white'
+                container.style.borderRadius = '4px'
+                container.style.overflow = 'hidden'
+                container.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+
+                // Create image element
+                imgElement = document.createElement('img')
+                imgElement.id = `img-${index}`
+                imgElement.src = node.link
+                imgElement.style.width = '100%'
+                imgElement.style.height = '100%'
+                imgElement.style.objectFit = 'contain'
+                imgElement.style.pointerEvents = 'all'
+                imgElement.style.display = 'block'
+
+                container.appendChild(imgElement)
+                document.body.appendChild(container)
+
+                // Prevent node dragging when clicking image
+                container.addEventListener('mousedown', e => {
+                  e.stopPropagation()
+                })
+
+                // Add error handling
+                imgElement.onerror = e => {
+                  console.error('Image error:', e)
+                  imgElement.style.display = 'none'
+                  container.style.backgroundColor = '#ffebee'
+                  container.innerHTML +=
+                    '<div style="padding: 8px; color: #d32f2f; font-size: 12px;">Error loading image</div>'
+                }
+
+                // Add load handling
+                imgElement.onload = () => {
+                  console.log('Image loaded successfully')
+                }
+              }
+
+              // Update image container position
+              const container = document.getElementById(
+                `img-container-${index}`
+              )
+              if (container) {
+                const canvasRect = this.canvas.getBoundingClientRect()
+                const nodeXInCanvas =
+                  node.x * this.state.scale + this.state.canvasOffset.x
+                const nodeYInCanvas =
+                  node.y * this.state.scale + this.state.canvasOffset.y
+                container.style.left = `${canvasRect.left + nodeXInCanvas}px`
+                container.style.top = `${canvasRect.top + nodeYInCanvas}px`
+                container.style.transform = 'translate(-50%, -50%)'
+              }
+
+              // Draw a larger oval around the image
+              const ovalWidth = 180
+              const ovalHeight = 140
+              this.ctx.beginPath()
+              this.ctx.ellipse(
+                node.x,
+                node.y,
+                ovalWidth / 2,
+                ovalHeight / 2,
+                0,
+                0,
+                2 * Math.PI
+              )
+            } else {
+              // Regular node drawing
+              const ovalWidth = Math.max(textWidth + 10, 40)
+              const ovalHeight = 40
+              this.ctx.beginPath()
+              this.ctx.ellipse(
+                node.x,
+                node.y,
+                ovalWidth / 2,
+                ovalHeight / 2,
+                0,
+                0,
+                2 * Math.PI
+              )
+            }
 
             if (this.state.selectedNode === index) {
               this.ctx.fillStyle = 'lightblue'
@@ -268,19 +438,23 @@
               this.ctx.fillStyle = node.bgColor || '#fff'
             }
             this.ctx.fill()
-            this.ctx.strokeStyle = '#000' // Resetting stroke color
+            this.ctx.strokeStyle = '#000'
             this.ctx.stroke()
 
-            // If the node has a link, change the text color to blue and underline it
+            // Draw node name
             this.ctx.fillStyle = node.link ? 'blue' : '#000'
             this.ctx.fillText(node.name, node.x - textWidth / 2, node.y + 5)
-            if (node.link) {
+            if (
+              node.link &&
+              !node.link.endsWith('.mp4') &&
+              !node.link.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+            ) {
               this.ctx.beginPath()
               this.ctx.moveTo(node.x - textWidth / 2, node.y + 10)
               this.ctx.lineTo(node.x + textWidth / 2, node.y + 10)
               this.ctx.strokeStyle = 'blue'
               this.ctx.stroke()
-              this.ctx.strokeStyle = '#000' // Resetting stroke color
+              this.ctx.strokeStyle = '#000'
             }
           })
 
@@ -572,7 +746,7 @@
           }
         }
 
-        // Add new method to handle node links
+        // Modify handleNodeLink to not handle image links specially
         handleNodeLink(x, y) {
           const clickedNode = this.state.nodes.find(node => {
             const distance = Math.sqrt((node.x - x) ** 2 + (node.y - y) ** 2)
@@ -588,10 +762,14 @@
             return false
           })
 
-          if (clickedNode?.link) {
+          if (
+            clickedNode?.link &&
+            !clickedNode.link.endsWith('.mp4') &&
+            !clickedNode.link.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+          ) {
             let href = clickedNode.link
 
-            // Check if the link ends with .md
+            // Existing link handling logic
             if (href.endsWith('.md')) {
               if (href.startsWith('./') || href.startsWith('../')) {
                 const currentURL = new URL(window.location.href)
@@ -893,6 +1071,64 @@
             touch2.clientX - touch1.clientX,
             touch2.clientY - touch1.clientY
           )
+        }
+
+        // Modified video handling method
+        handleVideoLink(href, node) {
+          console.log('Creating video element for:', href) // Debug log
+
+          // Remove any existing video
+          if (this.state.activeVideo) {
+            this.state.activeVideo.remove()
+          }
+
+          // Create video element
+          const video = document.createElement('video')
+          video.src = href
+          video.style.position = 'fixed' // Changed to fixed positioning
+          video.style.width = '320px'
+          video.style.height = '240px'
+
+          // Calculate position relative to viewport
+          const canvasRect = this.canvas.getBoundingClientRect()
+          const nodeXInCanvas =
+            node.x * this.state.scale + this.state.canvasOffset.x
+          const nodeYInCanvas =
+            node.y * this.state.scale + this.state.canvasOffset.y
+
+          video.style.left = `${canvasRect.left + nodeXInCanvas}px`
+          video.style.top = `${canvasRect.top + nodeYInCanvas}px`
+          video.style.transform = 'translate(-50%, -50%)'
+          video.style.zIndex = '1000'
+          video.controls = true
+          video.autoplay = true // Add autoplay
+
+          // Add error handling
+          video.onerror = e => {
+            console.error('Video error:', e)
+            alert('Error loading video: ' + video.error.message)
+          }
+
+          // Add load handling
+          video.onloadeddata = () => {
+            console.log('Video loaded successfully')
+          }
+
+          document.body.appendChild(video)
+          this.setState({ activeVideo: video })
+          console.log('Video element added to document') // Debug log
+
+          // Add click handler to remove video when clicking outside
+          const handleClickOutside = e => {
+            if (e.target !== video) {
+              video.remove()
+              this.setState({ activeVideo: null })
+              document.removeEventListener('click', handleClickOutside)
+              console.log('Video removed') // Debug log
+            }
+          }
+          document.addEventListener('click', handleClickOutside)
+          return true
         }
 
         render(_, { nodes, newNodeName, editingNode }) {
