@@ -3,152 +3,324 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nostr Gateway</title>
+    <title>Nostr Identity Card</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Reset and base styles */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
-        
+
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #EFF6FF, #DBEAFE, #BFDBFE);
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 2rem;
+            padding: 1rem;
+            color: #1E3A8A;
         }
-        
-        .container {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 3rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+        /* Card styles */
+        .card {
+            position: relative;
             width: 100%;
-            max-width: 600px;
-            text-align: center;
-            transition: transform 0.3s ease;
+            max-width: 28rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(30, 58, 138, 0.1);
+            padding: 2rem;
+            transition: all 0.3s ease;
         }
-        
-        .container:hover {
+
+        .card:hover {
+            box-shadow: 0 15px 30px rgba(30, 58, 138, 0.15);
             transform: translateY(-5px);
         }
-        
+
+        /* Avatar styles */
+        .avatar-container {
+            position: absolute;
+            top: -3rem;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .avatar {
+            width: 6rem;
+            height: 6rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60A5FA, #3B82F6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Content styles */
+        .content {
+            margin-top: 3.5rem;
+            text-align: center;
+        }
+
         h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
-            color: #333;
+            font-size: 1.5rem;
             font-weight: 700;
+            color: #1E3A8A;
+            margin-bottom: 0.5rem;
         }
-        
-        p {
-            color: #666;
-            margin-bottom: 2rem;
-            line-height: 1.6;
+
+        .subtitle {
+            color: #3B82F6;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
         }
-        
+
+        /* Pubkey styles */
+        .pubkey-container {
+            background-color: #EFF6FF;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .pubkey {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #1E40AF;
+            word-break: break-all;
+            text-align: left;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: #3B82F6;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s ease;
+        }
+
+        .copy-button:hover {
+            background-color: #DBEAFE;
+            color: #1E40AF;
+        }
+
+        .copy-tooltip {
+            position: absolute;
+            top: -2rem;
+            right: 0;
+            background-color: #1E3A8A;
+            color: white;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .copy-tooltip.visible {
+            opacity: 1;
+        }
+
+        /* Link styles */
         .links {
             display: flex;
             flex-direction: column;
             gap: 1rem;
         }
-        
+
         .link-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            text-decoration: none;
-            color: #333;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border: 1px solid #eee;
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 2px 5px rgba(30, 58, 138, 0.05);
+            border: 1px solid #EFF6FF;
+            text-decoration: none;
+            transition: all 0.2s ease;
         }
-        
+
         .link-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-            border-color: #ddd;
+            box-shadow: 0 4px 10px rgba(30, 58, 138, 0.1);
+            border-color: #BFDBFE;
+            transform: translateY(-2px);
         }
-        
-        .link-card .icon {
-            font-size: 1.5rem;
-            opacity: 0.7;
+
+        .link-content {
+            display: flex;
+            align-items: center;
         }
-        
-        .link-card .text {
+
+        .link-icon-container {
+            background-color: #EFF6FF;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            margin-right: 0.75rem;
+        }
+
+        .link-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: #3B82F6;
+        }
+
+        .link-text {
             text-align: left;
         }
-        
-        .link-card h3 {
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
+
+        .link-title {
+            font-weight: 500;
+            color: #1E3A8A;
+            margin-bottom: 0.25rem;
         }
-        
-        .link-card p {
-            font-size: 0.9rem;
-            margin-bottom: 0;
-            color: #888;
+
+        .link-description {
+            font-size: 0.875rem;
+            color: #3B82F6;
         }
-        
-        .pubkey {
-            font-family: monospace;
-            font-size: 0.8rem;
-            background: #f5f5f5;
-            padding: 0.5rem;
-            border-radius: 6px;
-            margin-top: 1rem;
-            word-break: break-all;
-            display: none;
+
+        .external-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: #93C5FD;
         }
-        
-        .error {
-            color: #e53e3e;
-            margin-top: 1rem;
-            display: none;
+
+        /* Footer styles */
+        .footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #EFF6FF;
+            text-align: center;
         }
-        
-        @media (max-width: 600px) {
-            .container {
-                padding: 2rem 1.5rem;
+
+        .footer-text {
+            font-size: 0.75rem;
+            color: #60A5FA;
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #3B82F6;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .card {
+                padding: 1.5rem;
             }
             
             h1 {
-                font-size: 2rem;
+                font-size: 1.25rem;
+            }
+            
+            .avatar {
+                width: 5rem;
+                height: 5rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Nostr Gateway</h1>
-        <p>Access your Nostr resources through the links below</p>
-        
-        <div class="links">
-            <a href="./settings/publicTypeIndex.html" class="link-card">
-                <div class="text">
-                    <h3>Public Type Index</h3>
-                    <p>Access your local settings</p>
+    <div id="app">
+        <div id="loading" class="loading">Loading...</div>
+        <div id="card" class="card" style="display: none;">
+            <div class="avatar-container">
+                <div class="avatar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
                 </div>
-                <div class="icon">→</div>
-            </a>
-            
-            <a id="nostrLink" href="#" class="link-card">
-                <div class="text">
-                    <h3>Nostr Profile</h3>
-                    <p>View your profile on nostr.social</p>
+            </div>
+
+            <div class="content">
+                <h1>Nostr Identity</h1>
+                <p class="subtitle">Your decentralized digital presence</p>
+
+                <div class="pubkey-container">
+                    <p id="pubkey" class="pubkey"></p>
+                    <button id="copyButton" class="copy-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                    <div id="copyTooltip" class="copy-tooltip">Copied!</div>
                 </div>
-                <div class="icon">→</div>
-            </a>
+
+                <div class="links">
+                    <a id="appsLink" href="#" class="link-card">
+                        <div class="link-content">
+                            <div class="link-icon-container">
+                                <svg class="link-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                                </svg>
+                            </div>
+                            <div class="link-text">
+                                <h3 class="link-title">My Apps</h3>
+                                <p class="link-description">Access your applications</p>
+                            </div>
+                        </div>
+                        <svg class="external-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+
+                    <a id="profileLink" href="#" class="link-card" target="_blank" rel="noopener noreferrer">
+                        <div class="link-content">
+                            <div class="link-icon-container">
+                                <svg class="link-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            </div>
+                            <div class="link-text">
+                                <h3 class="link-title">Nostr Profile</h3>
+                                <p class="link-description">View your social profile</p>
+                            </div>
+                        </div>
+                        <svg class="external-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                    </a>
+                </div>
+
+                <div class="footer">
+                    <p class="footer-text">Connected to the Nostr network • <span id="currentDate"></span></p>
+                </div>
+            </div>
         </div>
-        
-        <div id="pubkeyDisplay" class="pubkey"></div>
-        <div id="errorMessage" class="error">No pubkey found in URL. Please include a valid 64-character hex pubkey.</div>
     </div>
 
     <script>
@@ -178,23 +350,43 @@
                 }
             }
             
-            const nostrLink = document.getElementById('nostrLink');
-            const pubkeyDisplay = document.getElementById('pubkeyDisplay');
-            const errorMessage = document.getElementById('errorMessage');
+            // Set a default pubkey for demo if none is found
+            pubkey = pubkey || '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';
             
-            if (pubkey && pubkey.length === 64 && /^[0-9a-f]{64}$/i.test(pubkey)) {
-                // Valid pubkey found
-                const nostrProfileUrl = `https://nostr.social/profile/${pubkey}`;
-                nostrLink.href = nostrProfileUrl;
-                
-                // Display the pubkey
-                pubkeyDisplay.textContent = `Pubkey: ${pubkey}`;
-                pubkeyDisplay.style.display = 'block';
-            } else {
-                // No valid pubkey found
-                nostrLink.href = 'https://nostr.social';
-                errorMessage.style.display = 'block';
-            }
+            // Update the UI with the pubkey
+            const pubkeyElement = document.getElementById('pubkey');
+            pubkeyElement.textContent = pubkey;
+            
+            // Set up the links
+            const appsLink = document.getElementById('appsLink');
+            const profileLink = document.getElementById('profileLink');
+            
+            appsLink.href = `/${pubkey}/settings/publicTypeIndex.html`;
+            profileLink.href = `https://nostr.social/profile/${pubkey}`;
+            
+            // Set up the copy button
+            const copyButton = document.getElementById('copyButton');
+            const copyTooltip = document.getElementById('copyTooltip');
+            
+            copyButton.addEventListener('click', function() {
+                navigator.clipboard.writeText(pubkey).then(function() {
+                    copyTooltip.classList.add('visible');
+                    setTimeout(function() {
+                        copyTooltip.classList.remove('visible');
+                    }, 2000);
+                });
+            });
+            
+            // Set the current date
+            const currentDateElement = document.getElementById('currentDate');
+            currentDateElement.textContent = new Date().toLocaleDateString();
+            
+            // Show the card and hide the loading indicator
+            const loadingElement = document.getElementById('loading');
+            const cardElement = document.getElementById('card');
+            
+            loadingElement.style.display = 'none';
+            cardElement.style.display = 'block';
         });
     </script>
 </body>
