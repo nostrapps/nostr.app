@@ -164,6 +164,13 @@
               }
             }
           }
+
+          // Add drag-and-drop event listeners
+          this.canvas.addEventListener(
+            'dragover',
+            this.handleDragOver.bind(this)
+          )
+          this.canvas.addEventListener('drop', this.handleDrop.bind(this))
         }
 
         componentWillUnmount() {
@@ -296,8 +303,48 @@
                 container.appendChild(videoElement)
                 document.body.appendChild(container)
 
+                // Modified event listener to allow node dragging
                 container.addEventListener('mousedown', e => {
-                  e.stopPropagation()
+                  // Prevent default to stop video dragging behavior
+                  e.preventDefault()
+
+                  // Set both selectedNode and draggingNode states
+                  this.setState(
+                    {
+                      selectedNode: index,
+                      draggingNode: index
+                    },
+                    () => this.redraw()
+                  )
+
+                  // Add listeners to document to handle move and release
+                  const handleMouseMove = moveEvent => {
+                    const rect = this.canvas.getBoundingClientRect()
+                    const mouseX =
+                      (moveEvent.clientX -
+                        rect.left -
+                        this.state.canvasOffset.x) /
+                      this.state.scale
+                    const mouseY =
+                      (moveEvent.clientY -
+                        rect.top -
+                        this.state.canvasOffset.y) /
+                      this.state.scale
+
+                    const nodesCopy = [...this.state.nodes]
+                    nodesCopy[index].x = mouseX
+                    nodesCopy[index].y = mouseY
+                    this.setState({ nodes: nodesCopy }, () => this.redraw())
+                  }
+
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove)
+                    document.removeEventListener('mouseup', handleMouseUp)
+                    this.setState({ draggingNode: null })
+                  }
+
+                  document.addEventListener('mousemove', handleMouseMove)
+                  document.addEventListener('mouseup', handleMouseUp)
                 })
 
                 videoElement.onerror = e => {
@@ -368,9 +415,48 @@
                 container.appendChild(imgElement)
                 document.body.appendChild(container)
 
-                // Prevent node dragging when clicking image
+                // Modified event listener to allow node dragging
                 container.addEventListener('mousedown', e => {
-                  e.stopPropagation()
+                  // Prevent default to stop image dragging behavior
+                  e.preventDefault()
+
+                  // Set both selectedNode and draggingNode states
+                  this.setState(
+                    {
+                      selectedNode: index,
+                      draggingNode: index
+                    },
+                    () => this.redraw()
+                  )
+
+                  // Add listeners to document to handle move and release
+                  const handleMouseMove = moveEvent => {
+                    const rect = this.canvas.getBoundingClientRect()
+                    const mouseX =
+                      (moveEvent.clientX -
+                        rect.left -
+                        this.state.canvasOffset.x) /
+                      this.state.scale
+                    const mouseY =
+                      (moveEvent.clientY -
+                        rect.top -
+                        this.state.canvasOffset.y) /
+                      this.state.scale
+
+                    const nodesCopy = [...this.state.nodes]
+                    nodesCopy[index].x = mouseX
+                    nodesCopy[index].y = mouseY
+                    this.setState({ nodes: nodesCopy }, () => this.redraw())
+                  }
+
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove)
+                    document.removeEventListener('mouseup', handleMouseUp)
+                    this.setState({ draggingNode: null })
+                  }
+
+                  document.addEventListener('mousemove', handleMouseMove)
+                  document.addEventListener('mouseup', handleMouseUp)
                 })
 
                 // Add error handling
@@ -733,6 +819,9 @@
             })
 
             if (clickedNodeIndex > -1) {
+              // If we're already handling a mousedown on an image or video container,
+              // the setState in those handlers will have selected the node,
+              // but we still need to set the draggingNode state here
               this.setState(
                 {
                   draggingNode: clickedNodeIndex,
@@ -1129,6 +1218,63 @@
           }
           document.addEventListener('click', handleClickOutside)
           return true
+        }
+
+        handleDragOver(e) {
+          e.preventDefault() // Prevent default to enable drop
+        }
+
+        handleDrop(e) {
+          e.preventDefault()
+          // Handle the dropped file here
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const file = e.dataTransfer.files[0]
+            if (file.type.match(/image.*/)) {
+              // Get cursor position for placement of the new node
+              const rect = e.target.getBoundingClientRect()
+              const dropX =
+                (e.clientX - rect.left - this.state.canvasOffset.x) /
+                this.state.scale
+              const dropY =
+                (e.clientY - rect.top - this.state.canvasOffset.y) /
+                this.state.scale
+
+              // Create a temporary URL for the image
+              const imageUrl = URL.createObjectURL(file)
+
+              // Create a new node with the image link
+              const newNode = {
+                '@id': '#' + this.randomId(),
+                name: file.name.split('.')[0], // Use filename without extension as node name
+                link: imageUrl,
+                x: dropX,
+                y: dropY
+              }
+
+              // Add the node to the mind map
+              this.setState(
+                prevState => {
+                  const newNodes = [...prevState.nodes, newNode]
+                  let newConnections = [...prevState.connections]
+
+                  // Connect to selected node if one exists
+                  if (prevState.selectedNode !== null) {
+                    newConnections.push({
+                      start: prevState.selectedNode,
+                      end: newNodes.length - 1
+                    })
+                  }
+
+                  return {
+                    nodes: newNodes,
+                    connections: newConnections,
+                    selectedNode: newNodes.length - 1 // Select the new node
+                  }
+                },
+                () => this.redraw()
+              )
+            }
+          }
         }
 
         render(_, { nodes, newNodeName, editingNode }) {
