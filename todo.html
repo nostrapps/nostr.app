@@ -897,7 +897,7 @@
 
                                       return `./mindstr.html?map=${basePath}${
                                         todo['@id']
-                                          ? todo['@id'].substring(1)
+                                          ? `task_${todo['@id'].substring(1)}`
                                           : ''
                                       }.json&title=${encodeURIComponent(
                                         todo.title || todo.text
