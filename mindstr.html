@@ -74,6 +74,22 @@
           this.editInputRef = null
           const data = props.data
 
+          // Define a soft color palette
+          this.softColorPalette = [
+            '#f7e8f7', // Lavender
+            '#e3f2fd', // Light Blue
+            '#e0f7fa', // Light Cyan
+            '#e8f5e9', // Light Green
+            '#fff8e1', // Light Amber
+            '#fff3e0', // Light Orange
+            '#fce4ec', // Light Pink
+            '#f3e5f5', // Light Purple
+            '#e8eaf6', // Light Indigo
+            '#f1f8e9', // Light Light Green
+            '#fffde7', // Light Yellow
+            '#f9fbe7' // Light Lime
+          ]
+
           this.state = {
             nodes: data.nodes,
             connections: data.connections,
@@ -550,13 +566,22 @@
           this.updateDataIsland()
         }
 
+        // Get a random color from the soft palette
+        getRandomSoftColor() {
+          const randomIndex = Math.floor(
+            Math.random() * this.softColorPalette.length
+          )
+          return this.softColorPalette[randomIndex]
+        }
+
         handleGlobalKeyDown = e => {
           if (e.key === 'Insert' && this.state.selectedNode !== null) {
             const newNode = {
               '@id': '#' + this.randomId(),
               name: '',
               x: this.state.nodes[this.state.selectedNode].x + 50,
-              y: this.state.nodes[this.state.selectedNode].y + 50
+              y: this.state.nodes[this.state.selectedNode].y + 50,
+              bgColor: this.getRandomSoftColor() // Add random background color
             }
 
             this.setState(
@@ -611,7 +636,8 @@
                 x:
                   this.state.nodes[this.state.selectedNode].x +
                   (Math.random() * 100 - 50), // Randomly position to the left or right
-                y: this.state.nodes[this.state.selectedNode].y + 50 // Below the current node
+                y: this.state.nodes[this.state.selectedNode].y + 50, // Below the current node
+                bgColor: this.getRandomSoftColor() // Add random background color
               }
 
               this.setState(
@@ -926,7 +952,8 @@
               '@id': '#' + this.randomId(),
               name: this.state.newNodeName.trim(),
               x: 200 + Math.random() * 100, // Random position for demonstration
-              y: 200 + Math.random() * 100
+              y: 200 + Math.random() * 100,
+              bgColor: this.getRandomSoftColor() // Add random background color
             }
 
             this.setState(
@@ -1248,7 +1275,8 @@
                 name: file.name.split('.')[0], // Use filename without extension as node name
                 link: imageUrl,
                 x: dropX,
-                y: dropY
+                y: dropY,
+                bgColor: this.getRandomSoftColor() // Add random background color
               }
 
               // Add the node to the mind map
