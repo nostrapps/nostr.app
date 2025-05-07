@@ -425,7 +425,7 @@
           setPubkey(finalPubkey)
 
           // Check if agent.json exists
-          fetch('/.well-known/agent.json', { method: 'HEAD' })
+          fetch('./.well-known/agent.json', { method: 'GET' })
             .then(response => {
               if (response.ok) {
                 setAgentJsonExists(true)
@@ -512,7 +512,7 @@
                 ${agentJsonExists
                   ? html`
                       <a
-                        href="/.well-known/agent.json"
+                        href="./.well-known/agent.json"
                         class="link-card"
                         target="_blank"
                         rel="noopener noreferrer"
