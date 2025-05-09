@@ -499,6 +499,7 @@
           if (!this.state.newTodo.trim()) return
 
           const now = Date.now()
+          const nowIso = new Date().toISOString()
           const newTodos = [
             ...this.state.todos,
             {
@@ -506,7 +507,8 @@
               '@type': 'Task',
               title: this.state.newTodo,
               completed: false,
-              created: new Date().toISOString()
+              created: nowIso,
+              updated: nowIso
             }
           ]
 
@@ -522,7 +524,11 @@
           // Only toggle items with @type 'Task'
           const newTodos = this.state.todos.map(todo => {
             if (todo['@id'] === id && todo['@type'] === 'Task') {
-              return { ...todo, completed: !todo.completed }
+              return {
+                ...todo,
+                completed: !todo.completed,
+                updated: new Date().toISOString()
+              }
             }
             return todo
           })
@@ -644,6 +650,13 @@
           const customTodosUrl =
             this.state.availableUris[this.state.currentUriIndex] || null
           const isUsingCustomUrl = !!customTodosUrl
+
+          // Sort tasks by updated date (falling back to created date)
+          const sortedTasks = [...taskItems].sort((a, b) => {
+            const aDate = a.updated || a.created || ''
+            const bDate = b.updated || b.created || ''
+            return new Date(bDate) - new Date(aDate)
+          })
 
           return html`
             <div class="min-h-screen flex flex-col">
@@ -835,7 +848,7 @@
                       ? html`<p class="text-center text-gray-500">
                           No tasks yet. Add one above!
                         </p>`
-                      : [...taskItems].reverse().map(
+                      : sortedTasks.map(
                           todo => html`
                             <div
                               key=${todo['@id']}
@@ -943,7 +956,20 @@
                                       />
                                     </svg>
                                   </a>
-                                  ${todo.created
+                                  ${todo.updated &&
+                                  todo.updated !== todo.created
+                                    ? html`
+                                        <span
+                                          class="ml-2 text-xs text-gray-400"
+                                          title="Last updated"
+                                        >
+                                          (updated:
+                                          ${new Date(
+                                            todo.updated
+                                          ).toLocaleDateString()})
+                                        </span>
+                                      `
+                                    : todo.created
                                     ? html`
                                         <span
                                           class="ml-2 text-xs text-gray-400"
