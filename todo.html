@@ -667,8 +667,14 @@
             this.state.availableUris[this.state.currentUriIndex] || null
           const isUsingCustomUrl = !!customTodosUrl
 
-          // Sort tasks by updated date (falling back to created date)
+          // Sort tasks by completion status first, then by updated date
           const sortedTasks = [...taskItems].sort((a, b) => {
+            // First sort by completion status (completed tasks go to the bottom)
+            if (a.completed !== b.completed) {
+              return a.completed ? 1 : -1
+            }
+
+            // Then sort by date within each group (most recently updated first)
             const aDate = a.updated || a.created || ''
             const bDate = b.updated || b.created || ''
             return new Date(bDate) - new Date(aDate)
