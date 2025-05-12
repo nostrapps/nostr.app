@@ -136,6 +136,7 @@
       import Navbar from './navbar.js'
       import './nosdav-shim.js'
       import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+      import Swal from 'https://cdn.jsdelivr.net/npm/sweetalert2@11/+esm'
 
       // Make secp256k1 available globally (navbar.js expects this)
       window.secp256k1 = secp256k1
@@ -161,7 +162,7 @@
         { id: 'other', name: 'Other', color: '#8b5cf6' }
       ]
 
-      // Sample initial events
+      // Sample initial events (will be replaced by loaded events if available)
       const INITIAL_EVENTS = [
         {
           id: '1',
@@ -195,6 +196,115 @@
           description: 'Annual checkup'
         }
       ]
+
+      // Storage related functions
+      const getStorageProvider = () => {
+        // Use nosdav.net as the primary storage solution
+        return {
+          save: async events => {
+            try {
+              const pubkey = localStorage.getItem('pubkey')
+              if (!pubkey) {
+                console.error('No pubkey found for nosdav storage')
+                return false
+              }
+
+              const url = `https://nosdav.net/${pubkey}/public/calendar/calendar.json`
+              const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(events)
+              })
+
+              if (!response.ok) throw new Error('Network response was not ok')
+              console.log('Calendar events saved to nosdav successfully')
+              return true
+            } catch (e) {
+              console.error('Error saving to nosdav:', e)
+              // Fall back to localStorage if nosdav fails
+              if (typeof localStorage !== 'undefined') {
+                try {
+                  localStorage.setItem(
+                    'calendar_events',
+                    JSON.stringify(events)
+                  )
+                  console.log(
+                    'Calendar events saved to localStorage as fallback'
+                  )
+                  return true
+                } catch (localErr) {
+                  console.error('Error saving to localStorage:', localErr)
+                }
+              }
+              return false
+            }
+          },
+          load: async () => {
+            try {
+              const pubkey = localStorage.getItem('pubkey')
+              if (!pubkey) {
+                console.error('No pubkey found for nosdav storage')
+                return null
+              }
+
+              const url = `https://nosdav.net/${pubkey}/public/calendar/calendar.json`
+              const response = await fetch(url)
+
+              if (response.status === 404) {
+                return null
+              }
+
+              if (!response.ok) throw new Error('Network response was not ok')
+              const events = await response.json()
+
+              // Convert string dates back to Date objects
+              return events.map(event => ({
+                ...event,
+                start: new Date(event.start),
+                end: new Date(event.end)
+              }))
+            } catch (e) {
+              console.error('Error loading from nosdav:', e)
+              // Try to load from localStorage if nosdav fails
+              if (typeof localStorage !== 'undefined') {
+                try {
+                  const data = localStorage.getItem('calendar_events')
+                  if (data) {
+                    console.log('Loaded events from localStorage as fallback')
+                    const events = JSON.parse(data)
+                    // Convert string dates back to Date objects
+                    return events.map(event => ({
+                      ...event,
+                      start: new Date(event.start),
+                      end: new Date(event.end)
+                    }))
+                  }
+                } catch (localErr) {
+                  console.error('Error loading from localStorage:', localErr)
+                }
+              }
+              return null
+            }
+          }
+        }
+      }
+
+      const openStorageFile = () => {
+        const pubkey = localStorage.getItem('pubkey')
+        if (pubkey) {
+          const url = `https://nosdav.net/${pubkey}/public/calendar/calendar.json`
+          window.open(url, '_blank')
+        } else {
+          Swal.fire({
+            title: 'Not Logged In',
+            text: 'You need to login with Nostr to access your calendar storage.',
+            icon: 'warning',
+            confirmButtonText: 'OK'
+          })
+        }
+      }
 
       // Modal Component
       const Modal = ({ isOpen, onClose, title, children }) => {
@@ -239,12 +349,14 @@
 
       // Calendar App Component
       const CalendarApp = () => {
-        const [events, setEvents] = useState(INITIAL_EVENTS)
+        const [events, setEvents] = useState([])
         const [currentView, setCurrentView] = useState('dayGridMonth')
         const [isModalOpen, setIsModalOpen] = useState(false)
         const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
         const [currentEvent, setCurrentEvent] = useState(null)
         const [isDarkMode, setIsDarkMode] = useState(false)
+        const [isLoading, setIsLoading] = useState(true)
+        const [saveStatus, setSaveStatus] = useState(null)
         const calendarRef = useRef(null)
 
         // Form state
@@ -256,6 +368,43 @@
           category: 'work',
           description: ''
         })
+
+        // Load events on component mount
+        useEffect(() => {
+          const loadEvents = async () => {
+            setIsLoading(true)
+            const storage = getStorageProvider()
+            const loadedEvents = await storage.load()
+
+            if (loadedEvents && loadedEvents.length > 0) {
+              setEvents(loadedEvents)
+              console.log('Loaded events from storage:', loadedEvents.length)
+            } else {
+              setEvents(INITIAL_EVENTS)
+              console.log('Using default events')
+            }
+
+            setIsLoading(false)
+          }
+
+          loadEvents()
+        }, [])
+
+        // Save events whenever they change
+        useEffect(() => {
+          if (isLoading) return // Skip initial load
+
+          const saveEvents = async () => {
+            setSaveStatus('saving')
+            const storage = getStorageProvider()
+            const success = await storage.save(events)
+
+            setSaveStatus(success ? 'saved' : 'error')
+            setTimeout(() => setSaveStatus(null), 2000) // Clear status after 2 seconds
+          }
+
+          saveEvents()
+        }, [events])
 
         // Initialize calendar
         useEffect(() => {
@@ -420,7 +569,39 @@
           <!-- Header -->
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 w-full">
             <div class="flex justify-between items-center">
-              <h1 class="text-2xl font-bold text-primary-600 dark:text-primary-400">Calendar</h1>
+              <div class="flex items-center">
+                <h1 class="text-2xl font-bold text-primary-600 dark:text-primary-400">Calendar</h1>
+                ${
+                  saveStatus &&
+                  html`
+                    <span
+                      class="ml-3 px-2 py-1 text-xs rounded-full ${saveStatus ===
+                      'saving'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : saveStatus === 'saved'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'}"
+                    >
+                      ${saveStatus === 'saving'
+                        ? 'Saving...'
+                        : saveStatus === 'saved'
+                        ? 'Saved'
+                        : 'Error saving'}
+                    </span>
+                  `
+                }
+                
+                <button
+                  onClick=${openStorageFile}
+                  class="ml-3 text-xs text-primary-500 hover:text-primary-700 flex items-center"
+                  title="View data file"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  View Data
+                </button>
+              </div>
               <div class="flex items-center space-x-4">
                 <button 
                   onClick=${() => setIsDarkMode(prev => !prev)}
@@ -489,7 +670,18 @@
           <!-- Main Content -->
           <main class="flex-grow p-4 sm:p-6 lg:p-8">
             <div class="max-w-7xl mx-auto bg-white dark:bg-neutral-800 rounded-lg shadow-md p-4 sm:p-6">
-              <div class="calendar-container" ref=${calendarRef}></div>
+              ${
+                isLoading
+                  ? html`<div class="flex justify-center items-center h-64">
+                      <div
+                        class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"
+                      ></div>
+                    </div>`
+                  : html`<div
+                      class="calendar-container"
+                      ref=${calendarRef}
+                    ></div>`
+              }
             </div>
           </main>
           
