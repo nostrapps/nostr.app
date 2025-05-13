@@ -166,34 +166,12 @@
       const INITIAL_EVENTS = [
         {
           id: '1',
-          title: 'Team Meeting',
+          type: 'Event',
+          title: 'Created Calendar',
           start: new Date(new Date().setHours(10, 0, 0, 0)),
           end: new Date(new Date().setHours(11, 30, 0, 0)),
           category: 'work',
           description: 'Weekly team sync meeting'
-        },
-        {
-          id: '2',
-          title: 'Lunch with Sarah',
-          start: new Date(new Date().setHours(12, 30, 0, 0)),
-          end: new Date(new Date().setHours(13, 30, 0, 0)),
-          category: 'personal',
-          description: 'Catch up over lunch'
-        },
-        {
-          id: '3',
-          title: 'Doctor Appointment',
-          start: new Date(
-            new Date().setDate(new Date().getDate() + 2)
-          ).setHours(15, 0, 0, 0),
-          end: new Date(new Date().setDate(new Date().getDate() + 2)).setHours(
-            16,
-            0,
-            0,
-            0
-          ),
-          category: 'health',
-          description: 'Annual checkup'
         }
       ]
 
