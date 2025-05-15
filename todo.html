@@ -646,6 +646,109 @@
           console.log('Todos cleared on logout')
         }
 
+        // Generate ICS content from todos
+        generateIcsContent = () => {
+          // Filter for just task items
+          const taskItems = this.state.todos.filter(
+            todo => todo['@type'] === 'Task'
+          )
+
+          // Find the tracker for list title
+          const tracker = this.state.todos.find(
+            todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
+          )
+          const listTitle = tracker?.title || 'Todo List'
+
+          // Start building the ICS content
+          let icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//NostrTodo//Todo List//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            `X-WR-CALNAME:${listTitle}`
+          ]
+
+          // Create a VEVENT for each task
+          taskItems.forEach(todo => {
+            const created = todo.created ? new Date(todo.created) : new Date()
+
+            // Format date as YYYYMMDDTHHMMSSZ (UTC)
+            const formatDate = date => {
+              return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+            }
+
+            const createdDate = formatDate(created)
+
+            // Due date - for a simple implementation, we'll use created date + 1 day
+            const dueDate = new Date(created)
+            dueDate.setDate(dueDate.getDate() + 1)
+            const dueDateFormatted = formatDate(dueDate)
+
+            // Generate a unique ID for the event
+            const uid = `todo-${todo['@id'].replace(
+              '#',
+              ''
+            )}-${Date.now()}@nostrtodo`
+
+            // Add event fields
+            icsContent.push('BEGIN:VEVENT')
+            icsContent.push(`UID:${uid}`)
+            icsContent.push(`DTSTAMP:${createdDate}`)
+            icsContent.push(`DTSTART:${createdDate}`)
+            icsContent.push(`DUE:${dueDateFormatted}`)
+            icsContent.push(`SUMMARY:${todo.title || todo.text}`)
+
+            // Add status
+            icsContent.push(
+              `STATUS:${todo.completed ? 'COMPLETED' : 'NEEDS-ACTION'}`
+            )
+
+            // Add a description with completion status
+            icsContent.push(
+              `DESCRIPTION:Status: ${
+                todo.completed ? 'Completed' : 'Not completed'
+              }`
+            )
+
+            // End the event
+            icsContent.push('END:VEVENT')
+          })
+
+          // Close the calendar
+          icsContent.push('END:VCALENDAR')
+
+          // Join with CRLF as required by the iCalendar spec
+          return icsContent.join('\r\n')
+        }
+
+        // Export todos as ICS file
+        exportToIcs = () => {
+          const icsContent = this.generateIcsContent()
+
+          // Find the tracker for list title (used for filename)
+          const tracker = this.state.todos.find(
+            todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
+          )
+          const listTitle = tracker?.title || 'Todo_List'
+          const fileName = `${listTitle.replace(/\s+/g, '_')}.ics`
+
+          // Create blob and download link
+          const blob = new Blob([icsContent], {
+            type: 'text/calendar;charset=utf-8'
+          })
+          const link = document.createElement('a')
+          link.href = URL.createObjectURL(blob)
+          link.setAttribute('download', fileName)
+
+          // Trigger download
+          document.body.appendChild(link)
+          link.click()
+
+          // Clean up
+          document.body.removeChild(link)
+        }
+
         render() {
           // Filter todos to only display items with @type "Task"
           const taskItems = this.state.todos.filter(
@@ -1141,6 +1244,28 @@
                             </svg>
                             View File
                           </button>
+                          <button
+                            onClick=${this.exportToIcs}
+                            class="ml-2 text-white rounded-full px-2.5 py-1 text-xs flex items-center transition-all hover:bg-opacity-90"
+                            style="background-color: var(--accent);"
+                            title="Export tasks as .ics calendar file"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-3.5 w-3.5 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            Export .ics
+                          </button>
                         </div>`
                       : html`<div
                           class="rounded-full px-4 py-2 inline-flex items-center"
@@ -1162,6 +1287,28 @@
                           </svg>
                           Using ${this.state.storageType} storage (nosdav not
                           available)
+                          <button
+                            onClick=${this.exportToIcs}
+                            class="ml-3 text-white rounded-full px-2.5 py-1 text-xs flex items-center transition-all hover:bg-opacity-90"
+                            style="background-color: var(--accent);"
+                            title="Export tasks as .ics calendar file"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-3.5 w-3.5 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            Export .ics
+                          </button>
                         </div>`}
                   </div>
                 </div>
