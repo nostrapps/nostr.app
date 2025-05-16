@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pages</title>
+    <style>
+      :root {
+        --primary: #0082c9;
+        --primary-light: #8ecae6;
+        --primary-dark: #0070b0;
+        --secondary: #2d2d2d;
+        --bg-light: #f8fafc;
+        --text-dark: #334155;
+        --text-light: #64748b;
+        --border: #e2e8f0;
+        --success: #46ba89;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        --accent: #0082c9;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        background-color: var(--bg-light);
+        color: var(--text-dark);
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 60px); /* Account for navbar */
+      }
+
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        margin-bottom: 1.5rem;
+      }
+
+      .page-title {
+        display: flex;
+        align-items: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary);
+      }
+
+      .page-title svg {
+        margin-right: 0.5rem;
+        color: var(--primary);
+      }
+
+      .page-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background-color: #fff;
+        padding: 0.5rem;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      .page-input {
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 0.25rem;
+        font-size: 0.9rem;
+        min-width: 200px;
+      }
+
+      .btn {
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: background-color 0.2s;
+      }
+
+      .btn:hover {
+        background-color: var(--primary-dark);
+      }
+
+      .btn-icon {
+        background: none;
+        border: none;
+        color: var(--primary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.25rem;
+        transition: background-color 0.2s;
+      }
+
+      .btn-icon:hover {
+        background-color: rgba(0, 130, 201, 0.1);
+      }
+
+      .current-page {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--text-dark);
+        padding: 0 0.75rem;
+      }
+
+      .main {
+        display: flex;
+        gap: 1.5rem;
+        flex: 1;
+      }
+
+      .editor-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .editor {
+        flex: 1;
+        padding: 1.25rem;
+        background-color: white;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        box-shadow: var(--shadow);
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        resize: none;
+        min-height: 70vh;
+        color: var(--text-dark);
+      }
+
+      .editor:focus {
+        outline: 2px solid var(--primary-light);
+        border-color: transparent;
+      }
+
+      .preview-container {
+        flex: 1;
+        padding: 1.25rem;
+        background-color: white;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        box-shadow: var(--shadow);
+        overflow-y: auto;
+        min-height: 70vh;
+      }
+
+      .preview h1,
+      .preview h2,
+      .preview h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--text-dark);
+      }
+
+      .preview h1 {
+        font-size: 1.8rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+      }
+
+      .preview h2 {
+        font-size: 1.5rem;
+      }
+
+      .preview h3 {
+        font-size: 1.25rem;
+      }
+
+      .preview p {
+        margin-bottom: 1rem;
+      }
+
+      .preview ul,
+      .preview ol {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+      }
+
+      .preview blockquote {
+        border-left: 4px solid var(--primary);
+        padding-left: 1rem;
+        margin-left: 0;
+        margin-bottom: 1rem;
+        color: var(--text-light);
+      }
+
+      .preview code {
+        background-color: var(--bg-light);
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+        font-size: 0.85em;
+      }
+
+      .preview pre {
+        background-color: var(--secondary);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      .preview pre code {
+        background-color: transparent;
+        color: white;
+        padding: 0;
+      }
+
+      .footer {
+        margin-top: 2rem;
+        padding: 1rem 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-light);
+        font-size: 0.875rem;
+      }
+
+      .recent-pages {
+        margin-top: 1.5rem;
+      }
+
+      .recent-pages h3 {
+        font-size: 1.1rem;
+        color: var(--text-dark);
+        margin-bottom: 0.75rem;
+      }
+
+      .page-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .page-item {
+        background-color: white;
+        border: 1px solid var(--border);
+        border-radius: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+      }
+
+      .page-item:hover {
+        border-color: var(--primary);
+        box-shadow: var(--shadow);
+      }
+
+      .page-item.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+      }
+
+      .save-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--success);
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+      }
+
+      .storage-badge {
+        display: inline-block;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 9999px;
+        background-color: #005c8f;
+        color: white;
+        font-weight: bold;
+        margin-left: 0.5rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+
+      /* View toggle styles */
+      .view-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: 1rem;
+      }
+
+      .view-option {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        background-color: var(--bg-light);
+        border-radius: 0.25rem;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        color: var(--text-light);
+        transition: all 0.2s;
+      }
+
+      .view-option:hover {
+        background-color: rgba(0, 130, 201, 0.2);
+        color: var(--primary-dark);
+      }
+
+      .view-option:hover svg {
+        stroke: var(--primary-dark);
+      }
+
+      .view-option.active {
+        background-color: #005c8f;
+        color: white;
+        border-color: var(--primary);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transform: scale(1.05);
+        font-weight: bold;
+      }
+
+      .view-option.active svg {
+        stroke: white;
+        stroke-width: 2.5;
+        fill: none;
+      }
+
+      /* Full editor or preview mode */
+      .main.editor-only .preview-container {
+        display: none;
+      }
+
+      .main.editor-only .editor-container {
+        width: 100%;
+      }
+
+      .main.preview-only .editor-container {
+        display: none;
+      }
+
+      .main.preview-only .preview-container {
+        width: 100%;
+      }
+
+      @media (max-width: 768px) {
+        .main {
+          flex-direction: column;
+        }
+
+        .editor,
+        .preview-container {
+          min-height: 40vh;
+        }
+
+        .page-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 1rem;
+        }
+
+        .page-nav {
+          width: 100%;
+          justify-content: space-between;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navbar"></div>
+    <div id="app"></div>
+
+    <!-- Import HTM and Preact -->
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+    <script src="https://unpkg.com/preact@10.11.3/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.11.3/hooks/dist/hooks.umd.js"></script>
+
+    <!-- Import Marked for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
+
+    <script type="module">
+      // Import navbar and nosdav shim
+      import Navbar from './navbar.js'
+      import './nosdav-shim.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+
+      // Make secp256k1 available globally (required by nosdav-shim.js)
+      window.secp256k1 = secp256k1
+
+      // Initialize the navbar
+      const navbarContainer = document.getElementById('navbar')
+      if (navbarContainer) {
+        preact.render(preact.h(Navbar), navbarContainer)
+      }
+
+      // Initialize HTM with Preact
+      const html = htm.bind(preact.h)
+      const { useState, useEffect, useRef, useCallback } = preactHooks
+
+      // View modes
+      const VIEW_MODES = {
+        SPLIT: 'split',
+        EDITOR: 'editor',
+        PREVIEW: 'preview'
+      }
+
+      // Page storage utilities
+      const PageStorage = {
+        getPagePath(pageName) {
+          // Handle spaces and special characters for filenames
+          const safePageName = pageName
+            .replace(/[^a-zA-Z0-9-_]/g, '-')
+            .toLowerCase()
+          return `public/pages/${safePageName}.md`
+        },
+
+        async savePage(pageName, content) {
+          const path = this.getPagePath(pageName)
+
+          try {
+            // Save to nosdav
+            const pubkey = localStorage.getItem('pubkey')
+            if (!pubkey) {
+              console.error('No pubkey found for nosdav storage')
+              // Fallback to localStorage
+              localStorage.setItem(`page_${pageName}`, content)
+              this.updatePageIndex(pageName)
+              return pageName
+            }
+
+            const url = `https://nosdav.net/${pubkey}/${path}`
+            const response = await fetch(url, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'text/markdown'
+              },
+              body: content
+            })
+
+            if (!response.ok) throw new Error('Network response was not ok')
+            console.log('Page saved to nosdav successfully')
+
+            // Update index in both nosdav and localStorage
+            this.updatePageIndex(pageName)
+            return pageName
+          } catch (e) {
+            console.error('Error saving to nosdav:', e)
+            // Fall back to localStorage
+            localStorage.setItem(`page_${pageName}`, content)
+            this.updatePageIndex(pageName)
+            return pageName
+          }
+        },
+
+        async getPage(pageName) {
+          const path = this.getPagePath(pageName)
+
+          try {
+            // Try to get from nosdav
+            const pubkey = localStorage.getItem('pubkey')
+            if (!pubkey) {
+              console.error('No pubkey found for nosdav storage')
+              // Fallback to localStorage
+              return localStorage.getItem(`page_${pageName}`) || ''
+            }
+
+            const url = `https://nosdav.net/${pubkey}/${path}`
+            const response = await fetch(url)
+
+            if (response.status === 404) {
+              return ''
+            }
+
+            if (!response.ok) throw new Error('Network response was not ok')
+            const content = await response.text()
+            return content
+          } catch (e) {
+            console.error('Error loading from nosdav:', e)
+            // Try to load from localStorage
+            return localStorage.getItem(`page_${pageName}`) || ''
+          }
+        },
+
+        async updatePageIndex(pageName) {
+          let index = await this.getPageIndex()
+          if (!index.includes(pageName)) {
+            index.push(pageName)
+
+            try {
+              // Save index to nosdav
+              const pubkey = localStorage.getItem('pubkey')
+              if (pubkey) {
+                const url = `https://nosdav.net/${pubkey}/public/pages/index.json`
+                await fetch(url, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(index)
+                })
+              }
+            } catch (e) {
+              console.error('Error saving index to nosdav:', e)
+            }
+
+            // Also save to localStorage as backup
+            localStorage.setItem('page_index', JSON.stringify(index))
+          }
+        },
+
+        async getPageIndex() {
+          try {
+            // Try to get index from nosdav
+            const pubkey = localStorage.getItem('pubkey')
+            if (pubkey) {
+              const url = `https://nosdav.net/${pubkey}/public/pages/index.json`
+              const response = await fetch(url)
+
+              if (response.ok) {
+                const index = await response.json()
+                return index
+              }
+            }
+          } catch (e) {
+            console.error('Error loading index from nosdav:', e)
+          }
+
+          // Fallback to localStorage
+          const index = localStorage.getItem('page_index')
+          return index ? JSON.parse(index) : []
+        }
+      }
+
+      // Page Editor Component
+      function PageEditor() {
+        const [currentPage, setCurrentPage] = useState('index')
+        const [pageInput, setPageInput] = useState('index')
+        const [content, setContent] = useState('')
+        const [savedStatus, setSavedStatus] = useState('')
+        const [pageEntries, setPageEntries] = useState([])
+        const [storageType, setStorageType] = useState('')
+        const [viewMode, setViewMode] = useState(VIEW_MODES.SPLIT)
+        const editorRef = useRef(null)
+        const saveTimeoutRef = useRef(null)
+
+        // Load page content
+        useEffect(() => {
+          const loadContent = async () => {
+            const savedContent = await PageStorage.getPage(currentPage)
+            setContent(savedContent)
+            setPageInput(currentPage)
+            const pubkey = localStorage.getItem('pubkey')
+            setStorageType(pubkey ? 'nosdav' : 'local')
+            await loadPageEntries()
+
+            // Focus editor when page changes
+            if (editorRef.current) {
+              editorRef.current.focus()
+            }
+          }
+
+          loadContent()
+        }, [currentPage])
+
+        // Load saved view mode from localStorage
+        useEffect(() => {
+          const savedViewMode = localStorage.getItem('page_view_mode')
+          if (
+            savedViewMode &&
+            Object.values(VIEW_MODES).includes(savedViewMode)
+          ) {
+            setViewMode(savedViewMode)
+          }
+        }, [])
+
+        // Load all page entries
+        const loadPageEntries = async () => {
+          const entries = await PageStorage.getPageIndex()
+          setPageEntries(entries)
+        }
+
+        // Handle content changes and auto-save
+        const handleContentChange = e => {
+          const newContent = e.target.value
+          setContent(newContent)
+
+          // Clear previous timeout
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current)
+          }
+
+          // Set new timeout for auto-save
+          setSavedStatus('Saving...')
+          saveTimeoutRef.current = setTimeout(async () => {
+            await PageStorage.savePage(currentPage, newContent)
+            setSavedStatus('Saved')
+            await loadPageEntries()
+
+            // Clear saved status after 2 seconds
+            setTimeout(() => {
+              setSavedStatus('')
+            }, 2000)
+          }, 1000)
+        }
+
+        // Toggle view mode
+        const toggleViewMode = mode => {
+          setViewMode(mode)
+          localStorage.setItem('page_view_mode', mode)
+        }
+
+        // Handle page input change
+        const handlePageInputChange = e => {
+          setPageInput(e.target.value)
+        }
+
+        // Navigate to page
+        const navigateToPage = () => {
+          if (pageInput.trim()) {
+            setCurrentPage(pageInput.trim())
+          }
+        }
+
+        // Handle Enter key in page input
+        const handlePageInputKeyDown = e => {
+          if (e.key === 'Enter') {
+            navigateToPage()
+          }
+        }
+
+        // Load a specific page
+        const loadPage = pageName => {
+          setCurrentPage(pageName)
+        }
+
+        // Check if a page is the current one
+        const isCurrentPage = pageName => {
+          return pageName === currentPage
+        }
+
+        // Open the current page file in a new tab
+        const openStorageFile = () => {
+          const pubkey = localStorage.getItem('pubkey')
+          if (pubkey) {
+            const path = PageStorage.getPagePath(currentPage)
+            const url = `https://nosdav.net/${pubkey}/${path}`
+            window.open(url, '_blank')
+          } else {
+            alert('No pubkey found. Cannot open storage file.')
+          }
+        }
+
+        // Main class for the editor/preview container based on view mode
+        const getMainClass = () => {
+          switch (viewMode) {
+            case VIEW_MODES.EDITOR:
+              return 'main editor-only'
+            case VIEW_MODES.PREVIEW:
+              return 'main preview-only'
+            default:
+              return 'main'
+          }
+        }
+
+        return html`
+          <div class="container">
+            <div class="page-header">
+              <div class="page-title">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Pages
+                ${storageType === 'nosdav'
+                  ? html`<span class="storage-badge">Cloud</span>`
+                  : html`<span class="storage-badge">Local</span>`}
+
+                <!-- View toggle icons -->
+                <div class="view-toggle">
+                  <!-- Split view -->
+                  <div
+                    class="view-option ${viewMode === VIEW_MODES.SPLIT
+                      ? 'active'
+                      : ''}"
+                    onClick=${() => toggleViewMode(VIEW_MODES.SPLIT)}
+                    title="Split View"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect
+                        x="3"
+                        y="3"
+                        width="18"
+                        height="18"
+                        rx="2"
+                        ry="2"
+                      ></rect>
+                      <line x1="12" y1="3" x2="12" y2="21"></line>
+                    </svg>
+                  </div>
+
+                  <!-- Editor only view -->
+                  <div
+                    class="view-option ${viewMode === VIEW_MODES.EDITOR
+                      ? 'active'
+                      : ''}"
+                    onClick=${() => toggleViewMode(VIEW_MODES.EDITOR)}
+                    title="Editor View"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+                      ></path>
+                    </svg>
+                  </div>
+
+                  <!-- Preview only view -->
+                  <div
+                    class="view-option ${viewMode === VIEW_MODES.PREVIEW
+                      ? 'active'
+                      : ''}"
+                    onClick=${() => toggleViewMode(VIEW_MODES.PREVIEW)}
+                    title="Preview View"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                      ></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </div>
+
+                  <!-- Open in new tab (if using nosdav) -->
+                  ${storageType === 'nosdav' &&
+                  html`
+                    <div
+                      class="view-option"
+                      onClick=${openStorageFile}
+                      title="Open in New Tab"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path
+                          d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+                        ></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </div>
+                  `}
+                </div>
+              </div>
+              <div class="page-nav">
+                <input
+                  type="text"
+                  class="page-input"
+                  value=${pageInput}
+                  onInput=${handlePageInputChange}
+                  onKeyDown=${handlePageInputKeyDown}
+                  placeholder="Enter page name..."
+                />
+                <button class="btn" onClick=${navigateToPage}>Go</button>
+              </div>
+            </div>
+
+            <main class=${getMainClass()}>
+              <div class="editor-container">
+                <textarea
+                  ref=${editorRef}
+                  class="editor"
+                  value=${content}
+                  onInput=${handleContentChange}
+                  placeholder="Write in Markdown format..."
+                ></textarea>
+                ${savedStatus &&
+                html`
+                  <div class="save-indicator">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    ${savedStatus}
+                  </div>
+                `}
+              </div>
+
+              <div class="preview-container">
+                <div
+                  class="preview"
+                  dangerouslySetInnerHTML=${{ __html: marked.parse(content) }}
+                ></div>
+              </div>
+            </main>
+
+            <div class="recent-pages">
+              <h3>Recent Pages</h3>
+              <div class="page-list">
+                ${pageEntries
+                  .slice(-10)
+                  .reverse()
+                  .map(pageName => {
+                    return html`
+                      <div
+                        class="page-item ${isCurrentPage(pageName)
+                          ? 'active'
+                          : ''}"
+                        onClick=${() => loadPage(pageName)}
+                      >
+                        ${pageName}
+                      </div>
+                    `
+                  })}
+              </div>
+            </div>
+
+            <footer class="footer">
+              <p>Pages - A simple Markdown editor for your notes</p>
+            </footer>
+          </div>
+        `
+      }
+
+      // Render the app
+      preact.render(html`<${PageEditor} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
