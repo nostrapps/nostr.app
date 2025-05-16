@@ -284,6 +284,56 @@
         margin-left: 0.5rem;
       }
 
+      /* View toggle styles */
+      .view-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: 1rem;
+      }
+
+      .view-option {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        background-color: var(--bg-light);
+        border-radius: 0.25rem;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        color: var(--text-light);
+        transition: all 0.2s;
+      }
+
+      .view-option:hover {
+        background-color: var(--primary-light);
+        color: white;
+      }
+
+      .view-option.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+      }
+
+      /* Full editor or preview mode */
+      .main.editor-only .preview-container {
+        display: none;
+      }
+
+      .main.editor-only .editor-container {
+        width: 100%;
+      }
+
+      .main.preview-only .editor-container {
+        display: none;
+      }
+
+      .main.preview-only .preview-container {
+        width: 100%;
+      }
+
       @media (max-width: 768px) {
         .main {
           flex-direction: column;
@@ -292,6 +342,17 @@
         .editor,
         .preview-container {
           min-height: 40vh;
+        }
+
+        .journal-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 1rem;
+        }
+
+        .date-nav {
+          width: 100%;
+          justify-content: space-between;
         }
       }
     </style>
@@ -326,6 +387,13 @@
       // Initialize HTM with Preact
       const html = htm.bind(preact.h)
       const { useState, useEffect, useRef, useCallback } = preactHooks
+
+      // View modes
+      const VIEW_MODES = {
+        SPLIT: 'split',
+        EDITOR: 'editor',
+        PREVIEW: 'preview'
+      }
 
       // Journal storage utilities
       const JournalStorage = {
@@ -478,6 +546,7 @@
         const [savedStatus, setSavedStatus] = useState('')
         const [journalEntries, setJournalEntries] = useState([])
         const [storageType, setStorageType] = useState('')
+        const [viewMode, setViewMode] = useState(VIEW_MODES.SPLIT)
         const editorRef = useRef(null)
         const saveTimeoutRef = useRef(null)
 
@@ -498,6 +567,17 @@
 
           loadContent()
         }, [currentDate])
+
+        // Load saved view mode from localStorage
+        useEffect(() => {
+          const savedViewMode = localStorage.getItem('journal_view_mode')
+          if (
+            savedViewMode &&
+            Object.values(VIEW_MODES).includes(savedViewMode)
+          ) {
+            setViewMode(savedViewMode)
+          }
+        }, [])
 
         // Load all journal entries
         const loadJournalEntries = async () => {
@@ -527,6 +607,12 @@
               setSavedStatus('')
             }, 2000)
           }, 1000)
+        }
+
+        // Toggle view mode
+        const toggleViewMode = mode => {
+          setViewMode(mode)
+          localStorage.setItem('journal_view_mode', mode)
         }
 
         // Navigation functions
@@ -583,6 +669,18 @@
           }
         }
 
+        // Main class for the editor/preview container based on view mode
+        const getMainClass = () => {
+          switch (viewMode) {
+            case VIEW_MODES.EDITOR:
+              return 'main editor-only'
+            case VIEW_MODES.PREVIEW:
+              return 'main preview-only'
+            default:
+              return 'main'
+          }
+        }
+
         return html`
           <div class="container">
             <div class="journal-header">
@@ -609,6 +707,115 @@
                 ${storageType === 'nosdav'
                   ? html`<span class="storage-badge">Cloud</span>`
                   : html`<span class="storage-badge">Local</span>`}
+
+                <!-- View toggle icons -->
+                <div class="view-toggle">
+                  <!-- Split view -->
+                  <div
+                    class="view-option ${viewMode === VIEW_MODES.SPLIT
+                      ? 'active'
+                      : ''}"
+                    onClick=${() => toggleViewMode(VIEW_MODES.SPLIT)}
+                    title="Split View"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect
+                        x="3"
+                        y="3"
+                        width="18"
+                        height="18"
+                        rx="2"
+                        ry="2"
+                      ></rect>
+                      <line x1="12" y1="3" x2="12" y2="21"></line>
+                    </svg>
+                  </div>
+
+                  <!-- Editor only view -->
+                  <div
+                    class="view-option ${viewMode === VIEW_MODES.EDITOR
+                      ? 'active'
+                      : ''}"
+                    onClick=${() => toggleViewMode(VIEW_MODES.EDITOR)}
+                    title="Editor View"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+                      ></path>
+                    </svg>
+                  </div>
+
+                  <!-- Preview only view -->
+                  <div
+                    class="view-option ${viewMode === VIEW_MODES.PREVIEW
+                      ? 'active'
+                      : ''}"
+                    onClick=${() => toggleViewMode(VIEW_MODES.PREVIEW)}
+                    title="Preview View"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                      ></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </div>
+
+                  <!-- Open in new tab (if using nosdav) -->
+                  ${storageType === 'nosdav' &&
+                  html`
+                    <div
+                      class="view-option"
+                      onClick=${openStorageFile}
+                      title="Open in New Tab"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path
+                          d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+                        ></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </div>
+                  `}
+                </div>
               </div>
               <div class="date-nav">
                 <button
@@ -652,7 +859,7 @@
               </div>
             </div>
 
-            <main class="main">
+            <main class=${getMainClass()}>
               <div class="editor-container">
                 <textarea
                   ref=${editorRef}
@@ -678,18 +885,6 @@
                       <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
                     ${savedStatus}
-                  </div>
-                `}
-                ${storageType === 'nosdav' &&
-                html`
-                  <div style="margin-top: 0.5rem; text-align: right;">
-                    <button
-                      onClick=${openStorageFile}
-                      class="btn"
-                      style="font-size: 0.75rem; padding: 0.25rem 0.5rem;"
-                    >
-                      View File
-                    </button>
                   </div>
                 `}
               </div>
