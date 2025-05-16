@@ -632,6 +632,15 @@
           loadContent()
         }, [currentPage])
 
+        // Check for page parameter in URL on initial load
+        useEffect(() => {
+          const queryParams = new URLSearchParams(window.location.search)
+          const pageParam = queryParams.get('page')
+          if (pageParam) {
+            setCurrentPage(pageParam)
+          }
+        }, [])
+
         // Load saved view mode from localStorage
         useEffect(() => {
           const savedViewMode = localStorage.getItem('page_view_mode')

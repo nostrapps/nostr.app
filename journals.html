@@ -370,6 +370,28 @@
           justify-content: space-between;
         }
       }
+
+      .wiki-link {
+        color: var(--primary);
+        text-decoration: none;
+        border-bottom: 1px dashed var(--primary-light);
+        cursor: pointer;
+      }
+
+      .wiki-link:hover {
+        background-color: rgba(0, 130, 201, 0.1);
+        border-bottom: 1px solid var(--primary);
+      }
+
+      /* Add a special style for non-existent pages */
+      .wiki-link.new-page {
+        color: #e67e22;
+        border-bottom: 1px dashed #e67e22;
+      }
+
+      .wiki-link.new-page:hover {
+        background-color: rgba(230, 126, 34, 0.1);
+      }
     </style>
   </head>
   <body>
@@ -392,6 +414,38 @@
 
       // Make secp256k1 available globally (required by nosdav-shim.js)
       window.secp256k1 = secp256k1
+
+      // Configure Marked to recognize wiki-links [[foo]]
+      const wikiLinkExtension = {
+        name: 'wikiLink',
+        level: 'inline',
+        start(src) {
+          return src.match(/\[\[/)?.index
+        },
+        tokenizer(src) {
+          const rule = /^\[\[([^\[\]]+)\]\]/
+          const match = rule.exec(src)
+          if (match) {
+            return {
+              type: 'wikiLink',
+              raw: match[0],
+              text: match[1].trim(),
+              tokens: []
+            }
+          }
+          return undefined
+        },
+        renderer(token) {
+          const pageName = token.text
+          const safePageName = pageName
+            .replace(/[^a-zA-Z0-9-_]/g, '-')
+            .toLowerCase()
+          return `<a href="#" class="wiki-link" data-page="${pageName}" data-link-type="page">[[${pageName}]]</a>`
+        }
+      }
+
+      // Add the extension to marked
+      marked.use({ extensions: [wikiLinkExtension] })
 
       // Initialize the navbar
       const navbarContainer = document.getElementById('navbar')
@@ -563,6 +617,7 @@
         const [storageType, setStorageType] = useState('')
         const [viewMode, setViewMode] = useState(VIEW_MODES.SPLIT)
         const editorRef = useRef(null)
+        const previewContainerRef = useRef(null)
         const saveTimeoutRef = useRef(null)
 
         // Load journal entry for the current date
@@ -593,6 +648,66 @@
             setViewMode(savedViewMode)
           }
         }, [])
+
+        // Set up event listener for wiki links
+        useEffect(() => {
+          if (previewContainerRef.current) {
+            const handleWikiLinkClick = e => {
+              // Check if the clicked element is a wiki link
+              if (e.target.classList.contains('wiki-link')) {
+                e.preventDefault()
+                const pageName = e.target.dataset.page
+                const linkType = e.target.dataset.linkType
+
+                if (pageName) {
+                  if (linkType === 'page') {
+                    // Navigate to pages.html with the page name
+                    window.location.href = `pages.html?page=${encodeURIComponent(
+                      pageName
+                    )}`
+                  } else {
+                    // Try to extract a date from the link, or use today's date
+                    let date
+                    const dateParts = pageName.split('_')
+                    if (dateParts.length === 3) {
+                      try {
+                        date = new Date(
+                          parseInt(dateParts[0]),
+                          parseInt(dateParts[1]) - 1,
+                          parseInt(dateParts[2])
+                        )
+                        if (isNaN(date.getTime())) {
+                          date = new Date()
+                        }
+                      } catch (e) {
+                        date = new Date()
+                      }
+                    } else {
+                      date = new Date()
+                    }
+                    setCurrentDate(date)
+                  }
+                }
+              }
+            }
+
+            // Add click event listener to the preview container
+            previewContainerRef.current.addEventListener(
+              'click',
+              handleWikiLinkClick
+            )
+
+            // Clean up the event listener
+            return () => {
+              if (previewContainerRef.current) {
+                previewContainerRef.current.removeEventListener(
+                  'click',
+                  handleWikiLinkClick
+                )
+              }
+            }
+          }
+        }, [content, viewMode])
 
         // Load all journal entries
         const loadJournalEntries = async () => {
@@ -682,6 +797,42 @@
           } else {
             alert('No pubkey found. Cannot open storage file.')
           }
+        }
+
+        // Helper function to insert wiki link at cursor
+        const insertWikiLink = () => {
+          if (!editorRef.current) return
+
+          const textarea = editorRef.current
+          const start = textarea.selectionStart
+          const end = textarea.selectionEnd
+          const selectedText = textarea.value.substring(start, end)
+
+          // Prepare the wiki link text - use selection or prompt for page name
+          let linkText
+          if (selectedText) {
+            linkText = selectedText
+          } else {
+            linkText = prompt('Enter page name:', 'page-name')
+            if (!linkText) return // User canceled the prompt
+          }
+
+          const wikiLink = `[[${linkText}]]`
+
+          // Insert the wiki link at the cursor position
+          const newContent =
+            textarea.value.substring(0, start) +
+            wikiLink +
+            textarea.value.substring(end)
+
+          setContent(newContent)
+
+          // Focus and set cursor position after the inserted text
+          setTimeout(() => {
+            textarea.focus()
+            const newPosition = start + wikiLink.length
+            textarea.setSelectionRange(newPosition, newPosition)
+          }, 0)
         }
 
         // Main class for the editor/preview container based on view mode
@@ -830,6 +981,31 @@
                       </svg>
                     </div>
                   `}
+
+                  <!-- Add Wiki Link button -->
+                  <div
+                    class="view-option"
+                    onClick=${insertWikiLink}
+                    title="Insert Wiki Link"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                      ></path>
+                      <path
+                        d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                      ></path>
+                    </svg>
+                  </div>
                 </div>
               </div>
               <div class="date-nav">
@@ -904,7 +1080,7 @@
                 `}
               </div>
 
-              <div class="preview-container">
+              <div class="preview-container" ref=${previewContainerRef}>
                 <div
                   class="preview"
                   dangerouslySetInnerHTML=${{ __html: marked.parse(content) }}
