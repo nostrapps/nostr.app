@@ -449,7 +449,7 @@
             .replace(/[^a-zA-Z0-9-_]/g, '-')
             .toLowerCase()
           const href = `../pages/${safePageName}.md`
-          return `<a href="#" class="wiki-link" data-page="${pageName}">${pageName}</a>`
+          return `<a href="#" class="wiki-link" data-page="${pageName}">[[${pageName}]]</a>`
         }
       }
 
