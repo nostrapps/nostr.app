@@ -519,20 +519,14 @@
                 this.fetchJsonFromUrl(
                   uriParam.startsWith('@') ? uriParam.substring(1) : uriParam
                 )
-                // Don't clear the URI yet - will be done after fetch completes
+                // No longer clearing the URL - keeping the query string intact
               } else {
                 // Try to decode URI component and parse as JSON
                 const jsonData = JSON.parse(decodeURIComponent(uriParam))
                 console.log('JSON data from URI parameter:', jsonData)
                 // Handle the JSON data
                 this.handleUriData(jsonData)
-
-                // Clear the URI parameter after processing inline JSON
-                window.history.replaceState(
-                  null,
-                  null,
-                  window.location.pathname
-                )
+                // No longer clearing the URL - keeping the query string intact
               }
             } catch (error) {
               console.error('Error parsing URI parameter:', error)
@@ -579,9 +573,7 @@
             .then(jsonData => {
               console.log('JSON data fetched from URL:', jsonData)
               this.handleUriData(jsonData)
-
-              // Now clear the URI parameter after fetch is complete and data is processed
-              window.history.replaceState(null, null, window.location.pathname)
+              // No longer clearing the URL - keeping the query string intact
             })
             .catch(error => {
               console.error('Error fetching JSON from URL:', error)
@@ -601,28 +593,14 @@
                       jsonData
                     )
                     this.handleUriData(jsonData)
-                    window.history.replaceState(
-                      null,
-                      null,
-                      window.location.pathname
-                    )
+                    // No longer clearing the URL - keeping the query string intact
                   })
                   .catch(altError => {
                     console.error('Error with alternative proxy:', altError)
-                    window.history.replaceState(
-                      null,
-                      null,
-                      window.location.pathname
-                    )
+                    // No longer clearing the URL - keeping the query string intact
                   })
-              } else {
-                // Still clear the URI parameter even if there's an error
-                window.history.replaceState(
-                  null,
-                  null,
-                  window.location.pathname
-                )
               }
+              // No longer clearing the URL - keeping the query string intact
             })
         }
 
