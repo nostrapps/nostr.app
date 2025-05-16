@@ -7,14 +7,16 @@
     <style>
       :root {
         --primary: #0082c9;
-        --primary-light: #00a2f9;
+        --primary-light: #8ecae6;
+        --primary-dark: #0070b0;
         --secondary: #2d2d2d;
-        --bg-light: #f5f7fa;
-        --text-dark: #222;
-        --text-light: #666;
-        --border: #ddd;
+        --bg-light: #f8fafc;
+        --text-dark: #334155;
+        --text-light: #64748b;
+        --border: #e2e8f0;
         --success: #46ba89;
         --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        --accent: #0082c9;
       }
 
       * {
@@ -37,31 +39,38 @@
         padding: 1rem;
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
+        min-height: calc(100vh - 60px); /* Account for navbar */
       }
 
-      .header {
+      .journal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 1rem 0;
-        border-bottom: 1px solid var(--border);
         margin-bottom: 1.5rem;
       }
 
-      .logo {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: var(--primary);
+      .journal-title {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary);
+      }
+
+      .journal-title svg {
+        margin-right: 0.5rem;
+        color: var(--primary);
       }
 
       .date-nav {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.5rem;
+        background-color: #fff;
+        padding: 0.5rem;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       }
 
       .btn {
@@ -76,7 +85,7 @@
       }
 
       .btn:hover {
-        background-color: var(--primary-light);
+        background-color: var(--primary-dark);
       }
 
       .btn-icon {
@@ -84,7 +93,6 @@
         border: none;
         color: var(--primary);
         cursor: pointer;
-        font-size: 1.25rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -102,6 +110,7 @@
         font-size: 1rem;
         font-weight: 500;
         color: var(--text-dark);
+        padding: 0 0.75rem;
       }
 
       .main {
@@ -118,7 +127,7 @@
 
       .editor {
         flex: 1;
-        padding: 1rem;
+        padding: 1.25rem;
         background-color: white;
         border: 1px solid var(--border);
         border-radius: 0.5rem;
@@ -128,6 +137,7 @@
         line-height: 1.6;
         resize: none;
         min-height: 70vh;
+        color: var(--text-dark);
       }
 
       .editor:focus {
@@ -137,7 +147,7 @@
 
       .preview-container {
         flex: 1;
-        padding: 1rem;
+        padding: 1.25rem;
         background-color: white;
         border: 1px solid var(--border);
         border-radius: 0.5rem;
@@ -218,8 +228,17 @@
         font-size: 0.875rem;
       }
 
+      .recent-entries {
+        margin-top: 1.5rem;
+      }
+
+      .recent-entries h3 {
+        font-size: 1.1rem;
+        color: var(--text-dark);
+        margin-bottom: 0.75rem;
+      }
+
       .journal-list {
-        margin-top: 1rem;
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
@@ -229,9 +248,10 @@
         background-color: white;
         border: 1px solid var(--border);
         border-radius: 0.25rem;
-        padding: 0.5rem;
+        padding: 0.5rem 0.75rem;
         cursor: pointer;
         transition: all 0.2s;
+        font-size: 0.875rem;
       }
 
       .journal-item:hover {
@@ -252,6 +272,16 @@
         color: var(--success);
         font-size: 0.875rem;
         margin-top: 0.5rem;
+      }
+
+      .storage-badge {
+        display: inline-block;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 9999px;
+        background-color: #e2f0fa;
+        color: var(--primary);
+        margin-left: 0.5rem;
       }
 
       @media (max-width: 768px) {
@@ -555,8 +585,8 @@
 
         return html`
           <div class="container">
-            <header class="header">
-              <div class="logo">
+            <div class="journal-header">
+              <div class="journal-title">
                 <svg
                   width="24"
                   height="24"
@@ -576,6 +606,9 @@
                   <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
                 Daily Journal
+                ${storageType === 'nosdav'
+                  ? html`<span class="storage-badge">Cloud</span>`
+                  : html`<span class="storage-badge">Local</span>`}
               </div>
               <div class="date-nav">
                 <button
@@ -584,8 +617,8 @@
                   title="Previous Day"
                 >
                   <svg
-                    width="24"
-                    height="24"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -603,8 +636,8 @@
                   title="Next Day"
                 >
                   <svg
-                    width="24"
-                    height="24"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -617,7 +650,7 @@
                 </button>
                 <button class="btn" onClick=${goToToday}>Today</button>
               </div>
-            </header>
+            </div>
 
             <main class="main">
               <div class="editor-container">
@@ -655,7 +688,7 @@
                       class="btn"
                       style="font-size: 0.75rem; padding: 0.25rem 0.5rem;"
                     >
-                      View in Browser
+                      View File
                     </button>
                   </div>
                 `}
@@ -669,10 +702,8 @@
               </div>
             </main>
 
-            <div>
-              <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
-                Recent Entries
-              </h3>
+            <div class="recent-entries">
+              <h3>Recent Entries</h3>
               <div class="journal-list">
                 ${journalEntries
                   .slice(-10)
@@ -695,13 +726,6 @@
 
             <footer class="footer">
               <p>Daily Journal App - Your thoughts, organized by day</p>
-              ${storageType === 'nosdav'
-                ? html`<p style="font-size: 0.75rem; margin-top: 0.5rem;">
-                    Using nosdav cloud storage
-                  </p>`
-                : html`<p style="font-size: 0.75rem; margin-top: 0.5rem;">
-                    Using local storage (login for cloud storage)
-                  </p>`}
             </footer>
           </div>
         `
