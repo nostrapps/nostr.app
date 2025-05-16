@@ -501,6 +501,178 @@
               window.location.pathname + window.location.search
             )
           }
+
+          // Parse JSON data from URI query parameter
+          this.parseUriQueryParam()
+        }
+
+        parseUriQueryParam() {
+          const urlParams = new URLSearchParams(window.location.search)
+          const uriParam = urlParams.get('uri')
+
+          if (uriParam) {
+            try {
+              // Check if the URI parameter is a URL (starts with @ or http)
+              if (uriParam.startsWith('@') || uriParam.startsWith('http')) {
+                console.log('URL data from URI parameter:', uriParam)
+                // Handle the URL string - fetch JSON data from the URL
+                this.fetchJsonFromUrl(
+                  uriParam.startsWith('@') ? uriParam.substring(1) : uriParam
+                )
+                // Don't clear the URI yet - will be done after fetch completes
+              } else {
+                // Try to decode URI component and parse as JSON
+                const jsonData = JSON.parse(decodeURIComponent(uriParam))
+                console.log('JSON data from URI parameter:', jsonData)
+                // Handle the JSON data
+                this.handleUriData(jsonData)
+
+                // Clear the URI parameter after processing inline JSON
+                window.history.replaceState(
+                  null,
+                  null,
+                  window.location.pathname
+                )
+              }
+            } catch (error) {
+              console.error('Error parsing URI parameter:', error)
+              // Optionally show user-friendly error message
+            }
+          }
+        }
+
+        fetchJsonFromUrl(url) {
+          console.log('Fetching JSON data from URL:', url)
+
+          // Determine if we need to use a CORS proxy for cross-origin requests
+          const isExternalUrl =
+            !url.startsWith(window.location.origin) &&
+            !url.startsWith('/') &&
+            !url.startsWith('.')
+
+          // Use a CORS proxy for external URLs to avoid CORS issues
+          const fetchUrl = isExternalUrl
+            ? `https://cors-anywhere.herokuapp.com/${url}`
+            : url
+
+          // Alternative proxies if the above doesn't work:
+          // - `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+          // - `https://corsproxy.io/?${encodeURIComponent(url)}`
+
+          console.log('Fetching from URL (with CORS handling):', fetchUrl)
+
+          fetch(fetchUrl, {
+            headers: {
+              Accept: 'application/json',
+              // Add the following header if using cors-anywhere
+              ...(isExternalUrl ? { 'X-Requested-With': 'XMLHttpRequest' } : {})
+            }
+          })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(
+                  `Network response was not ok: ${response.status}`
+                )
+              }
+              return response.json()
+            })
+            .then(jsonData => {
+              console.log('JSON data fetched from URL:', jsonData)
+              this.handleUriData(jsonData)
+
+              // Now clear the URI parameter after fetch is complete and data is processed
+              window.history.replaceState(null, null, window.location.pathname)
+            })
+            .catch(error => {
+              console.error('Error fetching JSON from URL:', error)
+
+              // If first proxy fails, try an alternative
+              if (isExternalUrl && fetchUrl.includes('cors-anywhere')) {
+                console.log('Trying alternative CORS proxy...')
+                const altProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(
+                  url
+                )}`
+
+                fetch(altProxyUrl)
+                  .then(response => response.json())
+                  .then(jsonData => {
+                    console.log(
+                      'JSON data fetched from alternative proxy:',
+                      jsonData
+                    )
+                    this.handleUriData(jsonData)
+                    window.history.replaceState(
+                      null,
+                      null,
+                      window.location.pathname
+                    )
+                  })
+                  .catch(altError => {
+                    console.error('Error with alternative proxy:', altError)
+                    window.history.replaceState(
+                      null,
+                      null,
+                      window.location.pathname
+                    )
+                  })
+              } else {
+                // Still clear the URI parameter even if there's an error
+                window.history.replaceState(
+                  null,
+                  null,
+                  window.location.pathname
+                )
+              }
+            })
+        }
+
+        handleUriData(data) {
+          console.log('Handling URI data:', data)
+
+          // Check if the data contains appData structure
+          if (data.appData) {
+            console.log('Found appData in URI data, updating app state')
+            // Update the entire app data state with the fetched data
+            this.setState(
+              {
+                categories: data.appData.categories || this.state.categories,
+                sidebarItems:
+                  data.appData.sidebarItems || this.state.sidebarItems
+              },
+              () => {
+                console.log(
+                  'App state updated with new data',
+                  this.state.categories
+                )
+              }
+            )
+          }
+
+          // Process the JSON data based on your application needs
+          // For example, if it contains app information, navigate to that app
+          if (data.appId) {
+            const appUrl = this.findAppUrlById(data.appId)
+            if (appUrl) {
+              window.location.href = appUrl
+            }
+          }
+
+          // Or if it contains user data, update user state
+          if (data.userData) {
+            this.setState({ userData: data.userData })
+          }
+        }
+
+        findAppUrlById(appId) {
+          // Search through categories and return URL for matching app ID
+          for (const category of this.state.categories) {
+            for (const app of category.items) {
+              if (app.id === appId) {
+                return app.url
+              }
+            }
+          }
+          return null
         }
 
         checkNostrLogin() {
