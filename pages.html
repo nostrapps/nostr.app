@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pages</title>
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <style>
       :root {
         --primary: #0082c9;
@@ -415,6 +421,30 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
 
     <script type="module">
+      // Add a random version to prevent caching
+      console.log('Loading page editor v' + Math.random())
+
+      // Test the filename conversion
+      function testFilenameConversion() {
+        const testCases = [
+          'project/test',
+          'foo/bar/baz',
+          'test-page',
+          'another_test'
+        ]
+
+        console.log('======= TESTING FILENAME CONVERSION =======')
+        testCases.forEach(test => {
+          console.log(
+            `Original: "${test}" -> Converted: "${test.replace(/\//g, '___')}"`
+          )
+        })
+        console.log('==========================================')
+      }
+
+      // Run the test immediately
+      testFilenameConversion()
+
       // Import navbar and nosdav shim
       import Navbar from './navbar.js'
       import './nosdav-shim.js'
@@ -445,9 +475,12 @@
         },
         renderer(token) {
           const pageName = token.text
-          const safePageName = pageName
-            .replace(/[^a-zA-Z0-9-_]/g, '-')
-            .toLowerCase()
+          console.log('Wiki link pageName:', pageName)
+
+          // Use the consistent utility function for safe file names
+          const safePageName = PageUtils.toSafeFilename(pageName)
+          console.log('Wiki link safePageName:', safePageName)
+
           const href = `../pages/${safePageName}.md`
           return `<a href="#" class="wiki-link" data-page="${pageName}">[[${pageName}]]</a>`
         }
@@ -473,18 +506,38 @@
         PREVIEW: 'preview'
       }
 
+      // Utility functions for page name to file path conversion
+      const PageUtils = {
+        // Convert a page name to a safe file path
+        toSafeFilename(pageName) {
+          console.log('Converting filename:', pageName)
+          // IMPORTANT: Only replace slashes with triple underscores, preserve all other characters
+          const result = pageName.replace(/\//g, '___')
+          console.log('Result after conversion:', result)
+          return result
+        },
+
+        // Get the full path for a page name
+        getPagePath(pageName) {
+          const safePageName = this.toSafeFilename(pageName)
+          const path = `public/pages/${safePageName}.md`
+          console.log('Final path:', path)
+          return path
+        }
+      }
+
       // Page storage utilities
       const PageStorage = {
         getPagePath(pageName) {
-          // Handle spaces and special characters for filenames
-          const safePageName = pageName
-            .replace(/[^a-zA-Z0-9-_]/g, '-')
-            .toLowerCase()
-          return `public/pages/${safePageName}.md`
+          // Use the utility function for consistent path handling
+          console.log('Getting path for page:', pageName)
+          return PageUtils.getPagePath(pageName)
         },
 
         async savePage(pageName, content) {
+          console.log('Saving page with name:', pageName)
           const path = this.getPagePath(pageName)
+          console.log('Using file path:', path)
 
           try {
             // Save to nosdav
@@ -522,7 +575,9 @@
         },
 
         async getPage(pageName) {
+          console.log('Getting page with name:', pageName)
           const path = this.getPagePath(pageName)
+          console.log('Looking up file path:', path)
 
           try {
             // Try to get from nosdav
@@ -534,9 +589,11 @@
             }
 
             const url = `https://nosdav.net/${pubkey}/${path}`
+            console.log('Fetching from URL:', url)
             const response = await fetch(url)
 
             if (response.status === 404) {
+              console.log('Page not found (404)')
               return ''
             }
 
@@ -660,6 +717,7 @@
               if (e.target.classList.contains('wiki-link')) {
                 e.preventDefault()
                 const pageName = e.target.dataset.page
+                console.log('Clicked wiki link for page:', pageName)
                 if (pageName) {
                   setCurrentPage(pageName)
                 }
@@ -728,6 +786,7 @@
         // Navigate to page
         const navigateToPage = () => {
           if (pageInput.trim()) {
+            console.log('Navigating to page:', pageInput.trim())
             setCurrentPage(pageInput.trim())
           }
         }
@@ -761,6 +820,21 @@
           }
         }
 
+        // Debug function to test path conversion
+        const testPathConversion = () => {
+          const testPath = prompt(
+            'Enter a test path (e.g. foo/bar):',
+            'project/test'
+          )
+          if (testPath) {
+            const converted = PageUtils.toSafeFilename(testPath)
+            const fullPath = PageUtils.getPagePath(testPath)
+            alert(
+              `Original: ${testPath}\nConverted: ${converted}\nFull path: ${fullPath}`
+            )
+          }
+        }
+
         // Helper function to insert wiki link at cursor
         const insertWikiLink = () => {
           if (!editorRef.current) return
@@ -770,8 +844,18 @@
           const end = textarea.selectionEnd
           const selectedText = textarea.value.substring(start, end)
 
-          // Prepare the wiki link text - either use selection or placeholder
-          const linkText = selectedText || 'page-name'
+          // Prepare the wiki link text - either use selection or prompt for a hierarchical page name
+          let linkText
+          if (selectedText) {
+            linkText = selectedText
+          } else {
+            linkText = prompt(
+              'Enter page name (can use foo/bar format):',
+              'page-name'
+            )
+            if (!linkText) return // User canceled the prompt
+          }
+
           const wikiLink = `[[${linkText}]]`
 
           // Insert the wiki link at the cursor position
@@ -958,6 +1042,29 @@
                       ></path>
                       <path
                         d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                      ></path>
+                    </svg>
+                  </div>
+
+                  <!-- Debug button -->
+                  <div
+                    class="view-option"
+                    onClick=${testPathConversion}
+                    title="Test Path Conversion"
+                    style="background-color: #f97316;"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
                       ></path>
                     </svg>
                   </div>
