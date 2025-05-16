@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daily Journal</title>
+    <style>
+      :root {
+        --primary: #0082c9;
+        --primary-light: #00a2f9;
+        --secondary: #2d2d2d;
+        --bg-light: #f5f7fa;
+        --text-dark: #222;
+        --text-light: #666;
+        --border: #ddd;
+        --success: #46ba89;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        background-color: var(--bg-light);
+        color: var(--text-dark);
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 1.5rem;
+      }
+
+      .logo {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .date-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .btn {
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: background-color 0.2s;
+      }
+
+      .btn:hover {
+        background-color: var(--primary-light);
+      }
+
+      .btn-icon {
+        background: none;
+        border: none;
+        color: var(--primary);
+        cursor: pointer;
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.25rem;
+        transition: background-color 0.2s;
+      }
+
+      .btn-icon:hover {
+        background-color: rgba(0, 130, 201, 0.1);
+      }
+
+      .current-date {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--text-dark);
+      }
+
+      .main {
+        display: flex;
+        gap: 1.5rem;
+        flex: 1;
+      }
+
+      .editor-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .editor {
+        flex: 1;
+        padding: 1rem;
+        background-color: white;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        box-shadow: var(--shadow);
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        resize: none;
+        min-height: 70vh;
+      }
+
+      .editor:focus {
+        outline: 2px solid var(--primary-light);
+        border-color: transparent;
+      }
+
+      .preview-container {
+        flex: 1;
+        padding: 1rem;
+        background-color: white;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        box-shadow: var(--shadow);
+        overflow-y: auto;
+        min-height: 70vh;
+      }
+
+      .preview h1,
+      .preview h2,
+      .preview h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--text-dark);
+      }
+
+      .preview h1 {
+        font-size: 1.8rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+      }
+
+      .preview h2 {
+        font-size: 1.5rem;
+      }
+
+      .preview h3 {
+        font-size: 1.25rem;
+      }
+
+      .preview p {
+        margin-bottom: 1rem;
+      }
+
+      .preview ul,
+      .preview ol {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+      }
+
+      .preview blockquote {
+        border-left: 4px solid var(--primary);
+        padding-left: 1rem;
+        margin-left: 0;
+        margin-bottom: 1rem;
+        color: var(--text-light);
+      }
+
+      .preview code {
+        background-color: var(--bg-light);
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+        font-size: 0.85em;
+      }
+
+      .preview pre {
+        background-color: var(--secondary);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      .preview pre code {
+        background-color: transparent;
+        color: white;
+        padding: 0;
+      }
+
+      .footer {
+        margin-top: 2rem;
+        padding: 1rem 0;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--text-light);
+        font-size: 0.875rem;
+      }
+
+      .journal-list {
+        margin-top: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .journal-item {
+        background-color: white;
+        border: 1px solid var(--border);
+        border-radius: 0.25rem;
+        padding: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .journal-item:hover {
+        border-color: var(--primary);
+        box-shadow: var(--shadow);
+      }
+
+      .journal-item.active {
+        background-color: var(--primary);
+        color: white;
+        border-color: var(--primary);
+      }
+
+      .save-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--success);
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+      }
+
+      @media (max-width: 768px) {
+        .main {
+          flex-direction: column;
+        }
+
+        .editor,
+        .preview-container {
+          min-height: 40vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navbar"></div>
+    <div id="app"></div>
+
+    <!-- Import HTM and Preact -->
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+    <script src="https://unpkg.com/preact@10.11.3/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.11.3/hooks/dist/hooks.umd.js"></script>
+
+    <!-- Import Marked for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
+
+    <script type="module">
+      // Import navbar and nosdav shim
+      import Navbar from './navbar.js'
+      import './nosdav-shim.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+
+      // Make secp256k1 available globally (required by nosdav-shim.js)
+      window.secp256k1 = secp256k1
+
+      // Initialize the navbar
+      const navbarContainer = document.getElementById('navbar')
+      if (navbarContainer) {
+        preact.render(preact.h(Navbar), navbarContainer)
+      }
+
+      // Initialize HTM with Preact
+      const html = htm.bind(preact.h)
+      const { useState, useEffect, useRef, useCallback } = preactHooks
+
+      // Journal storage utilities
+      const JournalStorage = {
+        getEntryKey(date) {
+          const year = date.getFullYear()
+          const month = String(date.getMonth() + 1).padStart(2, '0')
+          const day = String(date.getDate()).padStart(2, '0')
+          return `${year}_${month}_${day}`
+        },
+
+        getEntryPath(date) {
+          const key = this.getEntryKey(date)
+          return `public/journals/${key}.md`
+        },
+
+        async saveEntry(date, content) {
+          const key = this.getEntryKey(date)
+          const path = this.getEntryPath(date)
+
+          try {
+            // Save to nosdav
+            const pubkey = localStorage.getItem('pubkey')
+            if (!pubkey) {
+              console.error('No pubkey found for nosdav storage')
+              // Fallback to localStorage
+              localStorage.setItem(`journal_${key}`, content)
+              this.updateJournalIndex(`journal_${key}`)
+              return key
+            }
+
+            const url = `https://nosdav.net/${pubkey}/${path}`
+            const response = await fetch(url, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'text/markdown'
+              },
+              body: content
+            })
+
+            if (!response.ok) throw new Error('Network response was not ok')
+            console.log('Journal saved to nosdav successfully')
+
+            // Update index in both nosdav and localStorage
+            this.updateJournalIndex(key)
+            return key
+          } catch (e) {
+            console.error('Error saving to nosdav:', e)
+            // Fall back to localStorage
+            localStorage.setItem(`journal_${key}`, content)
+            this.updateJournalIndex(`journal_${key}`)
+            return key
+          }
+        },
+
+        async getEntry(date) {
+          const key = this.getEntryKey(date)
+          const path = this.getEntryPath(date)
+
+          try {
+            // Try to get from nosdav
+            const pubkey = localStorage.getItem('pubkey')
+            if (!pubkey) {
+              console.error('No pubkey found for nosdav storage')
+              // Fallback to localStorage
+              return localStorage.getItem(`journal_${key}`) || ''
+            }
+
+            const url = `https://nosdav.net/${pubkey}/${path}`
+            const response = await fetch(url)
+
+            if (response.status === 404) {
+              return ''
+            }
+
+            if (!response.ok) throw new Error('Network response was not ok')
+            const content = await response.text()
+            return content
+          } catch (e) {
+            console.error('Error loading from nosdav:', e)
+            // Try to load from localStorage
+            return localStorage.getItem(`journal_${key}`) || ''
+          }
+        },
+
+        async updateJournalIndex(key) {
+          let index = await this.getJournalIndex()
+          if (!index.includes(key)) {
+            index.push(key)
+
+            try {
+              // Save index to nosdav
+              const pubkey = localStorage.getItem('pubkey')
+              if (pubkey) {
+                const url = `https://nosdav.net/${pubkey}/public/journals/index.json`
+                await fetch(url, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(index)
+                })
+              }
+            } catch (e) {
+              console.error('Error saving index to nosdav:', e)
+            }
+
+            // Also save to localStorage as backup
+            localStorage.setItem('journal_index', JSON.stringify(index))
+          }
+        },
+
+        async getJournalIndex() {
+          try {
+            // Try to get index from nosdav
+            const pubkey = localStorage.getItem('pubkey')
+            if (pubkey) {
+              const url = `https://nosdav.net/${pubkey}/public/journals/index.json`
+              const response = await fetch(url)
+
+              if (response.ok) {
+                const index = await response.json()
+                return index
+              }
+            }
+          } catch (e) {
+            console.error('Error loading index from nosdav:', e)
+          }
+
+          // Fallback to localStorage
+          const index = localStorage.getItem('journal_index')
+          return index ? JSON.parse(index) : []
+        },
+
+        getDateFromKey(key) {
+          // For nosdav format (yyyy_mm_dd)
+          if (key.indexOf('journal_') === -1) {
+            const parts = key.split('_')
+            return new Date(parts[0], parseInt(parts[1]) - 1, parts[2])
+          }
+          // For localStorage format (journal_yyyy_mm_dd)
+          const parts = key.replace('journal_', '').split('_')
+          return new Date(parts[0], parseInt(parts[1]) - 1, parts[2])
+        }
+      }
+
+      // Journal Editor Component
+      function JournalEditor() {
+        const [currentDate, setCurrentDate] = useState(new Date())
+        const [content, setContent] = useState('')
+        const [savedStatus, setSavedStatus] = useState('')
+        const [journalEntries, setJournalEntries] = useState([])
+        const [storageType, setStorageType] = useState('')
+        const editorRef = useRef(null)
+        const saveTimeoutRef = useRef(null)
+
+        // Load journal entry for the current date
+        useEffect(() => {
+          const loadContent = async () => {
+            const savedContent = await JournalStorage.getEntry(currentDate)
+            setContent(savedContent)
+            const pubkey = localStorage.getItem('pubkey')
+            setStorageType(pubkey ? 'nosdav' : 'local')
+            await loadJournalEntries()
+
+            // Focus editor when date changes
+            if (editorRef.current) {
+              editorRef.current.focus()
+            }
+          }
+
+          loadContent()
+        }, [currentDate])
+
+        // Load all journal entries
+        const loadJournalEntries = async () => {
+          const entries = await JournalStorage.getJournalIndex()
+          setJournalEntries(entries)
+        }
+
+        // Handle content changes and auto-save
+        const handleContentChange = e => {
+          const newContent = e.target.value
+          setContent(newContent)
+
+          // Clear previous timeout
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current)
+          }
+
+          // Set new timeout for auto-save
+          setSavedStatus('Saving...')
+          saveTimeoutRef.current = setTimeout(async () => {
+            await JournalStorage.saveEntry(currentDate, newContent)
+            setSavedStatus('Saved')
+            await loadJournalEntries()
+
+            // Clear saved status after 2 seconds
+            setTimeout(() => {
+              setSavedStatus('')
+            }, 2000)
+          }, 1000)
+        }
+
+        // Navigation functions
+        const goToToday = () => setCurrentDate(new Date())
+        const goToPreviousDay = () => {
+          const prevDay = new Date(currentDate)
+          prevDay.setDate(prevDay.getDate() - 1)
+          setCurrentDate(prevDay)
+        }
+        const goToNextDay = () => {
+          const nextDay = new Date(currentDate)
+          nextDay.setDate(nextDay.getDate() + 1)
+          setCurrentDate(nextDay)
+        }
+
+        // Load a specific journal entry
+        const loadJournalEntry = key => {
+          const date = JournalStorage.getDateFromKey(key)
+          setCurrentDate(date)
+        }
+
+        // Format date for display
+        const formatDate = date => {
+          return date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        }
+
+        // Format date for journal list
+        const formatShortDate = date => {
+          return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+          })
+        }
+
+        // Check if a journal entry is the current one
+        const isCurrentEntry = key => {
+          return key === JournalStorage.getEntryKey(currentDate)
+        }
+
+        // Open the current journal file in a new tab
+        const openStorageFile = () => {
+          const pubkey = localStorage.getItem('pubkey')
+          if (pubkey) {
+            const path = JournalStorage.getEntryPath(currentDate)
+            const url = `https://nosdav.net/${pubkey}/${path}`
+            window.open(url, '_blank')
+          } else {
+            alert('No pubkey found. Cannot open storage file.')
+          }
+        }
+
+        return html`
+          <div class="container">
+            <header class="header">
+              <div class="logo">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Daily Journal
+              </div>
+              <div class="date-nav">
+                <button
+                  class="btn-icon"
+                  onClick=${goToPreviousDay}
+                  title="Previous Day"
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                </button>
+                <span class="current-date">${formatDate(currentDate)}</span>
+                <button
+                  class="btn-icon"
+                  onClick=${goToNextDay}
+                  title="Next Day"
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </button>
+                <button class="btn" onClick=${goToToday}>Today</button>
+              </div>
+            </header>
+
+            <main class="main">
+              <div class="editor-container">
+                <textarea
+                  ref=${editorRef}
+                  class="editor"
+                  value=${content}
+                  onInput=${handleContentChange}
+                  placeholder="Write your journal entry here using Markdown..."
+                ></textarea>
+                ${savedStatus &&
+                html`
+                  <div class="save-indicator">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    ${savedStatus}
+                  </div>
+                `}
+                ${storageType === 'nosdav' &&
+                html`
+                  <div style="margin-top: 0.5rem; text-align: right;">
+                    <button
+                      onClick=${openStorageFile}
+                      class="btn"
+                      style="font-size: 0.75rem; padding: 0.25rem 0.5rem;"
+                    >
+                      View in Browser
+                    </button>
+                  </div>
+                `}
+              </div>
+
+              <div class="preview-container">
+                <div
+                  class="preview"
+                  dangerouslySetInnerHTML=${{ __html: marked.parse(content) }}
+                ></div>
+              </div>
+            </main>
+
+            <div>
+              <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                Recent Entries
+              </h3>
+              <div class="journal-list">
+                ${journalEntries
+                  .slice(-10)
+                  .reverse()
+                  .map(key => {
+                    const date = JournalStorage.getDateFromKey(key)
+                    return html`
+                      <div
+                        class="journal-item ${isCurrentEntry(key)
+                          ? 'active'
+                          : ''}"
+                        onClick=${() => loadJournalEntry(key)}
+                      >
+                        ${formatShortDate(date)}
+                      </div>
+                    `
+                  })}
+              </div>
+            </div>
+
+            <footer class="footer">
+              <p>Daily Journal App - Your thoughts, organized by day</p>
+              ${storageType === 'nosdav'
+                ? html`<p style="font-size: 0.75rem; margin-top: 0.5rem;">
+                    Using nosdav cloud storage
+                  </p>`
+                : html`<p style="font-size: 0.75rem; margin-top: 0.5rem;">
+                    Using local storage (login for cloud storage)
+                  </p>`}
+            </footer>
+          </div>
+        `
+      }
+
+      // Render the app
+      preact.render(html`<${JournalEditor} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
