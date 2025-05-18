@@ -1292,10 +1292,14 @@
                                 </button>
                                 <button
                                   type="button"
-                                  class="px-6 py-2 bg-red-100 border border-red-300 text-red-700 rounded-lg shadow hover:shadow-lg transition-all"
-                                  onClick=${this.handleLogout.bind(this)}
+                                  class="px-6 py-2 bg-blue-100 border border-blue-300 text-blue-700 rounded-lg shadow hover:shadow-lg transition-all"
+                                  onClick=${() =>
+                                    window.open(
+                                      `https://nostr.social/profile/${profile.pubkey}`,
+                                      '_blank'
+                                    )}
                                 >
-                                  Logout
+                                  View Profile
                                 </button>
                               </div>
                             </div>
