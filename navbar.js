@@ -408,7 +408,7 @@ class Navbar extends Component {
         <div class="nav-links">
           <a href="todo.html" class="nav-link">Todo</a>
           <a href="bookmark.html" class="nav-link">Bookmark</a>
-          <a href="pastebin.html" class="nav-link">Pastebin</a>
+          <a href="pages.html" class="nav-link">Pages</a>
         </div>
         
         <div class="theme-container">
