@@ -441,30 +441,6 @@
       console.log('Loading page editor v' + Math.random())
 
       /* ---------------------------------------------------------------- */
-      /* -                      TEST FUNCTIONS                          - */
-      /* ---------------------------------------------------------------- */
-      // Test the filename conversion
-      function testFilenameConversion() {
-        const testCases = [
-          'project/test',
-          'foo/bar/baz',
-          'test-page',
-          'another_test'
-        ]
-
-        console.log('======= TESTING FILENAME CONVERSION =======')
-        testCases.forEach(test => {
-          console.log(
-            `Original: "${test}" -> Converted: "${test.replace(/\//g, '___')}"`
-          )
-        })
-        console.log('==========================================')
-      }
-
-      // Run the test immediately
-      testFilenameConversion()
-
-      /* ---------------------------------------------------------------- */
       /* -                      IMPORTS & SETUP                         - */
       /* ---------------------------------------------------------------- */
       // Import navbar and nosdav shim
