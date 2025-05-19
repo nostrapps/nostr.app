@@ -136,28 +136,126 @@
           const uri = params.get('uri')
 
           if (uri) {
-            // Fetch JSON data from the provided URI
-            fetch(uri)
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error('Failed to fetch data from URI')
-                }
-                return response.json()
-              })
-              .then(data => {
-                setWallet(data)
-                window.walletUri = uri // Store the URI for later use
-                setLoading(false)
-              })
-              .catch(error => {
-                console.error('Error fetching data from URI:', error)
-                // Fallback to data island if URI fetch fails
-                const fallbackWallet = getWalletFromDataIsland()
-                if (fallbackWallet) {
-                  setWallet(fallbackWallet)
-                }
-                setLoading(false)
-              })
+            try {
+              // Parse the URI to get the base path for future use regardless of whether index.json exists
+              const baseUrl = new URL(uri)
+              const pathParts = baseUrl.pathname.split('/')
+
+              // Remove the filename from the path
+              pathParts.pop()
+
+              // Construct path to the webledger.json file
+              const webledgerPath = [...pathParts, 'webledger.json'].join('/')
+              const webledgerUrl = `${baseUrl.protocol}//${baseUrl.host}${webledgerPath}`
+
+              console.log('Will check for webledger.json at:', webledgerUrl)
+
+              // First attempt to fetch the main URI
+              fetch(uri)
+                .then(response => {
+                  if (!response.ok) {
+                    if (response.status === 404) {
+                      console.log(
+                        'index.json not found, using default wallet data'
+                      )
+                      // Create default data if index.json is not found
+                      return {
+                        walletName: 'Digital Wallet',
+                        walletId: 'default-wallet',
+                        owner: {
+                          name: 'User',
+                          contactEmail: 'user@example.com'
+                        },
+                        createdDate: new Date().toISOString().split('T')[0],
+                        lastUpdated: new Date().toISOString().split('T')[0],
+                        hasPart: [],
+                        totalValue: 0,
+                        valueCurrency: 'Satoshi',
+                        stats: {
+                          totalNftsOwned: 0,
+                          forSale: 0,
+                          locked: 0
+                        }
+                      }
+                    } else {
+                      throw new Error(
+                        `Failed to fetch data from URI: ${response.status}`
+                      )
+                    }
+                  }
+                  return response.json()
+                })
+                .then(data => {
+                  // Store the original data
+                  const walletData = { ...data }
+                  window.walletUri = uri // Store the URI for later use
+
+                  // Attempt to fetch webledger.json regardless of index.json status
+                  console.log('Checking for webledger.json at:', webledgerUrl)
+
+                  // Fetch the webledger.json file
+                  fetch(webledgerUrl)
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error('webledger.json not found')
+                      }
+                      return response.json()
+                    })
+                    .then(webledgerData => {
+                      // If webledger data is a simple integer, use it for totalValue
+                      if (
+                        typeof webledgerData === 'number' &&
+                        Number.isInteger(webledgerData)
+                      ) {
+                        console.log(
+                          'Using totalValue from webledger.json:',
+                          webledgerData
+                        )
+                        walletData.totalValue = webledgerData
+                      } else if (
+                        webledgerData.totalValue &&
+                        Number.isInteger(webledgerData.totalValue)
+                      ) {
+                        // Or if it's an object with a totalValue property
+                        console.log(
+                          'Using totalValue from webledger.json object:',
+                          webledgerData.totalValue
+                        )
+                        walletData.totalValue = webledgerData.totalValue
+                      }
+
+                      // Set the wallet with potentially updated totalValue
+                      setWallet(walletData)
+                      setLoading(false)
+                    })
+                    .catch(error => {
+                      console.log(
+                        'webledger.json not available:',
+                        error.message
+                      )
+                      // Continue with original data if webledger.json isn't available
+                      setWallet(walletData)
+                      setLoading(false)
+                    })
+                })
+                .catch(error => {
+                  console.error('Error in fetch workflow:', error)
+                  // Fallback to data island if everything fails
+                  const fallbackWallet = getWalletFromDataIsland()
+                  if (fallbackWallet) {
+                    setWallet(fallbackWallet)
+                  }
+                  setLoading(false)
+                })
+            } catch (error) {
+              console.error('Error parsing URI:', error)
+              // Fallback to data island if URI parsing fails
+              const fallbackWallet = getWalletFromDataIsland()
+              if (fallbackWallet) {
+                setWallet(fallbackWallet)
+              }
+              setLoading(false)
+            }
           } else {
             // Use embedded data island
             const walletData = getWalletFromDataIsland()
