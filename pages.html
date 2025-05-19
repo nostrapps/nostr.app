@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- ================================================================ -->
+    <!-- =                         META SECTION                         = -->
+    <!-- ================================================================ -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pages</title>
@@ -10,6 +13,10 @@
     />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
+
+    <!-- ================================================================ -->
+    <!-- =                         CSS STYLES                           = -->
+    <!-- ================================================================ -->
     <style>
       :root {
         --primary: #0082c9;
@@ -409,9 +416,15 @@
     </style>
   </head>
   <body>
+    <!-- ================================================================ -->
+    <!-- =                         HTML BODY                            = -->
+    <!-- ================================================================ -->
     <div id="navbar"></div>
     <div id="app"></div>
 
+    <!-- ================================================================ -->
+    <!-- =                      EXTERNAL SCRIPTS                        = -->
+    <!-- ================================================================ -->
     <!-- Import HTM and Preact -->
     <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
     <script src="https://unpkg.com/preact@10.11.3/dist/preact.min.js"></script>
@@ -420,10 +433,16 @@
     <!-- Import Marked for Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked@4.2.12/marked.min.js"></script>
 
+    <!-- ================================================================ -->
+    <!-- =                      MAIN APPLICATION                        = -->
+    <!-- ================================================================ -->
     <script type="module">
       // Add a random version to prevent caching
       console.log('Loading page editor v' + Math.random())
 
+      /* ---------------------------------------------------------------- */
+      /* -                      TEST FUNCTIONS                          - */
+      /* ---------------------------------------------------------------- */
       // Test the filename conversion
       function testFilenameConversion() {
         const testCases = [
@@ -445,6 +464,9 @@
       // Run the test immediately
       testFilenameConversion()
 
+      /* ---------------------------------------------------------------- */
+      /* -                      IMPORTS & SETUP                         - */
+      /* ---------------------------------------------------------------- */
       // Import navbar and nosdav shim
       import Navbar from './navbar.js'
       import './nosdav-shim.js'
@@ -453,6 +475,9 @@
       // Make secp256k1 available globally (required by nosdav-shim.js)
       window.secp256k1 = secp256k1
 
+      /* ---------------------------------------------------------------- */
+      /* -                 MARKDOWN & WIKI EXTENSIONS                   - */
+      /* ---------------------------------------------------------------- */
       // Configure Marked to recognize wiki-links [[foo]]
       const wikiLinkExtension = {
         name: 'wikiLink',
@@ -499,6 +524,9 @@
       const html = htm.bind(preact.h)
       const { useState, useEffect, useRef, useCallback } = preactHooks
 
+      /* ---------------------------------------------------------------- */
+      /* -                        CONSTANTS                             - */
+      /* ---------------------------------------------------------------- */
       // View modes
       const VIEW_MODES = {
         SPLIT: 'split',
@@ -506,6 +534,9 @@
         PREVIEW: 'preview'
       }
 
+      /* ---------------------------------------------------------------- */
+      /* -                      UTILITY FUNCTIONS                       - */
+      /* ---------------------------------------------------------------- */
       // Utility functions for page name to file path conversion
       const PageUtils = {
         // Convert a page name to a safe file path
@@ -526,6 +557,9 @@
         }
       }
 
+      /* ---------------------------------------------------------------- */
+      /* -                     STORAGE UTILITIES                        - */
+      /* ---------------------------------------------------------------- */
       // Page storage utilities
       const PageStorage = {
         getPagePath(pageName) {
@@ -657,6 +691,9 @@
         }
       }
 
+      /* ---------------------------------------------------------------- */
+      /* -                     PAGE EDITOR COMPONENT                    - */
+      /* ---------------------------------------------------------------- */
       // Page Editor Component
       function PageEditor() {
         const [currentPage, setCurrentPage] = useState('index')
@@ -670,6 +707,7 @@
         const previewContainerRef = useRef(null)
         const saveTimeoutRef = useRef(null)
 
+        /* -------------------- LIFECYCLE & EFFECTS -------------------- */
         // Load page content
         useEffect(() => {
           const loadContent = async () => {
@@ -742,6 +780,7 @@
           }
         }, [content, viewMode])
 
+        /* -------------------- HELPER FUNCTIONS -------------------- */
         // Load all page entries
         const loadPageEntries = async () => {
           const entries = await PageStorage.getPageIndex()
@@ -871,6 +910,7 @@
           }
         }
 
+        /* -------------------- COMPONENT RENDERING -------------------- */
         return html`
           <div class="container">
             <div class="page-header">
@@ -1111,6 +1151,9 @@
         `
       }
 
+      /* ---------------------------------------------------------------- */
+      /* -                    APPLICATION RENDERING                      - */
+      /* ---------------------------------------------------------------- */
       // Render the app
       preact.render(html`<${PageEditor} />`, document.getElementById('app'))
     </script>
