@@ -113,6 +113,13 @@
       const App = () => {
         const [loading, setLoading] = useState(true)
         const [wallet, setWallet] = useState(null)
+        const [showAddModal, setShowAddModal] = useState(false)
+        const [newItemType, setNewItemType] = useState('did') // 'did' or 'asset'
+        const [newItemData, setNewItemData] = useState({
+          id: '',
+          name: '',
+          picture: ''
+        })
 
         useEffect(() => {
           // Function to get wallet data from JSON-LD
@@ -269,6 +276,70 @@
 
         const formatSatoshis = sats => {
           return new Intl.NumberFormat().format(sats)
+        }
+
+        // Function to handle adding a new item to the wallet
+        const addNewItem = () => {
+          setShowAddModal(true)
+        }
+
+        // Function to handle saving a new item
+        const saveNewItem = () => {
+          // Clone the current wallet data
+          const updatedWallet = { ...wallet }
+
+          // Create a new item based on the form data
+          let newItem = {}
+
+          if (newItemType === 'did') {
+            // Format the DID if it doesn't already have the prefix
+            const didId = newItemData.id.startsWith('did:nostr:')
+              ? newItemData.id
+              : `did:nostr:${newItemData.id}`
+
+            newItem = {
+              id: didId,
+              name: newItemData.name || undefined,
+              picture: newItemData.picture || undefined
+            }
+          } else {
+            // For regular assets/NFTs
+            newItem = {
+              id: newItemData.id,
+              title: newItemData.name,
+              previewImage: newItemData.picture,
+              status: 'Owned',
+              acquiredDate: new Date().toISOString().split('T')[0]
+            }
+          }
+
+          // Add the new item to the hasPart array
+          updatedWallet.hasPart = [...(updatedWallet.hasPart || []), newItem]
+
+          // Update the stats
+          if (updatedWallet.stats) {
+            updatedWallet.stats.totalNftsOwned =
+              (updatedWallet.stats.totalNftsOwned || 0) + 1
+          }
+
+          // Update the wallet state
+          setWallet(updatedWallet)
+
+          // Reset the form and close the modal
+          setNewItemData({ id: '', name: '', picture: '' })
+          setShowAddModal(false)
+
+          // If this were a real application, you would also save the updated wallet data
+          console.log('New item added to wallet:', newItem)
+        }
+
+        // Function to handle changing form inputs
+        const handleInputChange = e => {
+          const { name, value } = e.target
+          setNewItemData({
+            ...newItemData,
+            [name]: value
+          })
         }
 
         if (loading || !wallet) {
@@ -561,11 +632,71 @@
                               </div>
                             `
                           })}
+
+                          <!-- Add New Item Card -->
+                          <div
+                            class="bg-neutral-50 rounded-lg overflow-hidden border border-neutral-100 border-dashed hover:border-primary-300 hover:bg-primary-50 transition-colors cursor-pointer"
+                            onClick=${() => addNewItem()}
+                          >
+                            <div class="h-40 flex items-center justify-center">
+                              <div class="text-center">
+                                <div
+                                  class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-2"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-8 w-8 text-primary-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M12 4v16m8-8H4"
+                                    />
+                                  </svg>
+                                </div>
+                                <p class="text-primary-600 font-medium">
+                                  Add New
+                                </p>
+                              </div>
+                            </div>
+                            <div class="p-4 text-center">
+                              <h3 class="font-medium text-neutral-800 mb-1">
+                                Add New Item
+                              </h3>
+                              <p class="text-neutral-500 text-xs">
+                                Add a new DID or asset to your wallet
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       `
                     : html`
                         <div class="bg-neutral-50 rounded-lg p-10 text-center">
-                          <p class="text-neutral-500">No NFTs in collection</p>
+                          <p class="text-neutral-500">No items in collection</p>
+                          <button
+                            class="mt-4 flex items-center justify-center mx-auto bg-primary-100 hover:bg-primary-200 text-primary-700 font-medium py-2 px-4 rounded-full transition-colors"
+                            onClick=${() => addNewItem()}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-5 w-5 mr-2"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 4v16m8-8H4"
+                              />
+                            </svg>
+                            Add First Item
+                          </button>
                         </div>
                       `}
                 </div>
@@ -577,6 +708,150 @@
             >
               <p>© 2025 ${wallet.walletName}. All rights reserved.</p>
             </footer>
+
+            <!-- Add New Item Modal -->
+            ${showAddModal &&
+            html`
+              <div
+                class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              >
+                <div
+                  class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 relative"
+                >
+                  <!-- Close button -->
+                  <button
+                    class="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600"
+                    onClick=${() => setShowAddModal(false)}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+
+                  <h2 class="text-xl font-bold text-neutral-800 mb-6">
+                    Add New Item
+                  </h2>
+
+                  <!-- Item Type Selection -->
+                  <div class="flex mb-6 bg-neutral-100 p-1 rounded-lg">
+                    <button
+                      class="${newItemType === 'did'
+                        ? 'bg-white shadow-sm'
+                        : 'bg-transparent'} flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
+                      onClick=${() => setNewItemType('did')}
+                    >
+                      Nostr DID
+                    </button>
+                    <button
+                      class="${newItemType === 'asset'
+                        ? 'bg-white shadow-sm'
+                        : 'bg-transparent'} flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
+                      onClick=${() => setNewItemType('asset')}
+                    >
+                      Asset/NFT
+                    </button>
+                  </div>
+
+                  <!-- Form Fields -->
+                  <div class="space-y-4">
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-neutral-700 mb-1"
+                      >
+                        ${newItemType === 'did'
+                          ? 'Nostr Public Key'
+                          : 'Asset ID'}
+                      </label>
+                      <input
+                        type="text"
+                        name="id"
+                        class="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder=${newItemType === 'did'
+                          ? 'Nostr public key (hex)'
+                          : 'Unique asset identifier'}
+                        value=${newItemData.id}
+                        onInput=${handleInputChange}
+                      />
+                      ${newItemType === 'did' &&
+                      html`
+                        <p class="mt-1 text-xs text-neutral-500">
+                          Enter the Nostr public key without the 'did:nostr:'
+                          prefix
+                        </p>
+                      `}
+                    </div>
+
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-neutral-700 mb-1"
+                      >
+                        ${newItemType === 'did' ? 'Name (optional)' : 'Title'}
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        class="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder=${newItemType === 'did'
+                          ? 'Display name for this DID'
+                          : 'Asset title or name'}
+                        value=${newItemData.name}
+                        onInput=${handleInputChange}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        class="block text-sm font-medium text-neutral-700 mb-1"
+                      >
+                        ${newItemType === 'did'
+                          ? 'Picture URL (optional)'
+                          : 'Preview Image URL'}
+                      </label>
+                      <input
+                        type="text"
+                        name="picture"
+                        class="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="https://example.com/image.jpg"
+                        value=${newItemData.picture}
+                        onInput=${handleInputChange}
+                      />
+                      <p class="mt-1 text-xs text-neutral-500">
+                        Enter a URL to an image for this
+                        ${newItemType === 'did' ? 'profile' : 'asset'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="flex justify-end mt-6 space-x-3">
+                    <button
+                      class="px-4 py-2 text-neutral-600 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors"
+                      onClick=${() => setShowAddModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick=${saveNewItem}
+                      disabled=${!newItemData.id}
+                    >
+                      Add to Wallet
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `}
           </div>
         `
       }
