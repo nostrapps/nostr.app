@@ -452,41 +452,110 @@
                         <div
                           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
                         >
-                          ${wallet.hasPart.map(
-                            nft => html`
+                          ${wallet.hasPart.map(nft => {
+                            // Check if this is a Nostr DID format
+                            const isNostrDid =
+                              nft.id && nft.id.startsWith('did:nostr:')
+
+                            // Extract the pubkey from DID if it's a Nostr DID
+                            let pubkey = null
+                            let profileUrl = null
+                            if (isNostrDid) {
+                              pubkey = nft.id.replace('did:nostr:', '')
+                              profileUrl = `https://nostr.social/profile/${pubkey}`
+                            }
+
+                            return html`
                               <div
                                 class="bg-neutral-50 rounded-lg overflow-hidden border border-neutral-100"
                               >
                                 <div class="h-40 overflow-hidden relative">
-                                  <img
-                                    src=${nft.previewImage}
-                                    alt=${nft.title}
-                                    class="w-full h-full object-cover"
-                                  />
+                                  ${nft.previewImage
+                                    ? html`
+                                        <img
+                                          src=${nft.previewImage}
+                                          alt=${nft.title || 'Nostr DID'}
+                                          class="w-full h-full object-cover"
+                                        />
+                                      `
+                                    : html`
+                                        <div
+                                          class="w-full h-full flex items-center justify-center bg-primary-100"
+                                        >
+                                          ${isNostrDid
+                                            ? html`
+                                                <div class="text-center">
+                                                  <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-16 w-16 mx-auto text-primary-600"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                  >
+                                                    <path
+                                                      stroke-linecap="round"
+                                                      stroke-linejoin="round"
+                                                      stroke-width="1.5"
+                                                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                    />
+                                                  </svg>
+                                                  <p
+                                                    class="mt-2 text-xs text-primary-700"
+                                                  >
+                                                    Nostr DID
+                                                  </p>
+                                                </div>
+                                              `
+                                            : html`<div
+                                                class="text-primary-400"
+                                              >
+                                                No Image
+                                              </div>`}
+                                        </div>
+                                      `}
                                   <div
                                     class="absolute top-2 right-2 bg-primary-600 px-2 py-1 rounded-full text-xs font-medium text-white"
                                   >
-                                    ${nft.status}
+                                    ${isNostrDid ? 'DID' : nft.status || 'Item'}
                                   </div>
                                 </div>
                                 <div class="p-4">
                                   <h3 class="font-medium text-neutral-800 mb-1">
-                                    ${nft.title}
+                                    ${isNostrDid
+                                      ? 'Nostr DID'
+                                      : nft.title || 'Untitled Item'}
                                   </h3>
                                   <p class="text-neutral-500 text-xs">
-                                    Acquired: ${nft.acquiredDate}
+                                    ${isNostrDid
+                                      ? html`ID:
+                                          <span class="font-mono"
+                                            >${pubkey.substring(
+                                              0,
+                                              8
+                                            )}...${pubkey.substring(
+                                              pubkey.length - 4
+                                            )}</span
+                                          >`
+                                      : html`Acquired:
+                                        ${nft.acquiredDate || 'N/A'}`}
                                   </p>
                                   <div class="mt-3 flex justify-end">
                                     <a
-                                      href=${nft.uri}
+                                      href=${isNostrDid
+                                        ? profileUrl
+                                        : nft.uri || '#'}
+                                      target="_blank"
                                       class="text-primary-600 hover:text-primary-800 text-xs font-medium"
-                                      >View Details</a
                                     >
+                                      ${isNostrDid
+                                        ? 'View Profile'
+                                        : 'View Details'}
+                                    </a>
                                   </div>
                                 </div>
                               </div>
                             `
-                          )}
+                          })}
                         </div>
                       `
                     : html`
