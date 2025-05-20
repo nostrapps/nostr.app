@@ -470,10 +470,13 @@
                                 class="bg-neutral-50 rounded-lg overflow-hidden border border-neutral-100"
                               >
                                 <div class="h-40 overflow-hidden relative">
-                                  ${nft.previewImage
+                                  ${nft.previewImage ||
+                                  (isNostrDid && nft.picture)
                                     ? html`
                                         <img
-                                          src=${nft.previewImage}
+                                          src=${isNostrDid && nft.picture
+                                            ? nft.picture
+                                            : nft.previewImage}
                                           alt=${isNostrDid
                                             ? nft.name || 'Nostr DID'
                                             : nft.title || 'Untitled Item'}
