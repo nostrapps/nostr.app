@@ -474,7 +474,9 @@
                                     ? html`
                                         <img
                                           src=${nft.previewImage}
-                                          alt=${nft.title || 'Nostr DID'}
+                                          alt=${isNostrDid
+                                            ? nft.name || 'Nostr DID'
+                                            : nft.title || 'Untitled Item'}
                                           class="w-full h-full object-cover"
                                         />
                                       `
@@ -502,7 +504,7 @@
                                                   <p
                                                     class="mt-2 text-xs text-primary-700"
                                                   >
-                                                    Nostr DID
+                                                    ${nft.name || 'Nostr DID'}
                                                   </p>
                                                 </div>
                                               `
@@ -522,7 +524,7 @@
                                 <div class="p-4">
                                   <h3 class="font-medium text-neutral-800 mb-1">
                                     ${isNostrDid
-                                      ? 'Nostr DID'
+                                      ? nft.name || 'Nostr DID'
                                       : nft.title || 'Untitled Item'}
                                   </h3>
                                   <p class="text-neutral-500 text-xs">
