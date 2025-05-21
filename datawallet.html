@@ -155,12 +155,65 @@
             loadWallet()
               .then(loadedWallet => {
                 if (loadedWallet) {
-                  setWallet(loadedWallet)
-                  setLoading(false)
-                  setStorageStatus({
-                    type: 'nosdav',
-                    message: 'Loaded from nosdav storage'
-                  })
+                  // Create a copy of the loaded wallet data
+                  const walletData = { ...loadedWallet }
+
+                  // Check for webledger.json in the same directory as index.json
+                  const webledgerUrl = `https://nosdav.net/${pubkey}/public/wallet/webledger.json`
+                  console.log('Checking for webledger.json at:', webledgerUrl)
+
+                  // Fetch the webledger.json file
+                  fetch(webledgerUrl)
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error('webledger.json not found')
+                      }
+                      return response.json()
+                    })
+                    .then(webledgerData => {
+                      // If webledger data is a simple integer, use it for totalValue
+                      if (
+                        typeof webledgerData === 'number' &&
+                        Number.isInteger(webledgerData)
+                      ) {
+                        console.log(
+                          'Using totalValue from webledger.json:',
+                          webledgerData
+                        )
+                        walletData.totalValue = webledgerData
+                      } else if (
+                        webledgerData.totalValue &&
+                        Number.isInteger(webledgerData.totalValue)
+                      ) {
+                        // Or if it's an object with a totalValue property
+                        console.log(
+                          'Using totalValue from webledger.json object:',
+                          webledgerData.totalValue
+                        )
+                        walletData.totalValue = webledgerData.totalValue
+                      }
+
+                      // Set the wallet with potentially updated totalValue
+                      setWallet(walletData)
+                      setLoading(false)
+                      setStorageStatus({
+                        type: 'nosdav',
+                        message: 'Loaded from nosdav storage'
+                      })
+                    })
+                    .catch(error => {
+                      console.log(
+                        'webledger.json not available:',
+                        error.message
+                      )
+                      // Continue with original data if webledger.json isn't available
+                      setWallet(walletData)
+                      setLoading(false)
+                      setStorageStatus({
+                        type: 'nosdav',
+                        message: 'Loaded from nosdav storage'
+                      })
+                    })
                   return
                 }
 
