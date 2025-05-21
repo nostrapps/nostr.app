@@ -37,6 +37,11 @@
     <script src="https://unpkg.com/preact@10.13.1/dist/preact.min.js"></script>
     <script src="https://unpkg.com/preact@10.13.1/hooks/dist/hooks.umd.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+      window.secp256k1 = secp256k1
+    </script>
+    <script src="./nosdav-shim.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -120,6 +125,10 @@
           name: '',
           picture: ''
         })
+        const [storageStatus, setStorageStatus] = useState({
+          type: null,
+          message: ''
+        })
 
         useEffect(() => {
           // Function to get wallet data from JSON-LD
@@ -138,144 +147,320 @@
             return null
           }
 
-          // Check if URI parameter exists in query string
-          const params = new URLSearchParams(window.location.search)
-          const uri = params.get('uri')
+          // Check if pubkey exists (used for nosdav storage)
+          const pubkey = localStorage.getItem('pubkey')
 
-          if (uri) {
-            try {
-              // Parse the URI to get the base path for future use regardless of whether index.json exists
-              const baseUrl = new URL(uri)
-              const pathParts = baseUrl.pathname.split('/')
-
-              // Remove the filename from the path
-              pathParts.pop()
-
-              // Construct path to the webledger.json file
-              const webledgerPath = [...pathParts, 'webledger.json'].join('/')
-              const webledgerUrl = `${baseUrl.protocol}//${baseUrl.host}${webledgerPath}`
-
-              console.log('Will check for webledger.json at:', webledgerUrl)
-
-              // First attempt to fetch the main URI
-              fetch(uri)
-                .then(response => {
-                  if (!response.ok) {
-                    if (response.status === 404) {
-                      console.log(
-                        'index.json not found, using default wallet data'
-                      )
-                      // Create default data if index.json is not found
-                      return {
-                        walletName: 'Digital Wallet',
-                        walletId: 'default-wallet',
-                        owner: {
-                          name: 'User',
-                          contactEmail: 'user@example.com'
-                        },
-                        createdDate: new Date().toISOString().split('T')[0],
-                        lastUpdated: new Date().toISOString().split('T')[0],
-                        hasPart: [],
-                        totalValue: 0,
-                        valueCurrency: 'Satoshi',
-                        stats: {
-                          totalNftsOwned: 0,
-                          forSale: 0,
-                          locked: 0
-                        }
-                      }
-                    } else {
-                      throw new Error(
-                        `Failed to fetch data from URI: ${response.status}`
-                      )
-                    }
-                  }
-                  return response.json()
-                })
-                .then(data => {
-                  // Store the original data
-                  const walletData = { ...data }
-                  window.walletUri = uri // Store the URI for later use
-
-                  // Attempt to fetch webledger.json regardless of index.json status
-                  console.log('Checking for webledger.json at:', webledgerUrl)
-
-                  // Fetch the webledger.json file
-                  fetch(webledgerUrl)
-                    .then(response => {
-                      if (!response.ok) {
-                        throw new Error('webledger.json not found')
-                      }
-                      return response.json()
-                    })
-                    .then(webledgerData => {
-                      // If webledger data is a simple integer, use it for totalValue
-                      if (
-                        typeof webledgerData === 'number' &&
-                        Number.isInteger(webledgerData)
-                      ) {
-                        console.log(
-                          'Using totalValue from webledger.json:',
-                          webledgerData
-                        )
-                        walletData.totalValue = webledgerData
-                      } else if (
-                        webledgerData.totalValue &&
-                        Number.isInteger(webledgerData.totalValue)
-                      ) {
-                        // Or if it's an object with a totalValue property
-                        console.log(
-                          'Using totalValue from webledger.json object:',
-                          webledgerData.totalValue
-                        )
-                        walletData.totalValue = webledgerData.totalValue
-                      }
-
-                      // Set the wallet with potentially updated totalValue
-                      setWallet(walletData)
-                      setLoading(false)
-                    })
-                    .catch(error => {
-                      console.log(
-                        'webledger.json not available:',
-                        error.message
-                      )
-                      // Continue with original data if webledger.json isn't available
-                      setWallet(walletData)
-                      setLoading(false)
-                    })
-                })
-                .catch(error => {
-                  console.error('Error in fetch workflow:', error)
-                  // Fallback to data island if everything fails
-                  const fallbackWallet = getWalletFromDataIsland()
-                  if (fallbackWallet) {
-                    setWallet(fallbackWallet)
-                  }
+          // Try to load from nosdav storage first if pubkey exists
+          if (pubkey) {
+            loadWallet()
+              .then(loadedWallet => {
+                if (loadedWallet) {
+                  setWallet(loadedWallet)
                   setLoading(false)
-                })
-            } catch (error) {
-              console.error('Error parsing URI:', error)
-              // Fallback to data island if URI parsing fails
-              const fallbackWallet = getWalletFromDataIsland()
-              if (fallbackWallet) {
-                setWallet(fallbackWallet)
-              }
-              setLoading(false)
-            }
+                  setStorageStatus({
+                    type: 'nosdav',
+                    message: 'Loaded from nosdav storage'
+                  })
+                  return
+                }
+
+                // Fallback to URI param or data island if nosdav load fails
+                fallbackLoadWallet()
+              })
+              .catch(error => {
+                console.error('Error loading from nosdav:', error)
+                fallbackLoadWallet()
+              })
           } else {
-            // Use embedded data island
-            const walletData = getWalletFromDataIsland()
-            if (walletData) {
-              setWallet(walletData)
+            fallbackLoadWallet()
+          }
+
+          // Function for fallback loading logic
+          function fallbackLoadWallet() {
+            // Check if URI parameter exists in query string
+            const params = new URLSearchParams(window.location.search)
+            const uri = params.get('uri')
+
+            if (uri) {
+              try {
+                // Parse the URI to get the base path for future use regardless of whether index.json exists
+                const baseUrl = new URL(uri)
+                const pathParts = baseUrl.pathname.split('/')
+
+                // Remove the filename from the path
+                pathParts.pop()
+
+                // Construct path to the webledger.json file
+                const webledgerPath = [...pathParts, 'webledger.json'].join('/')
+                const webledgerUrl = `${baseUrl.protocol}//${baseUrl.host}${webledgerPath}`
+
+                console.log('Will check for webledger.json at:', webledgerUrl)
+
+                // First attempt to fetch the main URI
+                fetch(uri)
+                  .then(response => {
+                    if (!response.ok) {
+                      if (response.status === 404) {
+                        console.log(
+                          'index.json not found, using default wallet data'
+                        )
+                        // Create default data if index.json is not found
+                        return {
+                          walletName: 'Digital Wallet',
+                          walletId: 'default-wallet',
+                          owner: {
+                            name: 'User',
+                            contactEmail: 'user@example.com'
+                          },
+                          createdDate: new Date().toISOString().split('T')[0],
+                          lastUpdated: new Date().toISOString().split('T')[0],
+                          hasPart: [],
+                          totalValue: 0,
+                          valueCurrency: 'Satoshi',
+                          stats: {
+                            totalNftsOwned: 0,
+                            forSale: 0,
+                            locked: 0
+                          }
+                        }
+                      } else {
+                        throw new Error(
+                          `Failed to fetch data from URI: ${response.status}`
+                        )
+                      }
+                    }
+                    return response.json()
+                  })
+                  .then(data => {
+                    // Store the original data
+                    const walletData = { ...data }
+                    window.walletUri = uri // Store the URI for later use
+
+                    // Attempt to fetch webledger.json regardless of index.json status
+                    console.log('Checking for webledger.json at:', webledgerUrl)
+
+                    // Fetch the webledger.json file
+                    fetch(webledgerUrl)
+                      .then(response => {
+                        if (!response.ok) {
+                          throw new Error('webledger.json not found')
+                        }
+                        return response.json()
+                      })
+                      .then(webledgerData => {
+                        // If webledger data is a simple integer, use it for totalValue
+                        if (
+                          typeof webledgerData === 'number' &&
+                          Number.isInteger(webledgerData)
+                        ) {
+                          console.log(
+                            'Using totalValue from webledger.json:',
+                            webledgerData
+                          )
+                          walletData.totalValue = webledgerData
+                        } else if (
+                          webledgerData.totalValue &&
+                          Number.isInteger(webledgerData.totalValue)
+                        ) {
+                          // Or if it's an object with a totalValue property
+                          console.log(
+                            'Using totalValue from webledger.json object:',
+                            webledgerData.totalValue
+                          )
+                          walletData.totalValue = webledgerData.totalValue
+                        }
+
+                        // Set the wallet with potentially updated totalValue
+                        setWallet(walletData)
+                        setStorageStatus({
+                          type: 'url',
+                          message: 'Loaded from URL'
+                        })
+                        setLoading(false)
+                      })
+                      .catch(error => {
+                        console.log(
+                          'webledger.json not available:',
+                          error.message
+                        )
+                        // Continue with original data if webledger.json isn't available
+                        setWallet(walletData)
+                        setStorageStatus({
+                          type: 'url',
+                          message: 'Loaded from URL'
+                        })
+                        setLoading(false)
+                      })
+                  })
+                  .catch(error => {
+                    console.error('Error in fetch workflow:', error)
+                    // Fallback to data island if everything fails
+                    const fallbackWallet = getWalletFromDataIsland()
+                    if (fallbackWallet) {
+                      setWallet(fallbackWallet)
+                      setStorageStatus({
+                        type: 'local',
+                        message: 'Loaded from data island'
+                      })
+                    }
+                    setLoading(false)
+                  })
+              } catch (error) {
+                console.error('Error parsing URI:', error)
+                // Fallback to data island if URI parsing fails
+                const fallbackWallet = getWalletFromDataIsland()
+                if (fallbackWallet) {
+                  setWallet(fallbackWallet)
+                  setStorageStatus({
+                    type: 'local',
+                    message: 'Loaded from data island'
+                  })
+                }
+                setLoading(false)
+              }
+            } else {
+              // Use embedded data island
+              const walletData = getWalletFromDataIsland()
+              if (walletData) {
+                setWallet(walletData)
+                setStorageStatus({
+                  type: 'local',
+                  message: 'Loaded from data island'
+                })
+              }
+              // Simulate loading
+              setTimeout(() => setLoading(false), 800)
             }
-            // Simulate loading
-            setTimeout(() => setLoading(false), 800)
           }
         }, [])
 
         const formatSatoshis = sats => {
           return new Intl.NumberFormat().format(sats)
+        }
+
+        // Storage handling
+        const getStorageProvider = () => {
+          // Use nosdav.net directly as the primary storage solution
+          console.log('Using nosdav.net as primary storage')
+          return {
+            type: 'nosdav',
+            isPrimary: true,
+            save: async data => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return false
+                }
+
+                const url = `https://nosdav.net/${pubkey}/public/wallet/index.json`
+                const response = await fetch(url, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(data)
+                })
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                console.log('Wallet saved to nosdav successfully')
+                return true
+              } catch (e) {
+                console.error('Error saving to nosdav:', e)
+                // Fall back to localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    localStorage.setItem('wallet', JSON.stringify(data))
+                    console.log('Wallet saved to localStorage as fallback')
+                    return true
+                  } catch (localErr) {
+                    console.error('Error saving to localStorage:', localErr)
+                  }
+                }
+                return false
+              }
+            },
+            load: async () => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return null
+                }
+
+                const url = `https://nosdav.net/${pubkey}/public/wallet/index.json`
+                const response = await fetch(url)
+
+                if (response.status === 404) {
+                  return null
+                }
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                const wallet = await response.json()
+                return wallet
+              } catch (e) {
+                console.error('Error loading from nosdav:', e)
+                // Try to load from localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    const data = localStorage.getItem('wallet')
+                    if (data) {
+                      console.log('Loaded wallet from localStorage as fallback')
+                      return JSON.parse(data)
+                    }
+                  } catch (localErr) {
+                    console.error('Error loading from localStorage:', localErr)
+                  }
+                }
+                return null
+              }
+            }
+          }
+        }
+
+        const saveWallet = async updatedWallet => {
+          const storage = getStorageProvider()
+          // Update lastUpdated date
+          updatedWallet.lastUpdated = new Date().toISOString().split('T')[0]
+
+          // Save wallet
+          const success = await storage.save(updatedWallet)
+          if (success) {
+            setStorageStatus({
+              type: storage.type,
+              message: `Saved to ${storage.type} storage`
+            })
+            console.log(`Wallet saved to ${storage.type}`)
+          } else {
+            setStorageStatus({
+              type: 'error',
+              message: `Failed to save to ${storage.type}`
+            })
+            console.error(`Failed to save wallet to ${storage.type}`)
+          }
+          return success
+        }
+
+        const loadWallet = async () => {
+          const storage = getStorageProvider()
+          const loadedWallet = await storage.load()
+
+          if (loadedWallet) {
+            console.log(`Wallet loaded from ${storage.type}`)
+            return loadedWallet
+          }
+
+          return null
+        }
+
+        const openWalletFile = () => {
+          const pubkey = localStorage.getItem('pubkey')
+          if (pubkey) {
+            const url = `https://nosdav.net/${pubkey}/public/wallet/index.json`
+            window.open(url, '_blank')
+          } else {
+            alert('No pubkey found. Cannot open wallet file.')
+          }
         }
 
         // Function to handle adding a new item to the wallet
@@ -322,6 +507,15 @@
               (updatedWallet.stats.totalNftsOwned || 0) + 1
           }
 
+          // Save the wallet to storage
+          saveWallet(updatedWallet).then(success => {
+            if (success) {
+              console.log('Wallet saved successfully after adding new item')
+            } else {
+              console.error('Failed to save wallet after adding new item')
+            }
+          })
+
           // Update the wallet state
           setWallet(updatedWallet)
 
@@ -329,7 +523,6 @@
           setNewItemData({ id: '', name: '', picture: '' })
           setShowAddModal(false)
 
-          // If this were a real application, you would also save the updated wallet data
           console.log('New item added to wallet:', newItem)
         }
 
@@ -707,6 +900,49 @@
               class="max-w-7xl mx-auto mt-16 text-center text-neutral-500 text-sm"
             >
               <p>© 2025 ${wallet.walletName}. All rights reserved.</p>
+
+              <!-- Storage Status Indicators -->
+              <div class="mt-4 flex justify-center">
+                ${storageStatus.type === 'nosdav' &&
+                html`
+                  <div
+                    class="text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-flex items-center"
+                  >
+                    Using nosdav cloud storage
+                    <button
+                      onClick=${openWalletFile}
+                      class="ml-2 text-white rounded-full px-2 py-0.5 text-xs bg-primary-600 hover:bg-primary-800 transition-colors"
+                      title="Open wallet file in new tab"
+                    >
+                      View File
+                    </button>
+                  </div>
+                `}
+                ${storageStatus.type === 'local' &&
+                html`
+                  <div
+                    class="text-sm text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block"
+                  >
+                    Using local storage (nosdav not available)
+                  </div>
+                `}
+                ${storageStatus.type === 'url' &&
+                html`
+                  <div
+                    class="text-sm text-blue-600 bg-blue-100 rounded-full px-3 py-1 inline-block"
+                  >
+                    Loaded from URL
+                  </div>
+                `}
+                ${storageStatus.type === 'error' &&
+                html`
+                  <div
+                    class="text-sm text-red-600 bg-red-100 rounded-full px-3 py-1 inline-block"
+                  >
+                    ${storageStatus.message}
+                  </div>
+                `}
+              </div>
             </footer>
 
             <!-- Add New Item Modal -->
