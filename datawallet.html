@@ -412,7 +412,7 @@
                   headers: {
                     'Content-Type': 'application/json'
                   },
-                  body: JSON.stringify(data)
+                  body: JSON.stringify(data, null, 2)
                 })
 
                 if (!response.ok) throw new Error('Network response was not ok')
@@ -423,7 +423,10 @@
                 // Fall back to localStorage if nosdav fails
                 if (typeof localStorage !== 'undefined') {
                   try {
-                    localStorage.setItem('wallet', JSON.stringify(data))
+                    localStorage.setItem(
+                      'wallet',
+                      JSON.stringify(data, null, 2)
+                    )
                     console.log('Wallet saved to localStorage as fallback')
                     return true
                   } catch (localErr) {
