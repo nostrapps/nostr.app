@@ -129,6 +129,7 @@
           type: null,
           message: ''
         })
+        const [editItemIndex, setEditItemIndex] = useState(null) // Track which item is being edited
 
         useEffect(() => {
           // Function to get wallet data from JSON-LD
@@ -521,16 +522,39 @@
 
         // Function to handle adding a new item to the wallet
         const addNewItem = () => {
+          // Reset form data when adding a new item
+          setNewItemData({ id: '', name: '', picture: '' })
+          setEditItemIndex(null) // Not editing, adding new
           setShowAddModal(true)
         }
 
-        // Function to handle saving a new item
+        // Function to handle editing an existing item
+        const editItem = index => {
+          const item = wallet.hasPart[index]
+
+          // Determine if this is a DID or asset
+          const isDID = item.id && item.id.startsWith('did:nostr:')
+          setNewItemType(isDID ? 'did' : 'asset')
+
+          // Format the data for the form
+          setNewItemData({
+            id: isDID ? item.id.replace('did:nostr:', '') : item.id,
+            name: isDID ? item.name || '' : item.title || '',
+            picture: isDID ? item.picture || '' : item.previewImage || ''
+          })
+
+          // Set edit index and show modal
+          setEditItemIndex(index)
+          setShowAddModal(true)
+        }
+
+        // Function to handle saving an item (both new and edited)
         const saveNewItem = () => {
           // Clone the current wallet data
           const updatedWallet = { ...wallet }
 
-          // Create a new item based on the form data
-          let newItem = {}
+          // Create an item based on the form data
+          let item = {}
 
           if (newItemType === 'did') {
             // Format the DID if it doesn't already have the prefix
@@ -538,14 +562,14 @@
               ? newItemData.id
               : `did:nostr:${newItemData.id}`
 
-            newItem = {
+            item = {
               id: didId,
               name: newItemData.name || undefined,
               picture: newItemData.picture || undefined
             }
           } else {
             // For regular assets/NFTs
-            newItem = {
+            item = {
               id: newItemData.id,
               title: newItemData.name,
               previewImage: newItemData.picture,
@@ -554,21 +578,30 @@
             }
           }
 
-          // Add the new item to the hasPart array
-          updatedWallet.hasPart = [...(updatedWallet.hasPart || []), newItem]
+          // Check if we're editing or adding new
+          if (editItemIndex !== null) {
+            // We're editing - replace the item at the specified index
+            updatedWallet.hasPart[editItemIndex] = item
+            console.log('Item updated in wallet:', item)
+          } else {
+            // We're adding new - append to the array
+            updatedWallet.hasPart = [...(updatedWallet.hasPart || []), item]
 
-          // Update the stats
-          if (updatedWallet.stats) {
-            updatedWallet.stats.totalNftsOwned =
-              (updatedWallet.stats.totalNftsOwned || 0) + 1
+            // Update the stats only for new items
+            if (updatedWallet.stats) {
+              updatedWallet.stats.totalNftsOwned =
+                (updatedWallet.stats.totalNftsOwned || 0) + 1
+            }
+
+            console.log('New item added to wallet:', item)
           }
 
           // Save the wallet to storage
           saveWallet(updatedWallet).then(success => {
             if (success) {
-              console.log('Wallet saved successfully after adding new item')
+              console.log('Wallet saved successfully after updating')
             } else {
-              console.error('Failed to save wallet after adding new item')
+              console.error('Failed to save wallet after updating')
             }
           })
 
@@ -577,9 +610,8 @@
 
           // Reset the form and close the modal
           setNewItemData({ id: '', name: '', picture: '' })
+          setEditItemIndex(null)
           setShowAddModal(false)
-
-          console.log('New item added to wallet:', newItem)
         }
 
         // Function to handle changing form inputs
@@ -772,7 +804,7 @@
                         <div
                           class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
                         >
-                          ${wallet.hasPart.map(nft => {
+                          ${wallet.hasPart.map((nft, index) => {
                             // Check if this is a Nostr DID format
                             const isNostrDid =
                               nft.id && nft.id.startsWith('did:nostr:')
@@ -845,11 +877,39 @@
                                   </div>
                                 </div>
                                 <div class="p-4">
-                                  <h3 class="font-medium text-neutral-800 mb-1">
-                                    ${isNostrDid
-                                      ? nft.name || 'Nostr DID'
-                                      : nft.title || 'Untitled Item'}
-                                  </h3>
+                                  <div class="flex justify-between items-start">
+                                    <h3
+                                      class="font-medium text-neutral-800 mb-1"
+                                    >
+                                      ${isNostrDid
+                                        ? nft.name || 'Nostr DID'
+                                        : nft.title || 'Untitled Item'}
+                                    </h3>
+                                    <button
+                                      class="text-neutral-400 hover:text-primary-600 transition-colors"
+                                      onClick=${e => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        editItem(index)
+                                      }}
+                                      title="Edit item"
+                                    >
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round"
+                                          stroke-width="2"
+                                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </div>
                                   <p class="text-neutral-500 text-xs">
                                     ${isNostrDid
                                       ? html`ID:
@@ -1032,7 +1092,7 @@
                   </button>
 
                   <h2 class="text-xl font-bold text-neutral-800 mb-6">
-                    Add New Item
+                    ${editItemIndex !== null ? 'Edit Item' : 'Add New Item'}
                   </h2>
 
                   <!-- Item Type Selection -->
@@ -1138,7 +1198,9 @@
                       onClick=${saveNewItem}
                       disabled=${!newItemData.id}
                     >
-                      Add to Wallet
+                      ${editItemIndex !== null
+                        ? 'Save Changes'
+                        : 'Add to Wallet'}
                     </button>
                   </div>
                 </div>
