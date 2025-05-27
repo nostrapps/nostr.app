@@ -253,6 +253,37 @@
             .filter(uri => uri)
         }
 
+        // Helper function to wrap todos array with @context
+        wrapWithContext(todos) {
+          return {
+            '@context': { '@vocab': 'urn:solid:' },
+            ...todos
+          }
+        }
+
+        // Helper function to unwrap @context and extract todos array
+        unwrapFromContext(data) {
+          if (Array.isArray(data)) {
+            // Legacy format - just return the array
+            return data
+          }
+
+          if (data && typeof data === 'object') {
+            // Remove @context and return the remaining data as array
+            const { '@context': context, ...todos } = data
+
+            // Convert object back to array format
+            if (todos && typeof todos === 'object') {
+              const keys = Object.keys(todos).sort(
+                (a, b) => parseInt(a) - parseInt(b)
+              )
+              return keys.map(key => todos[key])
+            }
+          }
+
+          return []
+        }
+
         // Storage handling
         getStorageProvider() {
           // First check if we have URIs from TypeRegistrations
@@ -298,7 +329,7 @@
                   headers: {
                     'Content-Type': 'application/json'
                   },
-                  body: JSON.stringify(data)
+                  body: JSON.stringify(this.wrapWithContext(data))
                 })
 
                 if (!response.ok) {
@@ -331,7 +362,10 @@
                 // Fall back to localStorage if nosdav fails
                 if (typeof localStorage !== 'undefined') {
                   try {
-                    localStorage.setItem('todos', JSON.stringify(data))
+                    localStorage.setItem(
+                      'todos',
+                      JSON.stringify(this.wrapWithContext(data))
+                    )
                     console.log('Todos saved to localStorage as fallback')
                     // Notify user that data was saved to localStorage instead
                     if (!e.message.includes('Network response was not ok')) {
@@ -379,7 +413,8 @@
                 }
 
                 if (!response.ok) throw new Error('Network response was not ok')
-                const todos = await response.json()
+                const data = await response.json()
+                const todos = this.unwrapFromContext(data)
                 return todos
               } catch (e) {
                 console.error('Error loading from nosdav:', e)
@@ -389,7 +424,8 @@
                     const data = localStorage.getItem('todos')
                     if (data) {
                       console.log('Loaded todos from localStorage as fallback')
-                      return JSON.parse(data)
+                      const todos = this.unwrapFromContext(JSON.parse(data))
+                      return todos
                     }
                   } catch (localErr) {
                     console.error('Error loading from localStorage:', localErr)
