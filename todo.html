@@ -334,13 +334,7 @@
                 // Fall back to localStorage if nosdav fails
                 if (typeof localStorage !== 'undefined') {
                   try {
-                    localStorage.setItem(
-                      'todos',
-                      JSON.stringify({
-                        '@context': { '@vocab': 'urn:solid:' },
-                        ...data
-                      })
-                    )
+                    localStorage.setItem('todos', JSON.stringify(data))
                     console.log('Todos saved to localStorage as fallback')
                     // Notify user that data was saved to localStorage instead
                     if (!e.message.includes('Network response was not ok')) {
@@ -388,12 +382,8 @@
                 }
 
                 if (!response.ok) throw new Error('Network response was not ok')
-                const data = await response.json()
-                return Array.isArray(data)
-                  ? data
-                  : Object.values(data).filter(
-                      item => typeof item === 'object' && item['@id']
-                    )
+                const todos = await response.json()
+                return todos
               } catch (e) {
                 console.error('Error loading from nosdav:', e)
                 // Try to load from localStorage if nosdav fails
@@ -402,12 +392,7 @@
                     const data = localStorage.getItem('todos')
                     if (data) {
                       console.log('Loaded todos from localStorage as fallback')
-                      const parsed = JSON.parse(data)
-                      return Array.isArray(parsed)
-                        ? parsed
-                        : Object.values(parsed).filter(
-                            item => typeof item === 'object' && item['@id']
-                          )
+                      return JSON.parse(data)
                     }
                   } catch (localErr) {
                     console.error('Error loading from localStorage:', localErr)
