@@ -298,10 +298,12 @@
                   headers: {
                     'Content-Type': 'application/json'
                   },
-                  body: JSON.stringify({
-                    '@context': { '@vocab': 'urn:solid:' },
-                    ...data
-                  })
+                  body: JSON.stringify(
+                    data.map(item => ({
+                      '@context': { '@vocab': 'urn:solid:' },
+                      ...item
+                    }))
+                  )
                 })
 
                 if (!response.ok) {
