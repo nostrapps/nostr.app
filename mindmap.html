@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Markmap</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      #mindmap {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/markmap-toolbar@0.18.10/dist/style.css"
+    />
+  </head>
+  <body>
+    <svg id="mindmap"></svg>
+
+    <!-- Mindmap Data Island -->
+    <script type="application/json" id="mindmap-data">
+      {
+        "content": "1984 - George Orwell",
+        "children": [
+          {
+            "content": "1. Setting",
+            "children": [
+              {
+                "content": "Totalitarian state: Oceania",
+                "children": [],
+                "payload": { "tag": "li", "lines": "3,4" }
+              },
+              {
+                "content": "Superstates: Oceania, Eurasia, Eastasia",
+                "children": [],
+                "payload": { "tag": "li", "lines": "4,5" }
+              },
+              {
+                "content": "Constant war and propaganda",
+                "children": [],
+                "payload": { "tag": "li", "lines": "5,6" }
+              },
+              {
+                "content": "Surveillance society (\"Big Brother is watching you\")",
+                "children": [],
+                "payload": { "tag": "li", "lines": "6,8" }
+              }
+            ],
+            "payload": { "tag": "h2", "lines": "2,3" }
+          },
+          {
+            "content": "2. Main Characters",
+            "children": [
+              {
+                "content": "Winston Smith",
+                "children": [
+                  {
+                    "content": "Protagonist",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "10,11" }
+                  },
+                  {
+                    "content": "Member of Outer Party",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "11,12" }
+                  },
+                  {
+                    "content": "Works at Ministry of Truth",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "12,13" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "9,13" }
+              },
+              {
+                "content": "Julia",
+                "children": [
+                  {
+                    "content": "Winston's love interest",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "14,15" }
+                  },
+                  {
+                    "content": "Rebellious against Party in a personal way",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "15,16" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "13,16" }
+              },
+              {
+                "content": "O'Brien",
+                "children": [
+                  {
+                    "content": "Member of Inner Party",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "17,18" }
+                  },
+                  {
+                    "content": "Deceptive role: acts as mentor and torturer",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "18,19" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "16,19" }
+              },
+              {
+                "content": "Big Brother",
+                "children": [
+                  {
+                    "content": "Figurehead of Party",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "20,21" }
+                  },
+                  {
+                    "content": "Possibly fictitious or symbolic",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "21,23" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "19,23" }
+              }
+            ],
+            "payload": { "tag": "h2", "lines": "8,9" }
+          },
+          {
+            "content": "3. Themes",
+            "children": [
+              {
+                "content": "Totalitarianism",
+                "children": [
+                  {
+                    "content": "Absolute control by the Party",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "25,26" }
+                  },
+                  {
+                    "content": "Suppression of individuality and freedom",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "26,27" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "24,27" }
+              },
+              {
+                "content": "Surveillance",
+                "children": [
+                  {
+                    "content": "Telescreens and constant monitoring",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "28,29" }
+                  },
+                  {
+                    "content": "Thought Police",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "29,30" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "27,30" }
+              },
+              {
+                "content": "Manipulation of truth and history",
+                "children": [
+                  {
+                    "content": "Ministry of Truth rewriting records",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "31,32" }
+                  },
+                  {
+                    "content": "\"2 + 2 = 5\"",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "32,33" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "30,33" }
+              },
+              {
+                "content": "Language and thought control",
+                "children": [
+                  {
+                    "content": "Newspeak to limit thought",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "34,35" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "33,35" }
+              },
+              {
+                "content": "Psychological control and fear",
+                "children": [
+                  {
+                    "content": "Torture and re-education",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "36,37" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "35,37" }
+              },
+              {
+                "content": "Resistance and rebellion",
+                "children": [
+                  {
+                    "content": "Winston's inner revolt",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "38,39" }
+                  },
+                  {
+                    "content": "Ultimate futility",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "39,41" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "37,41" }
+              }
+            ],
+            "payload": { "tag": "h2", "lines": "23,24" }
+          },
+          {
+            "content": "4. Plot Overview",
+            "children": [
+              {
+                "content": "Winston's daily life and discontent",
+                "children": [],
+                "payload": { "tag": "li", "lines": "42,43" }
+              },
+              {
+                "content": "Secret diary and small acts of rebellion",
+                "children": [],
+                "payload": { "tag": "li", "lines": "43,44" }
+              },
+              {
+                "content": "Meeting Julia and starting a relationship",
+                "children": [],
+                "payload": { "tag": "li", "lines": "44,45" }
+              },
+              {
+                "content": "Joining the Brotherhood (alleged resistance group)",
+                "children": [],
+                "payload": { "tag": "li", "lines": "45,46" }
+              },
+              {
+                "content": "Capture by Thought Police",
+                "children": [],
+                "payload": { "tag": "li", "lines": "46,47" }
+              },
+              {
+                "content": "Torture and brainwashing at Ministry of Love",
+                "children": [],
+                "payload": { "tag": "li", "lines": "47,48" }
+              },
+              {
+                "content": "Betrayal and loss of love/hope",
+                "children": [],
+                "payload": { "tag": "li", "lines": "48,49" }
+              },
+              {
+                "content": "Final acceptance of Party ideology (\"Love Big Brother\")",
+                "children": [],
+                "payload": { "tag": "li", "lines": "49,51" }
+              }
+            ],
+            "payload": { "tag": "h2", "lines": "41,42" }
+          },
+          {
+            "content": "5. Symbols & Motifs",
+            "children": [
+              {
+                "content": "Big Brother: omnipresent power and control",
+                "children": [],
+                "payload": { "tag": "li", "lines": "52,53" }
+              },
+              {
+                "content": "Telescreens: surveillance and loss of privacy",
+                "children": [],
+                "payload": { "tag": "li", "lines": "53,54" }
+              },
+              {
+                "content": "The paperweight: Winston's fragile past and hope",
+                "children": [],
+                "payload": { "tag": "li", "lines": "54,55" }
+              },
+              {
+                "content": "Room 101: ultimate fear and torture",
+                "children": [],
+                "payload": { "tag": "li", "lines": "55,56" }
+              },
+              {
+                "content": "Doublethink: holding contradictory beliefs simultaneously",
+                "children": [],
+                "payload": { "tag": "li", "lines": "56,57" }
+              },
+              {
+                "content": "Memory holes: destruction of historical records",
+                "children": [],
+                "payload": { "tag": "li", "lines": "57,59" }
+              }
+            ],
+            "payload": { "tag": "h2", "lines": "51,52" }
+          },
+          {
+            "content": "6. Important Concepts",
+            "children": [
+              {
+                "content": "Newspeak: engineered language to restrict thought",
+                "children": [],
+                "payload": { "tag": "li", "lines": "60,61" }
+              },
+              {
+                "content": "Doublethink: controlling contradictory thoughts",
+                "children": [],
+                "payload": { "tag": "li", "lines": "61,62" }
+              },
+              {
+                "content": "Thoughtcrime: crime of independent thinking",
+                "children": [],
+                "payload": { "tag": "li", "lines": "62,63" }
+              },
+              {
+                "content": "The Party slogans:",
+                "children": [
+                  {
+                    "content": "\"War is peace\"",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "64,65" }
+                  },
+                  {
+                    "content": "\"Freedom is slavery\"",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "65,66" }
+                  },
+                  {
+                    "content": "\"Ignorance is strength\"",
+                    "children": [],
+                    "payload": { "tag": "li", "lines": "66,68" }
+                  }
+                ],
+                "payload": { "tag": "li", "lines": "63,68" }
+              }
+            ],
+            "payload": { "tag": "h2", "lines": "59,60" }
+          },
+          {
+            "content": "7. Conclusion",
+            "children": [
+              {
+                "content": "Total control of Party over truth and individuals",
+                "children": [],
+                "payload": { "tag": "li", "lines": "69,70" }
+              },
+              {
+                "content": "Individuality crushed",
+                "children": [],
+                "payload": { "tag": "li", "lines": "70,71" }
+              },
+              {
+                "content": "Hope destroyed but implicit warning for readers",
+                "children": [],
+                "payload": { "tag": "li", "lines": "71,72" }
+              },
+              {
+                "content": "Critique of oppressive government and propaganda",
+                "children": [],
+                "payload": { "tag": "li", "lines": "72,74" }
+              }
+            ],
+            "payload": { "tag": "h2", "lines": "68,69" }
+          }
+        ],
+        "payload": { "tag": "h1", "lines": "0,1" }
+      }
+    </script>
+
+    <!-- External Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.10/dist/browser/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-toolbar@0.18.10/dist/index.js"></script>
+
+    <!-- Toolbar Setup -->
+    <script>
+      ;(r => {
+        setTimeout(r)
+      })(() => {
+        const { markmap, mm } = window
+        const toolbar = new markmap.Toolbar()
+        toolbar.attach(mm)
+        const el = toolbar.render()
+        el.setAttribute('style', 'position:absolute;bottom:20px;right:20px')
+        document.body.append(el)
+      })
+    </script>
+
+    <!-- Mindmap Initialization -->
+    <script>
+      ;(async () => {
+        try {
+          // Check for uri parameter in query string
+          const urlParams = new URLSearchParams(window.location.search)
+          const uri = urlParams.get('uri')
+
+          let mindmapData
+
+          if (uri) {
+            // Fetch data from the provided URI
+            console.log('Fetching mindmap data from:', uri)
+            const response = await fetch(uri)
+            if (!response.ok) {
+              throw new Error(
+                `Failed to fetch data from ${uri}: ${response.status} ${response.statusText}`
+              )
+            }
+            mindmapData = await response.json()
+          } else {
+            // Get mindmap data from the data island (fallback)
+            const mindmapDataElement = document.getElementById('mindmap-data')
+            mindmapData = JSON.parse(mindmapDataElement.textContent)
+          }
+
+          // Initialize markmap
+          const markmap = window.markmap
+          window.mm = markmap.Markmap.create(
+            'svg#mindmap',
+            markmap.deriveOptions(null),
+            mindmapData
+          )
+        } catch (error) {
+          console.error('Error loading mindmap data:', error)
+          // Fallback to data island on error
+          try {
+            const mindmapDataElement = document.getElementById('mindmap-data')
+            const mindmapData = JSON.parse(mindmapDataElement.textContent)
+            const markmap = window.markmap
+            window.mm = markmap.Markmap.create(
+              'svg#mindmap',
+              markmap.deriveOptions(null),
+              mindmapData
+            )
+          } catch (fallbackError) {
+            console.error('Error loading fallback data:', fallbackError)
+            document.body.innerHTML =
+              '<div style="padding: 20px; color: red;">Error loading mindmap data. Please check the console for details.</div>'
+          }
+        }
+      })()
+    </script>
+  </body>
+</html>
