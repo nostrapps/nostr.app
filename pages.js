@@ -83,6 +83,14 @@ const VIEW_MODES = {
 /* ---------------------------------------------------------------- */
 /* -                      UTILITY FUNCTIONS                       - */
 /* ---------------------------------------------------------------- */
+// Storage configuration
+const StorageConfig = {
+  // Get the root URL for nosdav storage
+  getStorageRoot () {
+    return 'https://nosdav.net/'
+  }
+}
+
 // Utility functions for page name to file path conversion
 const PageUtils = {
   // Convert a page name to a safe file path
@@ -130,7 +138,7 @@ const PageStorage = {
         return pageName
       }
 
-      const url = `https://nosdav.net/${pubkey}/${path}`
+      const url = `${StorageConfig.getStorageRoot()}${pubkey}/${path}`
       const response = await fetch(url, {
         method: 'PUT',
         headers: {
@@ -168,7 +176,7 @@ const PageStorage = {
         return localStorage.getItem(`page_${pageName}`) || ''
       }
 
-      const url = `https://nosdav.net/${pubkey}/${path}`
+      const url = `${StorageConfig.getStorageRoot()}${pubkey}/${path}`
       console.log('Fetching from URL:', url)
       const response = await fetch(url)
 
@@ -196,7 +204,7 @@ const PageStorage = {
         // Save index to nosdav
         const pubkey = localStorage.getItem('pubkey')
         if (pubkey) {
-          const url = `https://nosdav.net/${pubkey}/public/pages/index.json`
+          const url = `${StorageConfig.getStorageRoot()}${pubkey}/public/pages/index.json`
           await fetch(url, {
             method: 'PUT',
             headers: {
@@ -219,7 +227,7 @@ const PageStorage = {
       // Try to get index from nosdav
       const pubkey = localStorage.getItem('pubkey')
       if (pubkey) {
-        const url = `https://nosdav.net/${pubkey}/public/pages/index.json`
+        const url = `${StorageConfig.getStorageRoot()}${pubkey}/public/pages/index.json`
         const response = await fetch(url)
 
         if (response.ok) {
@@ -398,7 +406,7 @@ function PageEditor () {
     const pubkey = localStorage.getItem('pubkey')
     if (pubkey) {
       const path = PageStorage.getPagePath(currentPage)
-      const url = `https://nosdav.net/${pubkey}/${path}`
+      const url = `${StorageConfig.getStorageRoot()}${pubkey}/${path}`
       window.open(url, '_blank')
     } else {
       alert('No pubkey found. Cannot open storage file.')
