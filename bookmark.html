@@ -1,12 +1,39 @@
+<!--
+/**
+ * bookmark.html - Bookmark Management Application
+ * 
+ * This file provides a complete bookmark management system with the following features:
+ * - Cloud storage via nosdav.net with localStorage fallback
+ * - Category-based organization with filtering
+ * - Search functionality across titles and URLs
+ * - TypeRegistration support for multiple bookmark collections
+ * - Modern responsive UI with Tailwind CSS
+ * 
+ * Storage Strategy:
+ * - Primary: nosdav cloud storage (https://nosdav.net/{pubkey}/public/bookmark/bookmark.json)
+ * - Fallback: Browser localStorage
+ * - Supports custom URIs via query parameters or TypeRegistrations
+ * 
+ * Referenced components: navbar.js, nosdav-shim.js
+ */
+-->
 <!DOCTYPE html>
 <html lang="en">
+  <!-- ================================================================ -->
+  <!-- -                         HTML HEAD                            - -->
+  <!-- ================================================================ -->
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bookmark App</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom CSS Variables and Styles -->
     <style>
+      /* ============================================================ */
+      /* -                    CSS VARIABLES                        - */
+      /* ============================================================ */
       :root {
+        /* Color scheme */
         --primary: #3b82f6;
         --primary-dark: #2563eb;
         --primary-light: #dbeafe;
@@ -16,18 +43,29 @@
         --text-dark: #334155;
         --card-bg: #ffffff;
         --body-bg: #f8fafc;
+
+        /* Layout dimensions */
         --sidebar-width: 230px;
         --header-height: 60px;
+
+        /* Shadows and borders */
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
         --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05);
         --radius-sm: 6px;
         --radius-md: 8px;
       }
 
+      /* ============================================================ */
+      /* -                   GLOBAL STYLES                         - */
+      /* ============================================================ */
       body {
         background-color: var(--body-bg);
         min-height: 100vh;
       }
+
+      /* ============================================================ */
+      /* -                  BOOKMARK CARD STYLES                   - */
+      /* ============================================================ */
       .bookmark-card {
         transition: all 0.2s ease;
         border: 1px solid #e5e7eb;
@@ -36,14 +74,23 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
       }
+
+      /* ============================================================ */
+      /* -                    FORM STYLES                          - */
+      /* ============================================================ */
       .add-form {
         background: #ffffff;
       }
+      /* ============================================================ */
+      /* -                 CATEGORY BADGE STYLES                   - */
+      /* ============================================================ */
       .category-badge {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
         border-radius: 9999px;
       }
+
+      /* Category-specific color schemes */
       .category-badge.development {
         background-color: #dbeafe;
         color: #1e40af;
@@ -76,6 +123,9 @@
         background-color: #e5e7eb;
         color: #4b5563;
       }
+      /* ============================================================ */
+      /* -                  BUTTON STYLES                          - */
+      /* ============================================================ */
       .add-bookmark-btn {
         background-color: var(--primary);
         color: white;
@@ -90,6 +140,10 @@
       .add-bookmark-btn:hover {
         background-color: var(--primary-dark);
       }
+
+      /* ============================================================ */
+      /* -                   INPUT STYLES                          - */
+      /* ============================================================ */
       .search-input {
         border: 1px solid #e5e7eb;
         border-radius: var(--radius-sm);
@@ -103,6 +157,10 @@
         border-color: var(--primary);
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
       }
+
+      /* ============================================================ */
+      /* -                 DROPDOWN STYLES                         - */
+      /* ============================================================ */
       .categories-dropdown {
         border: 1px solid #e5e7eb;
         border-radius: var(--radius-sm);
@@ -117,26 +175,44 @@
       }
     </style>
   </head>
+
+  <!-- ================================================================ -->
+  <!-- -                         HTML BODY                            - -->
+  <!-- ================================================================ -->
   <body class="font-sans">
+    <!-- Application mount point for Preact components -->
     <div id="app"></div>
 
+    <!-- ============================================================ -->
+    <!-- -                    JAVASCRIPT MODULE                    - -->
+    <!-- ============================================================ -->
     <script type="module">
+      /* ================================================================ */
+      /* -                      IMPORTS & SETUP                         - */
+      /* ================================================================ */
+      // Preact framework imports
       import {
         h,
         render,
         Component
       } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
       import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      // Local component and utility imports
       import Navbar from './navbar.js'
       import './nosdav-shim.js'
       import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
 
+      // Make secp256k1 available globally (required by nosdav-shim)
       window.secp256k1 = secp256k1
 
-      // Initialize htm with Preact
+      // Initialize HTM with Preact for JSX-like syntax
       const html = htm.bind(h)
 
-      // Utility function to get the bookmarks URL
+      /* ================================================================ */
+      /* -                     UTILITY FUNCTIONS                        - */
+      /* ================================================================ */
+      // Utility function to construct the bookmarks storage URL
       const getBookmarksUrl = (customUrl = null) => {
         if (customUrl) return customUrl
 
@@ -145,7 +221,10 @@
         return `https://nosdav.net/${pubkey}/public/bookmark/bookmark.json`
       }
 
-      // Default categories
+      /* ================================================================ */
+      /* -                        CONSTANTS                             - */
+      /* ================================================================ */
+      // Default bookmark categories available for organization
       const DEFAULT_CATEGORIES = [
         'Development',
         'Apps',
@@ -157,30 +236,37 @@
         'Other'
       ]
 
+      /* ================================================================ */
+      /* -                   MAIN BOOKMARK APP CLASS                    - */
+      /* ================================================================ */
       class BookmarkApp extends Component {
         constructor() {
           super()
+          // Initialize application state
           this.state = {
-            bookmarks: [],
-            newBookmark: { title: '', url: '', category: 'Development' },
-            selectedCategory: 'All Categories',
-            searchQuery: '',
-            availableUris: [],
-            currentUriIndex: 0,
-            typeRegistrations: [],
-            storageType: 'nosdav'
+            bookmarks: [], // Array of bookmark objects
+            newBookmark: { title: '', url: '', category: 'Development' }, // Form state for new bookmark
+            selectedCategory: 'All Categories', // Current category filter
+            searchQuery: '', // Current search query
+            availableUris: [], // Available storage URIs from TypeRegistrations
+            currentUriIndex: 0, // Index of currently selected URI
+            typeRegistrations: [], // TypeRegistration objects from publicTypeIndex
+            storageType: 'nosdav' // Current storage type being used
           }
         }
 
+        /* -------------------- LIFECYCLE METHODS -------------------- */
         componentDidMount() {
           // Add a small delay to ensure any URL hash login completes first
           setTimeout(async () => {
-            // First check for publicTypeIndex.json
+            // First check for publicTypeIndex.json to discover bookmark collections
             await this.checkPublicTypeIndex()
+            // Then load bookmarks from the appropriate storage location
             this.loadBookmarks()
           }, 200)
         }
 
+        /* -------------------- TYPE REGISTRATION METHODS -------------------- */
         // Check for publicTypeIndex.json and load TypeRegistrations
         async checkPublicTypeIndex() {
           try {
@@ -247,7 +333,8 @@
           }
         }
 
-        // Parse URIs from query string
+        /* -------------------- URI PARSING METHODS -------------------- */
+        // Parse URIs from query string for custom storage locations
         parseUrisFromQueryString() {
           const urlParams = new URLSearchParams(window.location.search)
           const uriParam = urlParams.get('uri')
@@ -261,7 +348,8 @@
             .filter(uri => uri)
         }
 
-        // Storage handling
+        /* -------------------- STORAGE PROVIDER METHODS -------------------- */
+        // Get the appropriate storage provider with save/load functionality
         getStorageProvider() {
           // First check if we have URIs from TypeRegistrations
           let availableUris = [...this.state.availableUris]
@@ -372,6 +460,8 @@
           console.log(`Bookmarks saved to ${storage.type}`)
         }
 
+        /* -------------------- BOOKMARK DATA METHODS -------------------- */
+        // Load bookmarks from storage and ensure data integrity
         async loadBookmarks() {
           const storage = this.getStorageProvider()
           const bookmarks = await storage.load()
@@ -392,6 +482,8 @@
           }
         }
 
+        /* -------------------- EVENT HANDLERS -------------------- */
+        // Handle form input changes for new bookmark form
         handleInputChange = e => {
           const { name, value } = e.target
           this.setState({
@@ -402,21 +494,25 @@
           })
         }
 
+        // Handle category filter selection change
         handleCategoryChange = e => {
           this.setState({ selectedCategory: e.target.value })
         }
 
+        // Handle search input changes
         handleSearchChange = e => {
           this.setState({ searchQuery: e.target.value })
         }
 
+        /* -------------------- BOOKMARK CRUD OPERATIONS -------------------- */
+        // Add a new bookmark to the collection
         addBookmark = e => {
           e.preventDefault()
           const { title, url, category } = this.state.newBookmark
 
           if (!title || !url) return
 
-          // Add http:// if missing
+          // Add http:// if missing for proper URL formatting
           let formattedUrl = url
           if (!url.startsWith('http://') && !url.startsWith('https://')) {
             formattedUrl = 'https://' + url
@@ -441,13 +537,14 @@
               newBookmark: {
                 title: '',
                 url: '',
-                category: this.state.newBookmark.category
+                category: this.state.newBookmark.category // Preserve selected category
               }
             },
             () => this.saveBookmarks()
           )
         }
 
+        // Remove a bookmark by ID
         removeBookmark = id => {
           const bookmarks = this.state.bookmarks.filter(
             bookmark => bookmark.id !== id
@@ -455,6 +552,7 @@
           this.setState({ bookmarks }, () => this.saveBookmarks())
         }
 
+        // Toggle the read status of a bookmark
         toggleReadStatus = id => {
           const bookmarks = this.state.bookmarks.map(bookmark =>
             bookmark.id === id
@@ -464,6 +562,8 @@
           this.setState({ bookmarks }, () => this.saveBookmarks())
         }
 
+        /* -------------------- UTILITY METHODS -------------------- */
+        // Open the current storage file in a new browser tab
         openStorageFile = () => {
           const availableUris = this.state.availableUris
           const customBookmarksUrl =
@@ -481,15 +581,16 @@
           }
         }
 
-        // Handle URI selection change
+        // Handle URI selection change from dropdown
         handleUriChange = e => {
           const newIndex = parseInt(e.target.value, 10)
           this.setState({ currentUriIndex: newIndex }, () => {
-            // Reload bookmarks from the new URI
+            // Reload bookmarks from the newly selected URI
             this.loadBookmarks()
           })
         }
 
+        // Filter bookmarks based on category and search query
         getFilteredBookmarks() {
           const { bookmarks, selectedCategory, searchQuery } = this.state
 
@@ -499,7 +600,7 @@
               selectedCategory === 'All Categories' ||
               bookmark.category === selectedCategory
 
-            // Filter by search query
+            // Filter by search query (searches both title and URL)
             const searchMatch =
               !searchQuery ||
               bookmark.title
@@ -511,11 +612,12 @@
           })
         }
 
+        /* -------------------- COMPONENT RENDERING -------------------- */
         render() {
           const storage = this.getStorageProvider()
           const filteredBookmarks = this.getFilteredBookmarks()
 
-          // Check if using custom URL
+          // Determine UI state based on available URIs and storage configuration
           const hasMultipleUris = this.state.availableUris.length > 1
           const showUriSelector = this.state.availableUris.length > 0
           const customBookmarksUrl =
@@ -992,7 +1094,10 @@
         }
       }
 
-      // Add default bookmarks if none exist
+      /* ================================================================ */
+      /* -                DEFAULT BOOKMARKS & INITIALIZATION            - */
+      /* ================================================================ */
+      // Add default bookmarks if none exist to provide a better first experience
       const addDefaultBookmarks = async () => {
         const storage = {
           load: async () => {
@@ -1141,7 +1246,10 @@
         }
       }
 
-      // Add default bookmarks and render the app
+      /* ================================================================ */
+      /* -                    APPLICATION RENDERING                      - */
+      /* ================================================================ */
+      // Initialize default bookmarks and render the main application
       addDefaultBookmarks().then(() => {
         render(html`<${BookmarkApp} />`, document.getElementById('app'))
       })
