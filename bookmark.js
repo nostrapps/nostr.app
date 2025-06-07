@@ -1031,16 +1031,6 @@ const addDefaultBookmarks = async () => {
     if (bookmarks.length === 0) {
       console.log('🆕 addDefaultBookmarks: Creating default bookmarks')
       const defaultBookmarks = [
-        {
-          id: Date.now(),
-          title: 'Nostr App',
-          url: 'https://nostr.app',
-          category: 'Development',
-          createdAt: new Date().toISOString(),
-          read: false,
-          '@type': 'Bookmark',
-          description: 'Nostr App is a web app for Nostr.'
-        }
       ]
 
       await storage.save(defaultBookmarks)
