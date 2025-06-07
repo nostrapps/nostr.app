@@ -18,6 +18,7 @@ import {
 } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
 import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
 import Navbar from './navbar.js'
+import StorageConfig from './storage-config.js'
 import './nosdav-shim.js'
 import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
 
@@ -165,9 +166,9 @@ class TodoApp extends Component {
   }
 
   /* -------------------- STORAGE PROVIDER CONFIGURATION -------------------- */
-  // Get configured storage provider with fallback logic
+  // Get configured storage provider with enhanced DID-based discovery
   getStorageProvider () {
-    // First check if we have URIs from TypeRegistrations
+    // First check if we have URIs from TypeRegistrations or query params
     let availableUris = [...this.state.availableUris]
 
     // If no TypeRegistration URIs, check query string
@@ -185,24 +186,22 @@ class TodoApp extends Component {
     const customTodosUrl =
       availableUris[this.state.currentUriIndex] || null
 
-    // Use nosdav.net directly as the primary storage solution
-    console.log('Using nosdav.net as primary storage')
+    // Enhanced storage provider with DID document discovery
+    console.log('Using enhanced storage provider with DID discovery')
     return {
       type: 'nosdav',
       isPrimary: true,
       customUrl: customTodosUrl,
+      isCustomStorage: StorageConfig.isCustomStorage(),
       save: async data => {
         try {
           let url
           if (customTodosUrl) {
+            // Use custom URL from TypeRegistrations/query params
             url = customTodosUrl
           } else {
-            const pubkey = localStorage.getItem('pubkey')
-            if (!pubkey) {
-              console.error('No pubkey found for nosdav storage')
-              return false
-            }
-            url = `https://nosdav.net/${pubkey}/public/todo/todo.json`
+            // Use enhanced StorageConfig for intelligent URL building
+            url = await StorageConfig.buildUrl('public/todo/todo.json')
           }
 
           const response = await fetch(url, {
@@ -223,29 +222,29 @@ class TodoApp extends Component {
             if (response.status >= 400 && response.status < 500) {
               // Show a user-friendly notification about needing an invite
               alert(
-                `Unable to save to nosdav (Error ${response.status}): You may need an invite to save data.`
+                `Unable to save to storage (Error ${response.status}): You may need an invite to save data.`
               )
               console.error(
-                `Error saving to nosdav: ${response.status} ${response.statusText}`
+                `Error saving to storage: ${response.status} ${response.statusText}`
               )
             } else {
               // For other errors, show a generic message
               alert(
-                `Unable to save to nosdav (Error ${response.status}): ${response.statusText}`
+                `Unable to save to storage (Error ${response.status}): ${response.statusText}`
               )
               console.error(
-                `Error saving to nosdav: ${response.status} ${response.statusText}`
+                `Error saving to storage: ${response.status} ${response.statusText}`
               )
             }
             throw new Error(
               `Network response was not ok: ${response.status} ${response.statusText}`
             )
           }
-          console.log('Todos saved to nosdav successfully')
+          console.log('Todos saved to storage successfully')
           return true
         } catch (e) {
-          console.error('Error saving to nosdav:', e)
-          // Fall back to localStorage if nosdav fails
+          console.error('Error saving to storage:', e)
+          // Fall back to localStorage if storage fails
           if (typeof localStorage !== 'undefined') {
             try {
               localStorage.setItem('todos', JSON.stringify(data))
@@ -253,7 +252,7 @@ class TodoApp extends Component {
               // Notify user that data was saved to localStorage instead
               if (!e.message.includes('Network response was not ok')) {
                 alert(
-                  'Your todos were saved to browser storage instead of nosdav due to a connection error.'
+                  'Your todos were saved to browser storage instead of cloud storage due to a connection error.'
                 )
               }
               return {
@@ -278,15 +277,13 @@ class TodoApp extends Component {
         try {
           let url
           if (customTodosUrl) {
+            // Use custom URL from TypeRegistrations/query params
             url = customTodosUrl
-            console.log(`Using URI from query string: ${url}`)
+            console.log(`Using custom URI: ${url}`)
           } else {
-            const pubkey = localStorage.getItem('pubkey')
-            if (!pubkey) {
-              console.error('No pubkey found for nosdav storage')
-              return []
-            }
-            url = `https://nosdav.net/${pubkey}/public/todo/todo.json`
+            // Use enhanced StorageConfig for intelligent URL building
+            url = await StorageConfig.buildUrl('public/todo/todo.json')
+            console.log(`Using DID-discovered storage: ${url}`)
           }
 
           const response = await fetch(url)
@@ -299,8 +296,8 @@ class TodoApp extends Component {
           const todos = await response.json()
           return todos
         } catch (e) {
-          console.error('Error loading from nosdav:', e)
-          // Try to load from localStorage if nosdav fails
+          console.error('Error loading from storage:', e)
+          // Try to load from localStorage if storage fails
           if (typeof localStorage !== 'undefined') {
             try {
               const data = localStorage.getItem('todos')
@@ -490,7 +487,7 @@ class TodoApp extends Component {
 
   /* -------------------- UI INTERACTION METHODS -------------------- */
   // Open the current todo storage file in a new browser tab
-  openStorageFile = () => {
+  openStorageFile = async () => {
     const availableUris = this.state.availableUris
     const customTodosUrl =
       availableUris[this.state.currentUriIndex] || null
@@ -498,12 +495,12 @@ class TodoApp extends Component {
     if (customTodosUrl) {
       window.open(customTodosUrl, '_blank')
     } else {
-      const pubkey = localStorage.getItem('pubkey')
-      if (pubkey) {
-        const url = `https://nosdav.net/${pubkey}/public/todo/todo.json`
+      try {
+        const url = await StorageConfig.buildUrl('public/todo/todo.json')
         window.open(url, '_blank')
-      } else {
-        alert('No pubkey found. Cannot open storage file.')
+      } catch (error) {
+        console.error('Error building storage URL:', error)
+        alert('Unable to determine storage file location.')
       }
     }
   }
@@ -567,14 +564,17 @@ class TodoApp extends Component {
     })
   }
 
-  // Handle user logout by clearing todo state
+  // Handle user logout by clearing todo state and storage cache
   handleLogout = () => {
     this.setState({
       todos: [],
       newTodo: '',
       saveError: null
     })
-    console.log('Todos cleared on logout')
+
+    // Clear storage cache when user logs out
+    StorageConfig.clearCache()
+    console.log('Todos cleared on logout, storage cache cleared')
   }
 
   /* -------------------- CALENDAR EXPORT FUNCTIONALITY -------------------- */
@@ -1143,7 +1143,9 @@ class TodoApp extends Component {
                                       d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
                                     />
                                   </svg>
-                                  Using nosdav cloud storage
+                                  ${StorageConfig.isCustomStorage()
+                ? 'Using DID-discovered cloud storage'
+                : 'Using nosdav cloud storage'}
                                   ${this.state.saveError
                 ? html`<span
                                         class="ml-1.5 text-xs text-red-500"
