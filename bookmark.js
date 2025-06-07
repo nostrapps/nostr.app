@@ -11,6 +11,7 @@ import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
 
 // Local component and utility imports
 import Navbar from './navbar.js'
+import StorageConfig from './storage-config.js'
 import './nosdav-shim.js'
 import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
 
@@ -23,13 +24,20 @@ const html = htm.bind(h)
 /* ================================================================ */
 /* -                     UTILITY FUNCTIONS                        - */
 /* ================================================================ */
-// Utility function to construct the bookmarks storage URL
-const getBookmarksUrl = (customUrl = null) => {
+// Utility function to construct the bookmarks storage URL using DID discovery
+const getBookmarksUrl = async (customUrl = null) => {
   if (customUrl) return customUrl
 
   const pubkey = localStorage.getItem('pubkey')
   if (!pubkey) return null
-  return `https://nosdav.net/${pubkey}/public/bookmark/bookmark.json`
+
+  try {
+    return await StorageConfig.buildUrl('public/bookmark/bookmark.json')
+  } catch (error) {
+    console.error('Error building bookmark URL:', error)
+    // Fallback to hardcoded pattern if StorageConfig fails
+    return `https://nosdav.net/${pubkey}/public/bookmark/bookmark.json`
+  }
 }
 
 /* ================================================================ */
@@ -78,7 +86,7 @@ class BookmarkApp extends Component {
   }
 
   /* -------------------- TYPE REGISTRATION METHODS -------------------- */
-  // Check for publicTypeIndex.json and load TypeRegistrations
+  // Check for publicTypeIndex.json and load TypeRegistrations using DID discovery
   async checkPublicTypeIndex () {
     try {
       const pubkey = localStorage.getItem('pubkey')
@@ -87,13 +95,14 @@ class BookmarkApp extends Component {
         return
       }
 
-      const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
-      console.log(`Checking for publicTypeIndex at: ${typeIndexUrl}`)
+      // Use StorageConfig for DID-aware URL building instead of hardcoded nosdav.net
+      const typeIndexUrl = await StorageConfig.buildUrl('settings/publicTypeIndex.json')
+      console.log(`🔍 Checking for publicTypeIndex at DID-discovered location: ${typeIndexUrl}`)
 
       const response = await fetch(typeIndexUrl)
 
       if (response.status === 404) {
-        console.log('No publicTypeIndex.json found')
+        console.log('📭 No publicTypeIndex.json found - DID discovery will be used for storage')
         return
       }
 
@@ -116,31 +125,62 @@ class BookmarkApp extends Component {
       )
 
       if (bookmarkRegistrations.length > 0) {
-        console.log(
-          'Found Bookmark registrations:',
-          bookmarkRegistrations
-        )
+        console.log('✅ Found Bookmark registrations:', bookmarkRegistrations)
+        console.log('📋 TypeRegistrations will override DID discovery for storage')
 
-        // Convert instance paths to full URLs
-        const bookmarkUris = bookmarkRegistrations.map(reg => {
-          // Make sure the instance path starts with a slash
-          const instancePath = reg.instance.startsWith('/')
-            ? reg.instance
-            : `/${reg.instance}`
+        // Convert instance paths to full URLs using DID-discovered storage root
+        const bookmarkUris = await Promise.all(bookmarkRegistrations.map(async reg => {
+          let instancePath = reg.instance
 
-          return `https://nosdav.net/${pubkey}${instancePath}`
-        })
+          // Handle relative paths that start with ../
+          if (instancePath.startsWith('../')) {
+            // Remove the publicTypeIndex.json from the path and go up one directory
+            const baseUrl = new URL(typeIndexUrl)
+            const pathParts = baseUrl.pathname.split('/')
+            // Remove the filename (publicTypeIndex.json)
+            pathParts.pop()
+            // Remove one directory for each ../ at the start
+            const relativeParts = instancePath.split('/')
+            let dotDotCount = 0
+            while (
+              relativeParts.length > 0 &&
+              relativeParts[0] === '..'
+            ) {
+              relativeParts.shift()
+              dotDotCount++
+            }
+            // Remove that many directories from the path
+            for (let i = 0; i < dotDotCount; i++) {
+              pathParts.pop()
+            }
+            // Reconstruct the path with the remaining relative parts
+            const newPath = [...pathParts, ...relativeParts].join('/')
+            return `${baseUrl.origin}${newPath}`
+          }
 
-        console.log('Bookmark URIs:', bookmarkUris)
+          // For absolute paths, use StorageConfig
+          // Remove leading slash if present since buildUrl adds path properly
+          const cleanPath = instancePath.startsWith('/')
+            ? instancePath.substring(1)
+            : instancePath
+
+          return await StorageConfig.buildUrl(cleanPath)
+        }))
+
+        console.log('🎯 DID-based Bookmark URIs:', bookmarkUris)
+        console.log('✅ All TypeRegistration paths now use DID-discovered storage root')
 
         // Update state with these URIs
         this.setState({
           availableUris: bookmarkUris,
           typeRegistrations: bookmarkRegistrations
         })
+      } else {
+        console.log('📭 No Bookmark TypeRegistrations found - DID discovery will be used for storage')
       }
     } catch (error) {
-      console.error('Error checking publicTypeIndex.json:', error)
+      console.error('❌ Error checking publicTypeIndex.json:', error)
+      console.log('🔄 Falling back to DID discovery for storage')
     }
   }
 
@@ -160,9 +200,9 @@ class BookmarkApp extends Component {
   }
 
   /* -------------------- STORAGE PROVIDER METHODS -------------------- */
-  // Get the appropriate storage provider with save/load functionality
+  // Get the appropriate storage provider with enhanced DID-based discovery
   getStorageProvider () {
-    // First check if we have URIs from TypeRegistrations
+    // First check if we have URIs from TypeRegistrations or query params
     let availableUris = [...this.state.availableUris]
 
     // If no TypeRegistration URIs, check query string
@@ -180,21 +220,35 @@ class BookmarkApp extends Component {
     const customBookmarksUrl =
       availableUris[this.state.currentUriIndex] || null
 
-    // Use nosdav.net directly as the primary storage solution
-    console.log('Using nosdav.net as primary storage')
+    // Enhanced storage provider with DID document discovery
+    console.log('=== BOOKMARK STORAGE PROVIDER DEBUG ===')
+    console.log('Available URIs from TypeRegistrations:', this.state.availableUris)
+    console.log('Available URIs from query/state:', availableUris)
+    console.log('Current URI index:', this.state.currentUriIndex)
+    console.log('Custom bookmarks URL:', customBookmarksUrl)
+    console.log('Will use DID discovery:', !customBookmarksUrl)
+    console.log('StorageConfig cache status:', StorageConfig.getCachedStorageRoot())
+    console.log('=======================================')
+    console.log('Using enhanced storage provider with DID discovery')
     return {
       type: 'nosdav',
       isPrimary: true,
       customUrl: customBookmarksUrl,
+      isCustomStorage: StorageConfig.isCustomStorage(),
       save: async data => {
         try {
-          const pubkey = localStorage.getItem('pubkey')
-          if (!pubkey) {
-            console.error('No pubkey found for nosdav storage')
-            return false
+          let url
+          if (customBookmarksUrl) {
+            // Use custom URL from TypeRegistrations/query params
+            url = customBookmarksUrl
+            console.log('🔗 SAVE: Using custom URL from TypeRegistrations/query params:', url)
+          } else {
+            // Use enhanced StorageConfig for intelligent URL building
+            console.log('🔍 SAVE: Using DID discovery via StorageConfig...')
+            url = await getBookmarksUrl()
+            console.log('🎯 SAVE: DID-discovered URL:', url)
           }
 
-          const url = getBookmarksUrl(customBookmarksUrl)
           const response = await fetch(url, {
             method: 'PUT',
             headers: {
@@ -204,11 +258,11 @@ class BookmarkApp extends Component {
           })
 
           if (!response.ok) throw new Error('Network response was not ok')
-          console.log('Bookmarks saved to nosdav successfully')
+          console.log('Bookmarks saved to storage successfully')
           return true
         } catch (e) {
-          console.error('Error saving to nosdav:', e)
-          // Fall back to localStorage if nosdav fails
+          console.error('Error saving to storage:', e)
+          // Fall back to localStorage if storage fails
           if (typeof localStorage !== 'undefined') {
             try {
               localStorage.setItem('bookmarks', JSON.stringify(data))
@@ -223,15 +277,16 @@ class BookmarkApp extends Component {
       },
       load: async () => {
         try {
-          const pubkey = localStorage.getItem('pubkey')
-          if (!pubkey) {
-            console.error('No pubkey found for nosdav storage')
-            return []
-          }
-
-          const url = getBookmarksUrl(customBookmarksUrl)
+          let url
           if (customBookmarksUrl) {
-            console.log(`Using URI from settings: ${url}`)
+            // Use custom URL from TypeRegistrations/query params
+            url = customBookmarksUrl
+            console.log('🔗 LOAD: Using custom URI from TypeRegistrations/query params:', url)
+          } else {
+            // Use enhanced StorageConfig for intelligent URL building
+            console.log('🔍 LOAD: Using DID discovery via StorageConfig...')
+            url = await getBookmarksUrl()
+            console.log('🎯 LOAD: DID-discovered URL:', url)
           }
 
           const response = await fetch(url)
@@ -244,8 +299,8 @@ class BookmarkApp extends Component {
           const bookmarks = await response.json()
           return bookmarks
         } catch (e) {
-          console.error('Error loading from nosdav:', e)
-          // Try to load from localStorage if nosdav fails
+          console.error('Error loading from storage:', e)
+          // Try to load from localStorage if storage fails
           if (typeof localStorage !== 'undefined') {
             try {
               const data = localStorage.getItem('bookmarks')
@@ -375,7 +430,7 @@ class BookmarkApp extends Component {
 
   /* -------------------- UTILITY METHODS -------------------- */
   // Open the current storage file in a new browser tab
-  openStorageFile = () => {
+  openStorageFile = async () => {
     const availableUris = this.state.availableUris
     const customBookmarksUrl =
       availableUris[this.state.currentUriIndex] || null
@@ -383,11 +438,16 @@ class BookmarkApp extends Component {
     if (customBookmarksUrl) {
       window.open(customBookmarksUrl, '_blank')
     } else {
-      const url = getBookmarksUrl()
-      if (url) {
-        window.open(url, '_blank')
-      } else {
-        alert('No pubkey found. Cannot open storage file.')
+      try {
+        const url = await getBookmarksUrl()
+        if (url) {
+          window.open(url, '_blank')
+        } else {
+          alert('Unable to determine storage file location.')
+        }
+      } catch (error) {
+        console.error('Error building storage URL:', error)
+        alert('Unable to determine storage file location.')
       }
     }
   }
@@ -849,7 +909,9 @@ class BookmarkApp extends Component {
                                   d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
                                 />
                               </svg>
-                              Using nosdav cloud storage
+                              ${StorageConfig.isCustomStorage()
+                ? 'Using DID-discovered cloud storage'
+                : 'Using nosdav cloud storage'}
                             </span>
                           `}
                       <button
@@ -910,150 +972,84 @@ class BookmarkApp extends Component {
 /* ================================================================ */
 // Add default bookmarks if none exist to provide a better first experience
 const addDefaultBookmarks = async () => {
-  const storage = {
-    load: async () => {
-      try {
-        const pubkey = localStorage.getItem('pubkey')
-        if (!pubkey) return []
+  console.log('🎯 addDefaultBookmarks: Starting default bookmark initialization')
 
-        // Check for URIs in query string
-        const urlParams = new URLSearchParams(window.location.search)
-        const uriParam = urlParams.get('uri')
-        let customUrl = null
+  try {
+    // Create a temporary storage provider using DID discovery
+    const storage = {
+      load: async () => {
+        try {
+          console.log('📥 addDefaultBookmarks: Loading existing bookmarks via DID discovery')
+          const url = await StorageConfig.buildUrl('public/bookmark/bookmark.json')
+          console.log('🔗 addDefaultBookmarks: Using DID-discovered URL:', url)
 
-        if (uriParam) {
-          // Use the first URI from the query string
-          const uris = uriParam
-            .split(',')
-            .map(uri => uri.trim())
-            .filter(uri => uri)
-          if (uris.length > 0) {
-            customUrl = uris[0]
+          const response = await fetch(url)
+          if (response.status === 404) {
+            console.log('📭 addDefaultBookmarks: No existing bookmarks found (404)')
+            return []
           }
-        }
+          if (!response.ok) throw new Error('Network response was not ok')
 
-        // If no custom URL, check for publicTypeIndex.json
-        if (!customUrl) {
-          try {
-            const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
-            const typeIndexResponse = await fetch(typeIndexUrl)
-
-            if (typeIndexResponse.ok) {
-              const typeIndex = await typeIndexResponse.json()
-              const bookmarkRegistrations = typeIndex.filter(
-                item =>
-                  item.type === 'TypeRegistration' &&
-                  item.forClass === 'BookmarkCollection'
-              )
-
-              if (bookmarkRegistrations.length > 0) {
-                // Use the first bookmark registration
-                const reg = bookmarkRegistrations[0]
-                const instancePath = reg.instance.startsWith('/')
-                  ? reg.instance
-                  : `/${reg.instance}`
-                customUrl = `https://nosdav.net/${pubkey}${instancePath}`
-              }
-            }
-          } catch (error) {
-            console.error('Error checking publicTypeIndex.json:', error)
+          const bookmarks = await response.json()
+          console.log('✅ addDefaultBookmarks: Found existing bookmarks:', bookmarks.length)
+          return bookmarks
+        } catch (e) {
+          console.log('⚠️ addDefaultBookmarks: Error loading from storage, checking localStorage fallback')
+          const data = localStorage.getItem('bookmarks')
+          if (data) {
+            console.log('💾 addDefaultBookmarks: Found localStorage backup')
+            return JSON.parse(data)
           }
+          console.log('📭 addDefaultBookmarks: No bookmarks found anywhere')
+          return []
         }
+      },
+      save: async data => {
+        try {
+          console.log('💾 addDefaultBookmarks: Saving default bookmarks via DID discovery')
+          const url = await StorageConfig.buildUrl('public/bookmark/bookmark.json')
+          console.log('🔗 addDefaultBookmarks: Using DID-discovered URL:', url)
 
-        const url = customUrl || getBookmarksUrl()
-        const response = await fetch(url)
-        if (response.status === 404) return []
-        if (!response.ok) throw new Error('Network response was not ok')
-
-        const bookmarks = await response.json()
-        return bookmarks
-      } catch (e) {
-        const data = localStorage.getItem('bookmarks')
-        if (data) return JSON.parse(data)
-        return []
-      }
-    },
-    save: async data => {
-      try {
-        const pubkey = localStorage.getItem('pubkey')
-        if (!pubkey) {
+          await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data.map(item => ({
+              '@context': { '@vocab': 'urn:solid:' },
+              ...item
+            })))
+          })
+          console.log('✅ addDefaultBookmarks: Successfully saved default bookmarks to storage')
+        } catch (e) {
+          console.log('⚠️ addDefaultBookmarks: Error saving to storage, using localStorage fallback')
           localStorage.setItem('bookmarks', JSON.stringify(data))
-          return
         }
-
-        // Check for URIs in query string
-        const urlParams = new URLSearchParams(window.location.search)
-        const uriParam = urlParams.get('uri')
-        let customUrl = null
-
-        if (uriParam) {
-          // Use the first URI from the query string
-          const uris = uriParam
-            .split(',')
-            .map(uri => uri.trim())
-            .filter(uri => uri)
-          if (uris.length > 0) {
-            customUrl = uris[0]
-          }
-        }
-
-        // If no custom URL, check for publicTypeIndex.json
-        if (!customUrl) {
-          try {
-            const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
-            const typeIndexResponse = await fetch(typeIndexUrl)
-
-            if (typeIndexResponse.ok) {
-              const typeIndex = await typeIndexResponse.json()
-              const bookmarkRegistrations = typeIndex.filter(
-                item =>
-                  item.type === 'TypeRegistration' &&
-                  item.forClass === 'BookmarkCollection'
-              )
-
-              if (bookmarkRegistrations.length > 0) {
-                // Use the first bookmark registration
-                const reg = bookmarkRegistrations[0]
-                const instancePath = reg.instance.startsWith('/')
-                  ? reg.instance
-                  : `/${reg.instance}`
-                customUrl = `https://nosdav.net/${pubkey}${instancePath}`
-              }
-            }
-          } catch (error) {
-            console.error('Error checking publicTypeIndex.json:', error)
-          }
-        }
-
-        const url = customUrl || getBookmarksUrl()
-        await fetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        })
-      } catch (e) {
-        localStorage.setItem('bookmarks', JSON.stringify(data))
       }
     }
-  }
 
-  const bookmarks = await storage.load()
+    const bookmarks = await storage.load()
 
-  if (bookmarks.length === 0) {
-    const defaultBookmarks = [
-      {
-        id: Date.now(),
-        title: 'Nostr App',
-        url: 'https://nostr.app',
-        category: 'Development',
-        createdAt: new Date().toISOString(),
-        read: false,
-        '@type': 'Bookmark',
-        description: 'Nostr App is a web app for Nostr.'
-      }
-    ]
+    if (bookmarks.length === 0) {
+      console.log('🆕 addDefaultBookmarks: Creating default bookmarks')
+      const defaultBookmarks = [
+        {
+          id: Date.now(),
+          title: 'Nostr App',
+          url: 'https://nostr.app',
+          category: 'Development',
+          createdAt: new Date().toISOString(),
+          read: false,
+          '@type': 'Bookmark',
+          description: 'Nostr App is a web app for Nostr.'
+        }
+      ]
 
-    await storage.save(defaultBookmarks)
+      await storage.save(defaultBookmarks)
+      console.log('✅ addDefaultBookmarks: Default bookmarks added successfully')
+    } else {
+      console.log('✨ addDefaultBookmarks: Existing bookmarks found, no defaults needed')
+    }
+  } catch (error) {
+    console.error('❌ addDefaultBookmarks: Error during initialization:', error)
   }
 }
 
