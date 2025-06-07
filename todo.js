@@ -1,3 +1,16 @@
+/**
+ * todo.js - JavaScript for the Nostr-based Todo List application
+ * 
+ * This file provides a complete todo list application with cloud storage
+ * capabilities via nosdav, Solid-style TypeRegistrations, and calendar export.
+ * Features include task management, priority handling, and mind mapping integration.
+ * 
+ * Referenced by: todo.html
+ */
+
+/* ---------------------------------------------------------------- */
+/* -                      IMPORTS & SETUP                         - */
+/* ---------------------------------------------------------------- */
 import {
   h,
   render,
@@ -8,37 +21,44 @@ import Navbar from './navbar.js'
 import './nosdav-shim.js'
 import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
 
+// Make secp256k1 available globally (required by nosdav-shim.js)
 window.secp256k1 = secp256k1
 
-// Initialize htm with Preact
+// Initialize HTM with Preact for JSX-like syntax
 const html = htm.bind(h)
 
+/* ---------------------------------------------------------------- */
+/* -                    MAIN TODO APP COMPONENT                   - */
+/* ---------------------------------------------------------------- */
 class TodoApp extends Component {
   constructor () {
     super()
     this.state = {
-      todos: [],
-      newTodo: '',
-      storageType: '',
-      isEditingTitle: false,
-      editedTitle: '',
-      availableUris: [],
-      currentUriIndex: 0,
-      typeRegistrations: [],
-      saveError: null
+      todos: [],              // Array of todo items (Tasks and Tracker)
+      newTodo: '',            // Current input for new todo
+      storageType: '',        // Storage type indicator ('nosdav' or 'local')
+      isEditingTitle: false,  // Whether the list title is being edited
+      editedTitle: '',        // Temporary title during editing
+      availableUris: [],      // Available storage URIs from TypeRegistrations or query params
+      currentUriIndex: 0,     // Index of currently selected URI
+      typeRegistrations: [],  // Solid TypeRegistration objects for Tracker class
+      saveError: null         // Error state for save operations
     }
   }
 
+  /* -------------------- LIFECYCLE & INITIALIZATION -------------------- */
   componentDidMount () {
     // Add a small delay to ensure any URL hash login completes first
     setTimeout(async () => {
-      // First check for publicTypeIndex.json
+      // First check for publicTypeIndex.json to find registered Tracker instances
       await this.checkPublicTypeIndex()
+      // Then initialize storage and load todos
       this.initializeStorage()
     }, 200)
   }
 
-  // Check for publicTypeIndex.json and load TypeRegistrations
+  /* -------------------- TYPE REGISTRATION DISCOVERY -------------------- */
+  // Check for publicTypeIndex.json and load TypeRegistrations for Tracker class
   async checkPublicTypeIndex () {
     try {
       const pubkey = localStorage.getItem('pubkey')
@@ -129,21 +149,23 @@ class TodoApp extends Component {
     }
   }
 
-  // Parse URIs from query string
+  /* -------------------- URI PARSING UTILITIES -------------------- */
+  // Parse URIs from query string parameters for custom storage locations
   parseUrisFromQueryString () {
     const urlParams = new URLSearchParams(window.location.search)
     const uriParam = urlParams.get('uri')
 
     if (!uriParam) return []
 
-    // Split by comma and trim each URI
+    // Split by comma and trim each URI to support multiple storage locations
     return uriParam
       .split(',')
       .map(uri => uri.trim())
       .filter(uri => uri)
   }
 
-  // Storage handling
+  /* -------------------- STORAGE PROVIDER CONFIGURATION -------------------- */
+  // Get configured storage provider with fallback logic
   getStorageProvider () {
     // First check if we have URIs from TypeRegistrations
     let availableUris = [...this.state.availableUris]
@@ -296,11 +318,12 @@ class TodoApp extends Component {
     }
   }
 
+  /* -------------------- STORAGE INITIALIZATION -------------------- */
   async initializeStorage () {
     const storage = this.getStorageProvider()
     const todos = await storage.load()
 
-    // Add backward compatibility for todos with 'text' property
+    // Add backward compatibility for todos with legacy 'text' property
     const updatedTodos = todos.map(todo => {
       if (todo.text && !todo.title) {
         return { ...todo, title: todo.text }
@@ -308,12 +331,13 @@ class TodoApp extends Component {
       return todo
     })
 
-    // Check if we have a Tracker item with @id "#this", if not create one
+    // Ensure we have a Tracker item with @id "#this" for list metadata
     const hasTracker = updatedTodos.some(
       todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
     )
 
     if (!hasTracker) {
+      // Create default Tracker item for this todo list
       updatedTodos.push({
         '@id': '#this',
         '@type': 'Tracker',
@@ -385,10 +409,13 @@ class TodoApp extends Component {
     console.log(`Todos saved to ${storage.type}`)
   }
 
+  /* -------------------- TODO MANAGEMENT METHODS -------------------- */
+  // Handle new todo input changes
   handleInputChange = e => {
     this.setState({ newTodo: e.target.value })
   }
 
+  // Handle form submission to add new todo
   handleSubmit = e => {
     e.preventDefault()
     if (!this.state.newTodo.trim()) return
@@ -415,8 +442,9 @@ class TodoApp extends Component {
     this.saveTodos(newTodos)
   }
 
+  // Toggle completion status of a todo item
   toggleTodo = id => {
-    // Only toggle items with @type 'Task'
+    // Only toggle items with @type 'Task' (not Tracker items)
     const newTodos = this.state.todos.map(todo => {
       if (todo['@id'] === id && todo['@type'] === 'Task') {
         return {
@@ -432,8 +460,9 @@ class TodoApp extends Component {
     this.saveTodos(newTodos)
   }
 
+  // Move a todo to the top by updating its timestamp (prioritize)
   prioritizeTodo = id => {
-    // Only prioritize items with @type 'Task'
+    // Only prioritize items with @type 'Task' (not Tracker items)
     const newTodos = this.state.todos.map(todo => {
       if (todo['@id'] === id && todo['@type'] === 'Task') {
         return {
@@ -448,8 +477,9 @@ class TodoApp extends Component {
     this.saveTodos(newTodos)
   }
 
+  // Remove a todo item from the list
   removeTodo = id => {
-    // Don't remove the Tracker item
+    // Don't allow removal of the Tracker item
     if (id === '#this') return
 
     const newTodos = this.state.todos.filter(todo => todo['@id'] !== id)
@@ -458,6 +488,8 @@ class TodoApp extends Component {
     this.saveTodos(newTodos)
   }
 
+  /* -------------------- UI INTERACTION METHODS -------------------- */
+  // Open the current todo storage file in a new browser tab
   openStorageFile = () => {
     const availableUris = this.state.availableUris
     const customTodosUrl =
@@ -476,6 +508,7 @@ class TodoApp extends Component {
     }
   }
 
+  // Start editing the todo list title
   startEditingTitle = () => {
     const tracker = this.state.todos.find(
       todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
@@ -488,10 +521,12 @@ class TodoApp extends Component {
     }
   }
 
+  // Handle title input changes during editing
   handleTitleChange = e => {
     this.setState({ editedTitle: e.target.value })
   }
 
+  // Save the edited title to the Tracker item
   saveTitle = () => {
     if (!this.state.editedTitle.trim()) {
       this.setState({ isEditingTitle: false })
@@ -513,6 +548,7 @@ class TodoApp extends Component {
     this.saveTodos(newTodos)
   }
 
+  // Handle keyboard shortcuts during title editing
   handleTitleKeyDown = e => {
     if (e.key === 'Enter') {
       e.preventDefault()
@@ -522,16 +558,16 @@ class TodoApp extends Component {
     }
   }
 
-  // Handle URI selection change
+  // Handle URI selection change from dropdown
   handleUriChange = e => {
     const newIndex = parseInt(e.target.value, 10)
     this.setState({ currentUriIndex: newIndex }, () => {
-      // Reload todos from the new URI
+      // Reload todos from the newly selected URI
       this.initializeStorage()
     })
   }
 
-  // Handle logout, clear todos state
+  // Handle user logout by clearing todo state
   handleLogout = () => {
     this.setState({
       todos: [],
@@ -541,20 +577,21 @@ class TodoApp extends Component {
     console.log('Todos cleared on logout')
   }
 
-  // Generate ICS content from todos
+  /* -------------------- CALENDAR EXPORT FUNCTIONALITY -------------------- */
+  // Generate ICS (iCalendar) content from todo items for calendar export
   generateIcsContent = () => {
-    // Filter for just task items
+    // Filter for just task items (exclude Tracker metadata)
     const taskItems = this.state.todos.filter(
       todo => todo['@type'] === 'Task'
     )
 
-    // Find the tracker for list title
+    // Find the tracker item to get the list title
     const tracker = this.state.todos.find(
       todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
     )
     const listTitle = tracker?.title || 'Todo List'
 
-    // Start building the ICS content
+    // Start building the ICS calendar content with headers
     let icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -564,7 +601,7 @@ class TodoApp extends Component {
       `X-WR-CALNAME:${listTitle}`
     ]
 
-    // Create a VEVENT for each task
+    // Create a VEVENT (calendar event) for each task
     taskItems.forEach(todo => {
       const created = todo.created ? new Date(todo.created) : new Date()
 
@@ -616,18 +653,18 @@ class TodoApp extends Component {
     return icsContent.join('\r\n')
   }
 
-  // Export todos as ICS file
+  // Export todos as downloadable ICS calendar file
   exportToIcs = () => {
     const icsContent = this.generateIcsContent()
 
-    // Find the tracker for list title (used for filename)
+    // Find the tracker to get list title for filename
     const tracker = this.state.todos.find(
       todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
     )
     const listTitle = tracker?.title || 'Todo_List'
     const fileName = `${listTitle.replace(/\s+/g, '_')}.ics`
 
-    // Create blob and download link
+    // Create blob with ICS content and trigger download
     const blob = new Blob([icsContent], {
       type: 'text/calendar;charset=utf-8'
     })
@@ -635,36 +672,37 @@ class TodoApp extends Component {
     link.href = URL.createObjectURL(blob)
     link.setAttribute('download', fileName)
 
-    // Trigger download
+    // Trigger the download by clicking the link
     document.body.appendChild(link)
     link.click()
 
-    // Clean up
+    // Clean up the temporary link element
     document.body.removeChild(link)
   }
 
+  /* -------------------- MAIN RENDER METHOD -------------------- */
   render () {
-    // Filter todos to only display items with @type "Task"
+    // Filter todos to only display Task items (exclude Tracker metadata)
     const taskItems = this.state.todos.filter(
       todo => todo['@type'] === 'Task'
     )
     const completedTasks = taskItems.filter(todo => todo.completed).length
 
-    // Find the Tracker item to get its title
+    // Find the Tracker item to get the list title
     const tracker = this.state.todos.find(
       todo => todo['@type'] === 'Tracker' && todo['@id'] === '#this'
     )
     const listTitle =
       tracker && tracker.title ? tracker.title : 'Todo List'
 
-    // Check if using custom URL
+    // Determine storage configuration and UI state
     const hasMultipleUris = this.state.availableUris.length > 1
     const showUriSelector = this.state.availableUris.length > 0
     const customTodosUrl =
       this.state.availableUris[this.state.currentUriIndex] || null
     const isUsingCustomUrl = !!customTodosUrl
 
-    // Sort tasks by completion status first, then by updated date
+    // Sort tasks for optimal display order
     const sortedTasks = [...taskItems].sort((a, b) => {
       // First sort by completion status (completed tasks go to the bottom)
       if (a.completed !== b.completed) {
@@ -1210,4 +1248,8 @@ class TodoApp extends Component {
   }
 }
 
+/* ---------------------------------------------------------------- */
+/* -                    APPLICATION RENDERING                      - */
+/* ---------------------------------------------------------------- */
+// Render the TodoApp component to the DOM
 render(html`<${TodoApp} />`, document.getElementById('app'))
