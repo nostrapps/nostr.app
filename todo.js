@@ -68,13 +68,14 @@ class TodoApp extends Component {
         return
       }
 
-      const typeIndexUrl = `https://nosdav.net/${pubkey}/settings/publicTypeIndex.json`
-      console.log(`Checking for publicTypeIndex at: ${typeIndexUrl}`)
+      // Use StorageConfig for DID-aware URL building instead of hardcoded nosdav.net
+      const typeIndexUrl = await StorageConfig.buildUrl('settings/publicTypeIndex.json')
+      console.log(`🔍 Checking for publicTypeIndex at DID-discovered location: ${typeIndexUrl}`)
 
       const response = await fetch(typeIndexUrl)
 
       if (response.status === 404) {
-        console.log('No publicTypeIndex.json found')
+        console.log('📭 No publicTypeIndex.json found - DID discovery will be used for storage')
         return
       }
 
@@ -96,10 +97,11 @@ class TodoApp extends Component {
       )
 
       if (trackerRegistrations.length > 0) {
-        console.log('Found Tracker registrations:', trackerRegistrations)
+        console.log('✅ Found Tracker registrations:', trackerRegistrations)
+        console.log('📋 TypeRegistrations will override DID discovery for storage')
 
-        // Convert instance paths to full URLs
-        const trackerUris = trackerRegistrations.map(reg => {
+        // Convert instance paths to full URLs using DID-discovered storage root
+        const trackerUris = await Promise.all(trackerRegistrations.map(async reg => {
           let instancePath = reg.instance
 
           // Handle relative paths that start with ../
@@ -128,25 +130,29 @@ class TodoApp extends Component {
             return `${baseUrl.origin}${newPath}`
           }
 
-          // Original code for absolute paths
-          // Make sure the instance path starts with a slash
-          instancePath = instancePath.startsWith('/')
-            ? instancePath
-            : `/${instancePath}`
+          // For absolute paths, use StorageConfig instead of hardcoded nosdav.net
+          // Remove leading slash if present since buildUrl adds path properly
+          const cleanPath = instancePath.startsWith('/')
+            ? instancePath.substring(1)
+            : instancePath
 
-          return `https://nosdav.net/${pubkey}${instancePath}`
-        })
+          return await StorageConfig.buildUrl(cleanPath)
+        }))
 
-        console.log('Tracker URIs:', trackerUris)
+        console.log('🎯 DID-based Tracker URIs:', trackerUris)
+        console.log('✅ All TypeRegistration paths now use DID-discovered storage root')
 
         // Update state with these URIs
         this.setState({
           availableUris: trackerUris,
           typeRegistrations: trackerRegistrations
         })
+      } else {
+        console.log('📭 No Tracker TypeRegistrations found - DID discovery will be used for storage')
       }
     } catch (error) {
-      console.error('Error checking publicTypeIndex.json:', error)
+      console.error('❌ Error checking publicTypeIndex.json:', error)
+      console.log('🔄 Falling back to DID discovery for storage')
     }
   }
 
@@ -187,7 +193,14 @@ class TodoApp extends Component {
       availableUris[this.state.currentUriIndex] || null
 
     // Enhanced storage provider with DID document discovery
-    console.log('Using enhanced storage provider with DID discovery')
+    console.log('=== STORAGE PROVIDER DEBUG ===')
+    console.log('Available URIs from TypeRegistrations:', this.state.availableUris)
+    console.log('Available URIs from query/state:', availableUris)
+    console.log('Current URI index:', this.state.currentUriIndex)
+    console.log('Custom todos URL:', customTodosUrl)
+    console.log('Will use DID discovery:', !customTodosUrl)
+    console.log('StorageConfig cache status:', StorageConfig.getCachedStorageRoot())
+    console.log('================================')
     return {
       type: 'nosdav',
       isPrimary: true,
@@ -199,9 +212,12 @@ class TodoApp extends Component {
           if (customTodosUrl) {
             // Use custom URL from TypeRegistrations/query params
             url = customTodosUrl
+            console.log('🔗 SAVE: Using custom URL from TypeRegistrations/query params:', url)
           } else {
             // Use enhanced StorageConfig for intelligent URL building
+            console.log('🔍 SAVE: Using DID discovery via StorageConfig...')
             url = await StorageConfig.buildUrl('public/todo/todo.json')
+            console.log('🎯 SAVE: DID-discovered URL:', url)
           }
 
           const response = await fetch(url, {
@@ -279,11 +295,12 @@ class TodoApp extends Component {
           if (customTodosUrl) {
             // Use custom URL from TypeRegistrations/query params
             url = customTodosUrl
-            console.log(`Using custom URI: ${url}`)
+            console.log('🔗 LOAD: Using custom URI from TypeRegistrations/query params:', url)
           } else {
             // Use enhanced StorageConfig for intelligent URL building
+            console.log('🔍 LOAD: Using DID discovery via StorageConfig...')
             url = await StorageConfig.buildUrl('public/todo/todo.json')
-            console.log(`Using DID-discovered storage: ${url}`)
+            console.log('🎯 LOAD: DID-discovered URL:', url)
           }
 
           const response = await fetch(url)
