@@ -3,844 +3,619 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nostr Storage Manager</title>
-    <!-- Tailwind CSS -->
+    <title>Agent Identity Card</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            colors: {
-              'light-blue': '#a5c4ff',
-              'light-purple': '#d5c1ff'
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif']
+            },
+            animation: {
+              float: 'float 6s ease-in-out infinite',
+              'pulse-glow': 'pulse-glow 3s ease-in-out infinite'
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0px)' },
+                '50%': { transform: 'translateY(-20px)' }
+              },
+              'pulse-glow': {
+                '0%, 100%': {
+                  boxShadow:
+                    '0 8px 20px rgba(91, 33, 182, 0.3), 0 0 0 8px rgba(255, 255, 255, 0.7)'
+                },
+                '50%': {
+                  boxShadow:
+                    '0 8px 30px rgba(91, 33, 182, 0.5), 0 0 0 12px rgba(255, 255, 255, 0.8)'
+                }
+              }
             }
           }
         }
       }
     </script>
-    <!-- Add SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- Add secp256k1 for private key handling -->
-    <script type="module">
-      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
-      window.secp256k1 = secp256k1
-    </script>
-    <style type="text/tailwindcss">
-      body {
-        @apply bg-gradient-to-br from-white to-light-blue min-h-screen;
+
+    <!-- Preact and HTM Scripts -->
+    <script src="https://unpkg.com/preact@10.13.1/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.13.1/hooks/dist/hooks.umd.js"></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.js"></script>
+
+    <style>
+      /* Custom background animation */
+      .bg-animation {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: -1;
       }
-      .profile-card {
-        @apply bg-white bg-opacity-50 backdrop-blur-sm rounded-xl p-8 shadow-lg;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+      .bg-animation li {
+        position: absolute;
+        display: block;
+        list-style: none;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        animation: animate 25s linear infinite;
+        bottom: -150px;
+        border-radius: 50%;
       }
-      .profile-card:hover {
-        transform: translateY(-5px);
-        @apply shadow-xl;
+
+      .bg-animation li:nth-child(1) {
+        left: 25%;
+        width: 80px;
+        height: 80px;
+        animation-delay: 0s;
+      }
+
+      .bg-animation li:nth-child(2) {
+        left: 10%;
+        width: 20px;
+        height: 20px;
+        animation-delay: 2s;
+        animation-duration: 12s;
+      }
+
+      .bg-animation li:nth-child(3) {
+        left: 70%;
+        width: 20px;
+        height: 20px;
+        animation-delay: 4s;
+      }
+
+      .bg-animation li:nth-child(4) {
+        left: 40%;
+        width: 60px;
+        height: 60px;
+        animation-delay: 0s;
+        animation-duration: 18s;
+      }
+
+      .bg-animation li:nth-child(5) {
+        left: 65%;
+        width: 20px;
+        height: 20px;
+        animation-delay: 0s;
+      }
+
+      .bg-animation li:nth-child(6) {
+        left: 75%;
+        width: 110px;
+        height: 110px;
+        animation-delay: 3s;
+      }
+
+      .bg-animation li:nth-child(7) {
+        left: 35%;
+        width: 150px;
+        height: 150px;
+        animation-delay: 7s;
+      }
+
+      @keyframes animate {
+        0% {
+          transform: translateY(0) rotate(0deg);
+          opacity: 0.5;
+        }
+        100% {
+          transform: translateY(-1000px) rotate(720deg);
+          opacity: 0;
+        }
       }
     </style>
   </head>
-  <body>
-    <!-- Profile container -->
-    <div id="app" class="min-h-screen flex flex-col"></div>
+  <body
+    class="min-h-screen bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center p-4 font-sans"
+  >
+    <div id="app"></div>
 
-    <!-- Import modules -->
-    <script type="module">
-      import {
-        h,
-        render,
-        Component
-      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
-      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
-      // Import NostrTools library
-      import * as NostrTools from 'https://esm.sh/nostr-tools@1.14.0'
-      // Import Navbar component
-      import Navbar from './navbar.js'
-      // Import secp256k1 for private key handling
-      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
-      // Import nosdav-shim for nosdav storage
-      import './nosdav-shim.js'
+    <!-- Background Animation -->
+    <ul class="bg-animation">
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+      <li></li>
+    </ul>
+
+    <script>
+      // Configuration - Set default pubkey here
+      const DEFAULT_PUBKEY =
+        '8d2cf0ee39bd6a449efd7200a3f6ac310042058a182bd082c218f5ebe14d8dc2'
 
       // Initialize htm with Preact
-      const html = htm.bind(h)
+      const html = htm.bind(preact.h)
+      const { useState, useEffect } = preactHooks
 
-      class StorageManagerApp extends Component {
-        constructor() {
-          super()
-          this.state = {
-            profile: {
-              pubkey: '',
-              storage: './'
-            },
-            storageArray: [],
-            showStorageInput: false,
-            newStorage: '',
-            editingStorageIndex: -1,
-            loading: true,
-            error: null
+      // SVG components
+      const UserIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-8 h-8 text-white"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      `
+
+      const CopyIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-4 h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path
+            d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+          ></path>
+        </svg>
+      `
+
+      const AppsIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-6 h-6 text-violet-600"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="9" y1="21" x2="9" y2="9"></line>
+        </svg>
+      `
+
+      const ProfileIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-6 h-6 text-violet-600"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      `
+
+      const AgentIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-6 h-6 text-violet-600"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
+          <path d="M16 2v4"></path>
+          <path d="M8 2v4"></path>
+          <path d="M12 10v6"></path>
+          <path d="M9 13h6"></path>
+        </svg>
+      `
+
+      const ExternalLinkIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-5 h-5 text-violet-300 group-hover:text-violet-500 transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path
+            d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+          ></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      `
+
+      const MoonIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-5 h-5 text-white"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      `
+
+      const SunIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-5 h-5 text-white"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      `
+
+      const NostrIcon = () => html`
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-4 h-4 inline mr-1"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path
+            d="M11.996 2.286c-4.764 0-8.622 3.859-8.622 8.622 0 4.764 3.858 8.627 8.622 8.627 4.763 0 8.626-3.862 8.626-8.627 0-4.763-3.862-8.622-8.626-8.622zm-1.604 3.967h3.208c2.571 0 4.658 2.089 4.658 4.66 0 2.57-2.087 4.657-4.658 4.657h-3.208c-2.571 0-4.659-2.087-4.659-4.658 0-2.57 2.088-4.659 4.659-4.659z"
+          />
+        </svg>
+      `
+
+      // Main App Component
+      function App() {
+        const [loading, setLoading] = useState(true)
+        const [pubkey, setPubkey] = useState('')
+        const [showCopyTooltip, setShowCopyTooltip] = useState(false)
+        const [currentDate, setCurrentDate] = useState('')
+        const [agentJsonExists, setAgentJsonExists] = useState(false)
+        const [darkTheme, setDarkTheme] = useState(false)
+        const [profileData, setProfileData] = useState(null)
+
+        useEffect(() => {
+          // Extract pubkey from URL
+          const urlParams = new URLSearchParams(window.location.search)
+
+          // Check for uri= parameter first (as requested)
+          let key = urlParams.get('uri')
+
+          // If uri not specified, try pubkey parameter
+          if (!key) {
+            key = urlParams.get('pubkey')
           }
 
-          this.addStorage = this.addStorage.bind(this)
-        }
-
-        componentDidMount() {
-          // Check for pubkey in localStorage (set during login)
-          const pubkey = localStorage.getItem('pubkey')
-
-          if (!pubkey) {
-            this.setState({
-              loading: false,
-              error: 'Please login first to manage your storage'
-            })
-            return
+          // If not found in query params, look for it in the path
+          const pathParts = window.location.pathname.split('/')
+          if (!key) {
+            for (let part of pathParts) {
+              if (part.length === 64 && /^[0-9a-f]{64}$/i.test(part)) {
+                key = part
+                break
+              }
+            }
           }
 
-          this.fetchProfile(pubkey)
-        }
+          // If still not found, check the hash
+          if (!key && window.location.hash) {
+            const hash = window.location.hash.substring(1)
+            if (hash.length === 64 && /^[0-9a-f]{64}$/i.test(hash)) {
+              key = hash
+            }
+          }
 
-        async fetchProfile(pubkey) {
-          try {
-            console.log('Fetching profile for pubkey:', pubkey)
+          // Use the configured default pubkey if none is found
+          const finalPubkey = key || DEFAULT_PUBKEY
+          setPubkey(finalPubkey)
 
-            // First try to load from nosdav
-            try {
-              console.log('Attempting to load profile from nosdav...')
-              const url = `https://nosdav.net/${pubkey}/index.json`
-              const response = await fetch(url)
-
+          // Check if agent.json exists
+          fetch('./.well-known/agent.json', { method: 'GET' })
+            .then(response => {
               if (response.ok) {
-                const profileData = await response.json()
-                console.log('Profile loaded from nosdav:', profileData)
-
-                // Convert storage to array if it exists
-                const storageArray = profileData.storage
-                  ? typeof profileData.storage === 'string'
-                    ? profileData.storage
-                        .split(',')
-                        .map(s => s.trim())
-                        .filter(Boolean)
-                    : Array.isArray(profileData.storage)
-                    ? profileData.storage
-                    : []
-                  : []
-
-                this.setState({
-                  profile: {
-                    pubkey: pubkey,
-                    storage: profileData.storage || './'
-                  },
-                  storageArray,
-                  loading: false
-                })
-
-                // Successfully loaded from nosdav, no need to check relays
-                return
+                setAgentJsonExists(true)
               }
-            } catch (nosdavError) {
-              console.error('Error loading from nosdav:', nosdavError)
-              // Continue to try loading from relays
-            }
-
-            // Connect to relays using SimplePool
-            const relays = ['wss://relay.damus.io', 'wss://nos.lol']
-            console.log('Connecting to relays:', relays)
-
-            let allEvents = []
-            const pool = new NostrTools.SimplePool()
-
-            try {
-              console.log('Fetching events using SimplePool')
-              allEvents = await pool.list(
-                relays,
-                [
-                  {
-                    kinds: [0],
-                    authors: [pubkey],
-                    limit: 10
-                  }
-                ],
-                { timeout: 5000 }
-              )
-
-              console.log('Events from SimplePool:', allEvents)
-            } catch (poolError) {
-              console.error('Error with SimplePool:', poolError)
-            }
-
-            // Close the pool
-            pool.close(relays)
-
-            console.log('All events collected:', allEvents)
-
-            if (allEvents && allEvents.length > 0) {
-              // Sort to get the latest event
-              allEvents.sort((a, b) => b.created_at - a.created_at)
-              const profileEvent = allEvents[0]
-              console.log('Latest profile event:', profileEvent)
-
-              try {
-                // Parse the content as JSON
-                const profileData = JSON.parse(profileEvent.content)
-                console.log('Parsed profile data:', profileData)
-
-                // Convert storage to array if it exists
-                const storageArray = profileData.storage
-                  ? typeof profileData.storage === 'string'
-                    ? profileData.storage
-                        .split(',')
-                        .map(s => s.trim())
-                        .filter(Boolean)
-                    : Array.isArray(profileData.storage)
-                    ? profileData.storage
-                    : []
-                  : []
-
-                this.setState({
-                  profile: {
-                    pubkey: pubkey,
-                    storage: profileData.storage || './'
-                  },
-                  storageArray,
-                  loading: false
-                })
-
-                // Also save to nosdav for future use
-                try {
-                  console.log('Syncing profile to nosdav...')
-                  const url = `https://nosdav.net/${pubkey}/index.json`
-
-                  const response = await fetch(url, {
-                    method: 'PUT',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(profileData)
-                  })
-
-                  if (!response.ok) {
-                    console.error(
-                      'Error syncing to nosdav:',
-                      response.statusText
-                    )
-                  } else {
-                    console.log('Profile synced to nosdav successfully')
-                  }
-                } catch (nosdavError) {
-                  console.error('Error syncing to nosdav:', nosdavError)
-                }
-              } catch (jsonError) {
-                console.error('Error parsing profile JSON:', jsonError)
-                this.setState({
-                  loading: false,
-                  error: 'Failed to parse profile data'
-                })
-              }
-            } else {
-              console.log('No profile events found for pubkey:', pubkey)
-              // No profile found, but we can still show the form with the pubkey
-              this.setState({
-                profile: {
-                  pubkey: pubkey,
-                  storage: './'
-                },
-                loading: false
-              })
-            }
-          } catch (error) {
-            console.error('Error fetching profile:', error)
-            this.setState({
-              loading: false,
-              error: `Failed to load storage settings: ${
-                error.message || 'Unknown error'
-              }`
             })
-          }
-        }
+            .catch(() => {
+              // File doesn't exist or network error, keep agentJsonExists as false
+            })
 
-        async handleSubmit(event) {
-          event.preventDefault()
+          // Fetch profile data
+          fetch('./profile.json', { method: 'GET' })
+            .then(response => {
+              if (response.ok) {
+                return response.json()
+              }
+              throw new Error('Profile not found')
+            })
+            .then(data => {
+              setProfileData(data)
+            })
+            .catch(() => {
+              // Profile doesn't exist or network error
+            })
 
-          const pubkey = this.state.profile.pubkey
-          if (!pubkey) {
-            this.setState({ error: 'No public key found' })
-            return
+          // Set current date with time
+          const now = new Date()
+          setCurrentDate(
+            now.toLocaleDateString() + ' ' + now.toLocaleTimeString()
+          )
+
+          // Check for stored theme preference
+          const storedTheme = localStorage.getItem('nostr-theme')
+          if (storedTheme === 'dark') {
+            setDarkTheme(true)
+            document.documentElement.classList.add('dark')
           }
 
-          try {
-            // Create profile event with just storage
-            const profileContent = JSON.stringify({
-              storage:
-                this.state.storageArray.length > 0
-                  ? this.state.storageArray
-                  : './'
-            })
+          setLoading(false)
+        }, [])
 
-            const eventTemplate = {
-              kind: 0,
-              created_at: Math.floor(Date.now() / 1000),
-              tags: [],
-              content: profileContent,
-              pubkey: pubkey
-            }
-
-            let signedEvent
-
-            // Check if private key is available in localStorage first
-            const privateKey = localStorage.getItem('nostr:privkey')
-            if (privateKey) {
-              // Use the stored private key to sign the event
-              signedEvent = NostrTools.finishEvent(eventTemplate, privateKey)
-              console.log('Event signed with stored private key')
-            }
-            // Fall back to NIP-07 extension if available
-            else if (window.nostr) {
-              // Use the extension to sign the event
-              signedEvent = await window.nostr.signEvent(eventTemplate)
-              console.log('Event signed with NIP-07 extension:', signedEvent)
-            } else {
-              // No signing method available
-              this.setState({
-                error:
-                  'No signing method available. Please use a Nostr extension or login with a private key.'
-              })
-              return
-            }
-
-            // Publish to relays
-            const relays = ['wss://relay.damus.io', 'wss://nos.lol']
-            const pool = new NostrTools.SimplePool()
-
-            const pubs = pool.publish(relays, signedEvent)
-            try {
-              await Promise.all(pubs)
-              console.log(
-                'Storage settings successfully published to relays:',
-                relays
-              )
-            } catch (relayError) {
-              console.error('Error publishing to some relays:', relayError)
-            }
-
-            // Save to nosdav
-            try {
-              console.log('Saving storage settings to nosdav...')
-              const storageData = JSON.parse(profileContent)
-              const url = `https://nosdav.net/${pubkey}/index.json`
-
-              const response = await fetch(url, {
-                method: 'PUT',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(storageData)
-              })
-
-              if (!response.ok) {
-                console.error('Error saving to nosdav:', response.statusText)
-                throw new Error(
-                  'Failed to save to nosdav: ' + response.statusText
-                )
-              }
-
-              console.log('Storage settings saved to nosdav successfully')
-            } catch (nosdavError) {
-              console.error('Error saving to nosdav:', nosdavError)
-              // Continue with success message even if nosdav fails, as we've published to relays
-            }
-
-            // Close connections
-            pool.close(relays)
-
-            Swal.fire({
-              title: 'Success!',
-              text: 'Storage settings updated successfully on relays and nosdav storage!',
-              icon: 'success',
-              timer: 2000,
-              showConfirmButton: false
-            })
-          } catch (error) {
-            console.error('Error saving storage settings:', error)
-            Swal.fire({
-              title: 'Error',
-              text: `Failed to save storage settings: ${error.message}`,
-              icon: 'error',
-              timer: 2000,
-              showConfirmButton: false
-            })
-          }
-        }
-
-        async handleNostrLogin() {
-          const { value: loginMethod } = await Swal.fire({
-            title: 'Login',
-            html: `
-              <button id="extensionLogin" class="swal2-confirm swal2-styled" style="display:block; width:100%; margin:10px auto;">Sign in with Nostr extension</button>
-              <input id="privkeyInput" type="text" placeholder="Or enter your 64-character hex private key" class="swal2-input" style="display:block; width:100%; margin:10px auto;">
-              <p style="margin-top: 10px; font-size: 0.9em;"><a href="https://nostrapps.github.io/extensions/" target="_blank">What is a Nostr extension?</a></p>
-            `,
-            showConfirmButton: false,
-            showCloseButton: true,
-            focusConfirm: false,
-            didOpen: () => {
-              const extensionButton =
-                Swal.getPopup().querySelector('#extensionLogin')
-              const privkeyInput =
-                Swal.getPopup().querySelector('#privkeyInput')
-
-              extensionButton.addEventListener('click', () => {
-                Swal.clickConfirm()
-              })
-
-              privkeyInput.addEventListener('keyup', e => {
-                if (e.key === 'Enter') {
-                  Swal.clickConfirm()
-                }
-              })
-
-              // Add paste event listener
-              privkeyInput.addEventListener('paste', e => {
-                setTimeout(() => {
-                  if (
-                    privkeyInput.value.length === 64 &&
-                    /^[0-9a-fA-F]+$/.test(privkeyInput.value)
-                  ) {
-                    Swal.clickConfirm()
-                  }
-                }, 0)
-              })
-            },
-            preConfirm: () => {
-              const privkey =
-                Swal.getPopup().querySelector('#privkeyInput').value
-              if (
-                privkey &&
-                (privkey.length !== 64 || !/^[0-9a-fA-F]+$/.test(privkey))
-              ) {
-                Swal.showValidationMessage(
-                  'Invalid private key format. Please enter a 64-character hex string.'
-                )
-                return false
-              }
-              return {
-                loginMethod: privkey ? 'privkey' : 'extension',
-                privkey
-              }
-            }
+        const copyToClipboard = () => {
+          navigator.clipboard.writeText(pubkey).then(() => {
+            setShowCopyTooltip(true)
+            setTimeout(() => setShowCopyTooltip(false), 2000)
           })
-
-          if (loginMethod) {
-            if (loginMethod.loginMethod === 'privkey') {
-              this.loginWithPrivkey(loginMethod.privkey)
-            } else {
-              // Check for localStorage privkey first
-              const storedPrivkey = localStorage.getItem('nostr:privkey')
-              if (storedPrivkey) {
-                this.loginWithPrivkey(storedPrivkey)
-              } else {
-                this.loginWithExtension()
-              }
-            }
-          }
         }
 
-        async loginWithExtension() {
-          try {
-            // Check if NIP-07 extension is available
-            if (!window.nostr) {
-              Swal.fire({
-                title: 'Extension Not Found',
-                text: 'Nostr extension not found. Please install a Nostr browser extension.',
-                icon: 'warning',
-                timer: 2000,
-                showConfirmButton: false
-              })
-              return
-            }
+        const toggleTheme = () => {
+          const newTheme = !darkTheme
+          setDarkTheme(newTheme)
 
-            // Request public key from extension
-            const pubkey = await window.nostr.getPublicKey()
-
-            if (pubkey) {
-              // Store the public key in localStorage
-              localStorage.setItem('loggedIn', 'true')
-              localStorage.setItem('pubkey', pubkey)
-
-              Swal.fire({
-                title: 'Logged in!',
-                text: 'You have successfully logged in with your Nostr extension.',
-                icon: 'success',
-                timer: 1000,
-                showConfirmButton: false
-              })
-
-              // Fetch profile with the new pubkey
-              this.setState({ loading: true, error: null })
-              this.fetchProfile(pubkey)
-            }
-          } catch (error) {
-            console.error('Login error:', error)
-            Swal.fire({
-              title: 'Login Failed',
-              text: 'There was an error logging in with your Nostr extension.',
-              icon: 'error',
-              timer: 2000,
-              showConfirmButton: false
-            })
-          }
-        }
-
-        async loginWithPrivkey(privkey) {
-          try {
-            const pubkey = secp256k1.utils.bytesToHex(
-              secp256k1.schnorr.getPublicKey(privkey)
-            )
-
-            // Store keys in localStorage
-            localStorage.setItem('loggedIn', 'true')
-            localStorage.setItem('pubkey', pubkey)
-            localStorage.setItem('nostr:privkey', privkey)
-
-            Swal.fire({
-              title: 'Logged in!',
-              text: 'You have successfully logged in with your private key.',
-              icon: 'success',
-              timer: 1000,
-              showConfirmButton: false
-            })
-
-            // Fetch profile with the new pubkey
-            this.setState({ loading: true, error: null })
-            this.fetchProfile(pubkey)
-          } catch (error) {
-            console.error('Login failed:', error)
-            Swal.fire({
-              title: 'Login Failed',
-              text: 'There was an error generating the public key from the provided private key.',
-              icon: 'error',
-              timer: 2000,
-              showConfirmButton: false
-            })
-          }
-        }
-
-        addStorage() {
-          const { newStorage, editingStorageIndex, storageArray } = this.state
-
-          if (!newStorage.trim()) return
-
-          let updatedStorageArray
-
-          if (editingStorageIndex >= 0) {
-            // Edit existing storage
-            updatedStorageArray = [...storageArray]
-            updatedStorageArray[editingStorageIndex] = newStorage.trim()
+          if (newTheme) {
+            document.documentElement.classList.add('dark')
+            localStorage.setItem('nostr-theme', 'dark')
           } else {
-            // Add new storage
-            updatedStorageArray = [...storageArray, newStorage.trim()]
+            document.documentElement.classList.remove('dark')
+            localStorage.setItem('nostr-theme', 'light')
           }
-
-          // Update both the array and the comma-separated string
-          this.setState({
-            storageArray: updatedStorageArray,
-            profile: {
-              ...this.state.profile,
-              storage: updatedStorageArray.join(',')
-            },
-            showStorageInput: false,
-            newStorage: '',
-            editingStorageIndex: -1
-          })
         }
 
-        editStorage(index) {
-          const storage = this.state.storageArray[index]
-          this.setState({
-            showStorageInput: true,
-            newStorage: storage,
-            editingStorageIndex: index
-          })
-        }
-
-        deleteStorage(index) {
-          const updatedStorageArray = [...this.state.storageArray]
-          updatedStorageArray.splice(index, 1)
-
-          this.setState({
-            storageArray: updatedStorageArray,
-            profile: {
-              ...this.state.profile,
-              storage: updatedStorageArray.join(',')
-            }
-          })
-        }
-
-        render() {
-          const { profile, loading, error } = this.state
-
+        if (loading) {
           return html`
-            <div class="min-h-screen flex flex-col">
-              <${Navbar} />
-
-              <div class="container mx-auto px-4 py-8 flex-grow">
-                ${loading
-                  ? html`
-                      <div
-                        class="flex justify-center items-center min-h-[70vh]"
-                      >
-                        <div class="text-light-purple text-xl animate-pulse">
-                          Loading storage settings...
-                        </div>
-                      </div>
-                    `
-                  : error && error.includes('Please login first')
-                  ? html`
-                      <div
-                        class="flex justify-center items-center min-h-[70vh]"
-                      >
-                        <div class="profile-card max-w-md w-full text-center">
-                          <h2 class="text-2xl font-bold text-gray-800 mb-6">
-                            Login Required
-                          </h2>
-                          <p class="text-gray-600 mb-6">
-                            You need to login with your Nostr account to manage
-                            your storage settings.
-                          </p>
-                          <button
-                            onClick=${this.handleNostrLogin.bind(this)}
-                            class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
-                          >
-                            Login with Nostr
-                          </button>
-                        </div>
-                      </div>
-                    `
-                  : error
-                  ? html`
-                      <div
-                        class="flex justify-center items-center min-h-[70vh]"
-                      >
-                        <div class="text-red-500 text-xl">
-                          Error loading storage settings: ${error}
-                        </div>
-                      </div>
-                    `
-                  : html`
-                      <div
-                        class="flex justify-center items-center min-h-[70vh]"
-                      >
-                        <div class="profile-card max-w-md w-full">
-                          <h2
-                            class="text-2xl font-bold text-center text-gray-800 mb-6"
-                          >
-                            Storage Manager
-                          </h2>
-                          <div class="text-center mb-4">
-                            <span
-                              class="text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block"
-                            >
-                              Using nosdav cloud storage
-                            </span>
-                          </div>
-                          <form
-                            class="space-y-4"
-                            onSubmit=${this.handleSubmit.bind(this)}
-                          >
-                            <div>
-                              <label
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                              >
-                                Public Key
-                              </label>
-                              <input
-                                type="text"
-                                value=${profile.pubkey}
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple bg-gray-100"
-                                readonly
-                              />
-                            </div>
-
-                            <div>
-                              <label
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                              >
-                                Storage Management
-                              </label>
-                              <div
-                                class="border border-gray-300 rounded-md p-3 bg-white"
-                              >
-                                <div class="space-y-2 mb-3">
-                                  ${this.state.storageArray &&
-                                  this.state.storageArray.map(
-                                    (storage, index) => html`
-                                      <div
-                                        key=${index}
-                                        class="flex items-center gap-2 p-2 bg-gray-50 rounded-md group"
-                                      >
-                                        <span
-                                          class="flex-grow font-mono text-sm truncate"
-                                          >${storage}</span
-                                        >
-                                        <button
-                                          type="button"
-                                          onClick=${() =>
-                                            this.editStorage(index)}
-                                          class="text-gray-500 hover:text-light-purple opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                          <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            class="h-4 w-4"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                          >
-                                            <path
-                                              stroke-linecap="round"
-                                              stroke-linejoin="round"
-                                              stroke-width="2"
-                                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                            />
-                                          </svg>
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick=${() =>
-                                            this.deleteStorage(index)}
-                                          class="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                          <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            class="h-4 w-4"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                          >
-                                            <path
-                                              stroke-linecap="round"
-                                              stroke-linejoin="round"
-                                              stroke-width="2"
-                                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                            />
-                                          </svg>
-                                        </button>
-                                      </div>
-                                    `
-                                  )}
-                                  ${this.state.storageArray &&
-                                  this.state.storageArray.length === 0 &&
-                                  html`
-                                    <div
-                                      class="text-gray-500 text-sm italic text-center py-2"
-                                    >
-                                      No storage locations added yet
-                                    </div>
-                                  `}
-                                </div>
-
-                                ${this.state.showStorageInput
-                                  ? html`
-                                      <div class="flex items-center gap-2">
-                                        <input
-                                          type="text"
-                                          value=${this.state.newStorage}
-                                          onChange=${e =>
-                                            this.setState({
-                                              newStorage: e.target.value
-                                            })}
-                                          class="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-light-purple"
-                                          placeholder="Enter storage URL or path"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick=${this.addStorage.bind(this)}
-                                          class="px-3 py-2 bg-light-purple text-white rounded-md hover:bg-opacity-90"
-                                        >
-                                          Save
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick=${() =>
-                                            this.setState({
-                                              showStorageInput: false,
-                                              newStorage: '',
-                                              editingStorageIndex: -1
-                                            })}
-                                          class="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                                        >
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    `
-                                  : html`
-                                      <button
-                                        type="button"
-                                        onClick=${() =>
-                                          this.setState({
-                                            showStorageInput: true,
-                                            newStorage: ''
-                                          })}
-                                        class="flex items-center gap-1 text-light-purple hover:text-opacity-80"
-                                      >
-                                        <svg
-                                          xmlns="http://www.w3.org/2000/svg"
-                                          class="h-5 w-5"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                          />
-                                        </svg>
-                                        Add Storage Location
-                                      </button>
-                                    `}
-                                <p class="text-xs text-gray-500 mt-2">
-                                  Add storage locations like URLs or local paths
-                                  for your data
-                                </p>
-                              </div>
-                            </div>
-
-                            ${error &&
-                            html`
-                              <div
-                                class="text-red-500 text-sm font-medium py-2"
-                              >
-                                ${error}
-                              </div>
-                            `}
-
-                            <div class="w-full pt-4 border-t border-gray-200">
-                              <div class="flex justify-center gap-4">
-                                <button
-                                  type="submit"
-                                  class="px-6 py-2 bg-gradient-to-r from-light-blue to-light-purple text-white rounded-lg shadow hover:shadow-lg transition-all"
-                                >
-                                  Save Storage Settings
-                                </button>
-                                <button
-                                  type="button"
-                                  class="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg shadow hover:shadow-lg transition-all"
-                                  onClick=${() => (window.location.href = '/')}
-                                >
-                                  Back to Home
-                                </button>
-                              </div>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-                    `}
-              </div>
+            <div
+              className="flex flex-col items-center justify-center min-h-screen text-white"
+            >
+              <div
+                className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"
+              ></div>
+              <span className="text-lg font-medium">Loading Identity...</span>
             </div>
           `
         }
+
+        return html`
+          <!-- Theme Toggle Button -->
+          <button
+            onClick=${toggleTheme}
+            className="fixed top-4 right-4 z-10 p-2 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition-all duration-300 hover:rotate-12"
+          >
+            ${darkTheme ? html`<${SunIcon} />` : html`<${MoonIcon} />`}
+          </button>
+
+          <!-- Main Card -->
+          <div
+            className="relative w-full max-w-md bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-3xl shadow-2xl p-10 transition-all duration-500 hover:shadow-3xl hover:-translate-y-2 animate-float"
+          >
+            <!-- Avatar Container -->
+            <div
+              className="absolute -top-14 left-1/2 transform -translate-x-1/2"
+            >
+              <div
+                className="relative w-28 h-28 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center animate-pulse-glow overflow-hidden"
+              >
+                ${profileData && profileData.picture
+                  ? html`<img
+                      src="${profileData.picture}"
+                      alt="Profile"
+                      className="absolute inset-0 w-full h-full object-cover rounded-full"
+                    />`
+                  : html`<${UserIcon} />`}
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div className="mt-16 text-center">
+              <!-- Name and Subtitle -->
+              <h1
+                className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent mb-2"
+              >
+                ${profileData && profileData.name
+                  ? profileData.name
+                  : 'Agent Identity'}
+              </h1>
+              <p
+                className="text-violet-600 dark:text-violet-400 mb-8 text-lg font-medium"
+              >
+                ${profileData && profileData.about
+                  ? profileData.about
+                  : 'Your decentralized digital presence'}
+              </p>
+
+              <!-- Public Key -->
+              <div
+                className="relative bg-gradient-to-br from-violet-50 to-purple-50 dark:from-slate-700 dark:to-slate-600 rounded-2xl p-5 mb-8 border border-violet-100 dark:border-slate-600 hover:shadow-md transition-all duration-300"
+              >
+                <p
+                  className="font-mono text-sm text-violet-700 dark:text-violet-300 break-all text-left"
+                >
+                  did:nostr:${pubkey}
+                </p>
+                <button
+                  onClick=${copyToClipboard}
+                  className="absolute top-3 right-3 p-2 bg-violet-100 dark:bg-slate-600 hover:bg-violet-200 dark:hover:bg-slate-500 rounded-lg transition-all duration-200 hover:-translate-y-0.5 text-violet-600 dark:text-violet-300"
+                >
+                  <${CopyIcon} />
+                </button>
+                ${showCopyTooltip &&
+                html`
+                  <div
+                    className="absolute -top-10 right-0 bg-violet-600 text-white text-xs px-3 py-1.5 rounded-lg animate-pulse"
+                  >
+                    Copied!
+                  </div>
+                `}
+              </div>
+
+              <!-- Links -->
+              <div className="space-y-4 mb-8">
+                <a
+                  href=${`/${pubkey}/settings/publicTypeIndex.html`}
+                  className="group flex items-center justify-between bg-gradient-to-r from-white to-gray-50 dark:from-slate-700 dark:to-slate-600 rounded-2xl p-5 border border-violet-100 dark:border-slate-600 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                >
+                  <div className="flex items-center">
+                    <div
+                      className="bg-violet-50 dark:bg-slate-600 p-3 rounded-xl mr-4 group-hover:rotate-6 transition-transform duration-300"
+                    >
+                      <${AppsIcon} />
+                    </div>
+                    <div className="text-left">
+                      <h3
+                        className="font-semibold text-violet-800 dark:text-violet-200 mb-1"
+                      >
+                        My Applications
+                      </h3>
+                      <p
+                        className="text-sm text-violet-600 dark:text-violet-400"
+                      >
+                        Access your connected apps and services
+                      </p>
+                    </div>
+                  </div>
+                  <${ExternalLinkIcon} />
+                </a>
+
+                <a
+                  href=${`https://nostr.social/profile/${pubkey}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center justify-between bg-gradient-to-r from-white to-gray-50 dark:from-slate-700 dark:to-slate-600 rounded-2xl p-5 border border-violet-100 dark:border-slate-600 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                >
+                  <div className="flex items-center">
+                    <div
+                      className="bg-violet-50 dark:bg-slate-600 p-3 rounded-xl mr-4 group-hover:rotate-6 transition-transform duration-300"
+                    >
+                      <${ProfileIcon} />
+                    </div>
+                    <div className="text-left">
+                      <h3
+                        className="font-semibold text-violet-800 dark:text-violet-200 mb-1"
+                      >
+                        Social Profile
+                      </h3>
+                      <p
+                        className="text-sm text-violet-600 dark:text-violet-400"
+                      >
+                        View your Nostr social presence
+                      </p>
+                    </div>
+                  </div>
+                  <${ExternalLinkIcon} />
+                </a>
+
+                ${agentJsonExists &&
+                html`
+                  <a
+                    href="./.well-known/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center justify-between bg-gradient-to-r from-white to-gray-50 dark:from-slate-700 dark:to-slate-600 rounded-2xl p-5 border border-violet-100 dark:border-slate-600 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                  >
+                    <div className="flex items-center">
+                      <div
+                        className="bg-violet-50 dark:bg-slate-600 p-3 rounded-xl mr-4 group-hover:rotate-6 transition-transform duration-300"
+                      >
+                        <${AgentIcon} />
+                      </div>
+                      <div className="text-left">
+                        <h3
+                          className="font-semibold text-violet-800 dark:text-violet-200 mb-1"
+                        >
+                          Agent Information
+                        </h3>
+                        <p
+                          className="text-sm text-violet-600 dark:text-violet-400"
+                        >
+                          View your agent's technical configuration
+                        </p>
+                      </div>
+                    </div>
+                    <${ExternalLinkIcon} />
+                  </a>
+                `}
+              </div>
+
+              <!-- Footer -->
+              <div
+                className="pt-6 border-t border-violet-100 dark:border-slate-600"
+              >
+                <p
+                  className="text-sm text-violet-600 dark:text-violet-400 flex items-center justify-center"
+                >
+                  <${NostrIcon} />
+                  Connected to the Nostr network • ${currentDate}
+                </p>
+              </div>
+            </div>
+          </div>
+        `
       }
 
       // Render the app
-      render(html`<${StorageManagerApp} />`, document.getElementById('app'))
+      preact.render(html`<${App} />`, document.getElementById('app'))
     </script>
   </body>
 </html>
