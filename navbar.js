@@ -199,6 +199,21 @@ class Navbar extends Component {
           const extensionButton = Swal.getPopup().querySelector('#extensionLogin');
           const privkeyInput = Swal.getPopup().querySelector('#privkeyInput');
 
+          // Clipboard auto-paste logic
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then(text => {
+              if (
+                text &&
+                text.length === 64 &&
+                /^[0-9a-fA-F]+$/.test(text)
+              ) {
+                privkeyInput.value = text;
+                // Auto-submit the form
+                Swal.clickConfirm();
+              }
+            }).catch(() => { });
+          }
+
           extensionButton.addEventListener('click', () => {
             Swal.clickConfirm();
             return { loginMethod: 'extension' };
@@ -286,9 +301,11 @@ class Navbar extends Component {
             icon: 'success',
             timer: 1500,
             showConfirmButton: false
+          }).then(() => {
+            if (this.props.onLogin) this.props.onLogin(pubkey);
+            const entry = document.querySelector('textarea, input[type="text"]');
+            if (entry) entry.focus();
           });
-
-          if (this.props.onLogin) this.props.onLogin(pubkey);
         });
       } catch (error) {
         console.error('Login failed:', error);
@@ -348,9 +365,11 @@ class Navbar extends Component {
             icon: 'success',
             timer: 1000,
             showConfirmButton: false
+          }).then(() => {
+            if (this.props.onLogin) this.props.onLogin(pubkey);
+            const entry = document.querySelector('textarea, input[type="text"]');
+            if (entry) entry.focus();
           });
-
-          if (this.props.onLogin) this.props.onLogin(pubkey);
         });
       } catch (error) {
         console.error('Login failed:', error);
