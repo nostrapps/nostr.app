@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NosDAV - Our Team</title>
+    <script
+      type="module"
+      src="https://unpkg.com/preact@10.19.3/dist/preact.module.js"
+    ></script>
+    <script
+      type="module"
+      src="https://unpkg.com/htm@3.1.1/dist/htm.module.js"
+    ></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(
+          135deg,
+          #0a0a0a 0%,
+          #1a1a2e 50%,
+          #16213e 100%
+        );
+        color: #ffffff;
+        overflow-x: hidden;
+        min-height: 100vh;
+      }
+
+      .background-grid {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: linear-gradient(
+            rgba(59, 130, 246, 0.1) 1px,
+            transparent 1px
+          ),
+          linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+        background-size: 50px 50px;
+        z-index: -1;
+        animation: grid-move 20s linear infinite;
+      }
+
+      @keyframes grid-move {
+        0% {
+          transform: translate(0, 0);
+        }
+        100% {
+          transform: translate(50px, 50px);
+        }
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      .hero {
+        text-align: center;
+        padding: 80px 0 60px;
+        position: relative;
+      }
+
+      .hero::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(
+          circle,
+          rgba(147, 51, 234, 0.3) 0%,
+          transparent 70%
+        );
+        transform: translate(-50%, -50%);
+        z-index: -1;
+        animation: pulse-glow 3s ease-in-out infinite;
+      }
+
+      @keyframes pulse-glow {
+        0%,
+        100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 0.7;
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.1);
+          opacity: 1;
+        }
+      }
+
+      .dao-logo {
+        font-size: 3.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 20px;
+        animation: fade-in-up 1s ease-out;
+      }
+
+      .hero-subtitle {
+        font-size: 1.3rem;
+        color: #94a3b8;
+        margin-bottom: 40px;
+        animation: fade-in-up 1s ease-out 0.2s both;
+      }
+
+      .team-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 30px;
+        margin-top: 60px;
+      }
+
+      .team-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: fade-in-up 0.8s ease-out both;
+      }
+
+      .team-card:nth-child(1) {
+        animation-delay: 0.1s;
+      }
+      .team-card:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .team-card:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      .team-card:nth-child(4) {
+        animation-delay: 0.4s;
+      }
+      .team-card:nth-child(5) {
+        animation-delay: 0.5s;
+      }
+      .team-card:nth-child(6) {
+        animation-delay: 0.6s;
+      }
+
+      .team-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+      }
+
+      .team-card:hover {
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+        border-color: rgba(59, 130, 246, 0.5);
+      }
+
+      .team-card:hover::before {
+        transform: scaleX(1);
+      }
+
+      .avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        margin: 0 auto 20px;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 600;
+        color: white;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+      }
+
+      .avatar::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+          45deg,
+          transparent,
+          rgba(255, 255, 255, 0.3),
+          transparent
+        );
+        transform: rotate(45deg);
+        animation: shimmer 2s linear infinite;
+        z-index: 1;
+      }
+
+      @keyframes shimmer {
+        0% {
+          transform: translateX(-100%) translateY(-100%) rotate(45deg);
+        }
+        100% {
+          transform: translateX(100%) translateY(100%) rotate(45deg);
+        }
+      }
+
+      .member-name {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #ffffff, #94a3b8);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .member-role {
+        color: #06b6d4;
+        font-weight: 500;
+        margin-bottom: 20px;
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      .member-bio {
+        color: #94a3b8;
+        line-height: 1.6;
+        margin-bottom: 20px;
+        font-size: 0.95rem;
+      }
+
+      .skills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+
+      .skill-tag {
+        background: rgba(59, 130, 246, 0.2);
+        border: 1px solid rgba(59, 130, 246, 0.5);
+        color: #3b82f6;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .skill-tag:hover {
+        background: rgba(59, 130, 246, 0.3);
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        transform: scale(1.05);
+      }
+
+      .social-links {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      .social-link {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: #94a3b8;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .social-link:hover {
+        background: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+      }
+
+      .stats-section {
+        margin-top: 80px;
+        text-align: center;
+        padding: 60px 0;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 40px;
+        margin-top: 40px;
+      }
+
+      .stat-item {
+        text-align: center;
+      }
+
+      .stat-number {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 10px;
+      }
+
+      .stat-label {
+        color: #94a3b8;
+        font-weight: 500;
+      }
+
+      @keyframes fade-in-up {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .dao-logo {
+          font-size: 2.5rem;
+        }
+
+        .hero-subtitle {
+          font-size: 1.1rem;
+        }
+
+        .team-grid {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+
+        .team-card {
+          padding: 20px;
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 30px;
+        }
+
+        .stat-number {
+          font-size: 2rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="background-grid"></div>
+    <div id="app"></div>
+    <script type="application/json" id="data">
+      {
+        "teamMembers": [
+          {
+            "name": "Evelyn",
+            "role": "Manager",
+            "bio": "Project manager with experience in coordinating cross-functional teams. Focused on delivering high-quality solutions on time.",
+            "skills": ["Leadership", "Management", "Planning", "Organization"],
+            "avatar": "EV",
+            "picture": "https://nosdav.net/cf4a4502ebf19f96d0ab3e049708401ea76cf64973473d954effb86d0a9fbb2f/public/images/thumb.png",
+            "id": "did:nostr:cf4a4502ebf19f96d0ab3e049708401ea76cf64973473d954effb86d0a9fbb2f",
+            "social": {
+              "github": "#",
+              "twitter": "#",
+              "linkedin": "#"
+            }
+          },
+          {
+            "name": "Liora",
+            "role": "Artist",
+            "bio": "Digital artist with a passion for creating engaging visual experiences. Specializes in user interface design and illustration.",
+            "skills": ["Design", "Illustration", "UI/UX", "Creative"],
+            "avatar": "LI",
+            "picture": "https://nosdav.net/246171c71d8889d647eb8285d2b39a48ff9003424d6d6d69e8b5f2a6b3495200/public/images/thumb.png",
+            "id": "did:nostr:246171c71d8889d647eb8285d2b39a48ff9003424d6d6d69e8b5f2a6b3495200",
+            "social": {
+              "github": "#",
+              "twitter": "#",
+              "linkedin": "#"
+            }
+          },
+          {
+            "name": "Morgan",
+            "role": "Communications",
+            "bio": "Communications specialist with expertise in technical writing and community engagement. Helps connect teams with their audience.",
+            "skills": [
+              "Community",
+              "Documentation",
+              "Content",
+              "Communications"
+            ],
+            "avatar": "MO",
+            "picture": "https://nosdav.net/10d6972a5404e6de44f22ad495b36d5b240b4f46443ee55e936b2d93e13a7182/public/images/thumb.png",
+            "id": "did:nostr:10d6972a5404e6de44f22ad495b36d5b240b4f46443ee55e936b2d93e13a7182",
+            "social": {
+              "github": "#",
+              "twitter": "#",
+              "linkedin": "#"
+            }
+          },
+          {
+            "name": "Alistair",
+            "role": "Support",
+            "bio": "Technical support specialist committed to helping users overcome challenges. Focuses on creating clear documentation and solutions.",
+            "skills": [
+              "Support",
+              "Documentation",
+              "Technical",
+              "Problem Solving"
+            ],
+            "avatar": "AL",
+            "picture": "https://nosdav.net/4b40f68c3a15f7fa83c53ba40e900498e26593a530b0066128bf18cf602a4c95/public/images/thumb.png",
+            "id": "did:nostr:4b40f68c3a15f7fa83c53ba40e900498e26593a530b0066128bf18cf602a4c95",
+            "social": {
+              "github": "#",
+              "twitter": "#",
+              "linkedin": "#"
+            }
+          },
+          {
+            "name": "Quinn",
+            "role": "Scientist",
+            "bio": "Research-focused team member with interests in data analysis and innovative technologies. Contributes analytical insights to projects.",
+            "skills": ["Research", "Analysis", "Technology", "Innovation"],
+            "avatar": "QU",
+            "picture": "https://nosdav.net/70bb8794876c34b17894a3609b32d9e6fa2fec08f01ecce92484a2b1dea920d8/public/images/thumb.png",
+            "id": "did:nostr:70bb8794876c34b17894a3609b32d9e6fa2fec08f01ecce92484a2b1dea920d8",
+            "social": {
+              "github": "#",
+              "twitter": "#",
+              "linkedin": "#"
+            }
+          }
+        ]
+      }
+    </script>
+    <script type="module">
+      import {
+        render,
+        h
+      } from 'https://unpkg.com/preact@10.19.3/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      const html = htm.bind(h)
+
+      // Read teamMembers from the data island
+      const teamMembersData = document.getElementById('data').textContent
+      const teamMembers = JSON.parse(teamMembersData).teamMembers
+
+      const TeamCard = ({ member }) => html`
+        <div class="team-card">
+          <div class="avatar">
+            ${member.picture
+              ? html`<img src="${member.picture}" alt="${member.name}" />`
+              : member.avatar}
+          </div>
+          <h3 class="member-name">${member.name}</h3>
+          <p class="member-role">${member.role}</p>
+          <p class="member-bio">${member.bio}</p>
+          <div class="skills">
+            ${member.skills.map(
+              skill => html` <span class="skill-tag">${skill}</span> `
+            )}
+          </div>
+          <div class="social-links">
+            <a href="${member.social.github}" class="social-link">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+                />
+              </svg>
+            </a>
+            <a href="${member.social.twitter}" class="social-link">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"
+                />
+              </svg>
+            </a>
+            <a href="${member.social.linkedin}" class="social-link">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+      `
+
+      const App = () => html`
+        <div class="container">
+          <header class="hero">
+            <h1 class="dao-logo">NosDAV DAO</h1>
+            <p class="hero-subtitle">Meet Our Team</p>
+          </header>
+
+          <main>
+            <div class="team-grid">
+              ${teamMembers.map(
+                member => html`<${TeamCard} member=${member} />`
+              )}
+            </div>
+
+            <section class="stats-section">
+              <h2
+                style="font-size: 2.5rem; margin-bottom: 20px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;"
+              >
+                Our Mission
+              </h2>
+              <p
+                style="color: #94a3b8; font-size: 1.1rem; margin-bottom: 30px; max-width: 800px; margin: 0 auto; line-height: 1.7;"
+              >
+                Our diverse team combines expertise in technology and creativity
+                to build innovative solutions powered by AI. We're dedicated to
+                developing tools that connect people and enhance digital
+                experiences.
+              </p>
+            </section>
+          </main>
+        </div>
+      `
+
+      render(html`<${App} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
