@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Git Mark</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'light-blue': '#8ecae6',
+              blue: '#4a6fa5',
+              primary: '#4a6fa5',
+              'primary-dark': '#3a5683',
+              'primary-light': '#c5d5e5',
+              secondary: '#8fb8de',
+              accent: '#63c0f5',
+              purple: '#a78bfa',
+              'light-purple': '#c4b5fd'
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --primary: #4a6fa5;
+        --primary-dark: #3a5683;
+        --primary-light: #c5d5e5;
+        --secondary: #8fb8de;
+        --accent: #63c0f5;
+        --text-light: #ffffff;
+        --text-dark: #334155;
+        --card-bg: #f0f7ff;
+        --body-bg: #f8fafc;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --radius-sm: 6px;
+        --radius-md: 12px;
+      }
+
+      .gradient-bg {
+        background: linear-gradient(
+          135deg,
+          var(--primary-light, #c5d5e5) 0%,
+          var(--primary, #4a6fa5) 100%
+        );
+      }
+      .mark-container {
+        transition: all 0.3s ease;
+      }
+      .mark-container:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      /* Remove old navbar styling */
+      /* nav {
+        background-color: #219ebc;
+        color: white;
+      }
+      nav a {
+        color: white;
+      } */
+    </style>
+  </head>
+  <body class="bg-body-bg min-h-screen">
+    <div id="app"></div>
+
+    <script type="module">
+      import {
+        h,
+        render,
+        Component
+      } from 'https://unpkg.com/preact@10.13.1/dist/preact.module.js'
+      import htm from 'https://unpkg.com/htm@3.1.1/dist/htm.module.js'
+
+      // Initialize htm with Preact
+      const html = htm.bind(h)
+
+      // Import navbar
+      import Navbar from './navbar.js'
+      import './nosdav-shim.js'
+      import * as secp256k1 from 'https://cdn.jsdelivr.net/npm/@noble/secp256k1@1.7.1/+esm'
+
+      window.secp256k1 = secp256k1
+
+      // Mark Component  
+      class Mark extends Component {
+        constructor(props) {
+          super(props)
+          this.handleChange = this.handleChange.bind(this)
+        }
+
+        handleChange(e) {
+          this.props.onUpdate(e.target.value)
+        }
+
+        render() {
+          const { content } = this.props
+
+          return html`
+            <div class="mark-container bg-white rounded-lg shadow-md p-6 mb-6">
+              <textarea
+                class="w-full h-64 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light text-lg mb-4"
+                value=${content}
+                onInput=${this.handleChange}
+                placeholder="Enter your mark text here..."
+              ></textarea>
+            </div>
+          `
+        }
+      }
+
+      // Main App Component
+      class App extends Component {
+        constructor() {
+          super()
+          this.state = {
+            markText: '',
+            saving: false
+          }
+
+          this.updateMark = this.updateMark.bind(this)
+          this.saveMark = this.saveMark.bind(this)
+          this.openStorageFile = this.openStorageFile.bind(this)
+        }
+
+        componentDidMount() {
+          // Load mark from storage
+          this.loadMark()
+        }
+
+        // Storage handling
+        getStorageProvider() {
+          // Use nosdav.net directly as the primary storage solution
+          console.log('Using nosdav.net as primary storage')
+          return {
+            type: 'nosdav',
+            isPrimary: true,
+            save: async data => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return false
+                }
+
+                const url = `https://nosdav.net/${pubkey}/GITMARK.txt`
+                const response = await fetch(url, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'text/plain'
+                  },
+                  body: data
+                })
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                console.log('Mark saved to nosdav successfully')
+                return true
+              } catch (e) {
+                console.error('Error saving to nosdav:', e)
+                // Fall back to localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    localStorage.setItem('gitmark', data)
+                    console.log('Mark saved to localStorage as fallback')
+                    return true
+                  } catch (localErr) {
+                    console.error('Error saving to localStorage:', localErr)
+                  }
+                }
+                return false
+              }
+            },
+            load: async () => {
+              try {
+                const pubkey = localStorage.getItem('pubkey')
+                if (!pubkey) {
+                  console.error('No pubkey found for nosdav storage')
+                  return ''
+                }
+
+                const url = `https://nosdav.net/${pubkey}/GITMARK.txt`
+                const response = await fetch(url)
+
+                if (response.status === 404) {
+                  return ''
+                }
+
+                if (!response.ok) throw new Error('Network response was not ok')
+                const text = await response.text()
+                return text
+              } catch (e) {
+                console.error('Error loading from nosdav:', e)
+                // Try to load from localStorage if nosdav fails
+                if (typeof localStorage !== 'undefined') {
+                  try {
+                    const data = localStorage.getItem('gitmark')
+                    if (data) {
+                      console.log('Loaded mark from localStorage as fallback')
+                      return data
+                    }
+                  } catch (localErr) {
+                    console.error('Error loading from localStorage:', localErr)
+                  }
+                }
+                return ''
+              }
+            }
+          }
+        }
+
+        async saveMark() {
+          this.setState({ saving: true })
+          try {
+            const storage = this.getStorageProvider()
+            await storage.save(this.state.markText)
+            console.log(`Mark saved to ${storage.type}`)
+          } catch (error) {
+            console.error('Error saving mark:', error)
+          } finally {
+            this.setState({ saving: false })
+          }
+        }
+
+        async loadMark() {
+          const storage = this.getStorageProvider()
+          const markText = await storage.load()
+          this.setState({ markText })
+          console.log(`Mark loaded from ${storage.type}`)
+        }
+
+        updateMark(content) {
+          this.setState({ markText: content })
+        }
+
+        openStorageFile() {
+          const pubkey = localStorage.getItem('pubkey')
+          if (pubkey) {
+            const url = `https://nosdav.net/${pubkey}/GITMARK.txt`
+            window.open(url, '_blank')
+          } else {
+            alert('No pubkey found. Cannot open storage file.')
+          }
+        }
+
+        render() {
+          const storage = this.getStorageProvider()
+          return html`
+            <div>
+              <${Navbar} />
+              <div class="container mx-auto px-4 py-8">
+                <div class="text-center mb-8">
+                  <h1
+                    class="text-4xl font-bold mb-4 text-transparent bg-clip-text gradient-bg"
+                  >
+                    Git Mark
+                  </h1>
+                  <p class="text-gray-600 mb-6">
+                    Write your mark for git commit processing
+                  </p>
+                  ${storage.type === 'nosdav'
+                    ? html`<div
+                        class="mt-2 text-sm text-green-600 bg-green-100 rounded-full px-3 py-1 inline-block mb-3"
+                      >
+                        Saving to GITMARK.txt
+                        <button
+                          onClick=${this.openStorageFile}
+                          class="ml-2 text-white rounded-full px-2 py-0.5 text-xs bg-primary hover:bg-primary-dark transition-colors"
+                          title="Open GITMARK.txt file in new tab"
+                        >
+                          View File
+                        </button>
+                      </div>`
+                    : html`<div
+                        class="mt-2 text-sm text-yellow-600 bg-yellow-100 rounded-full px-3 py-1 inline-block mb-3"
+                      >
+                        Using ${storage.type} storage (nosdav not available)
+                      </div>`}
+                </div>
+
+                <div class="max-w-4xl mx-auto">
+                  <${Mark}
+                    content=${this.state.markText}
+                    onUpdate=${this.updateMark}
+                  />
+                  <div class="text-center mt-6">
+                    <button
+                      onClick=${this.saveMark}
+                      disabled=${this.state.saving}
+                      class="bg-gradient-to-r from-primary-light to-primary text-white px-8 py-3 rounded-full hover:opacity-90 transition-opacity shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-lg font-semibold"
+                    >
+                      ${this.state.saving ? 'Saving...' : 'Save Mark'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `
+        }
+      }
+
+      // Render the app
+      render(html`<${App} />`, document.getElementById('app'))
+    </script>
+  </body>
+</html>
