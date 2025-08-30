@@ -174,18 +174,22 @@ class TodoApp extends Component {
   /* -------------------- STORAGE PROVIDER CONFIGURATION -------------------- */
   // Get configured storage provider with enhanced DID-based discovery
   getStorageProvider () {
-    // First check if we have URIs from TypeRegistrations or query params
-    let availableUris = [...this.state.availableUris]
-
-    // If no TypeRegistration URIs, check query string
-    if (availableUris.length === 0) {
-      const queryUris = this.parseUrisFromQueryString()
+    // First check query string (takes priority over TypeRegistrations)
+    const queryUris = this.parseUrisFromQueryString()
+    let availableUris = []
+    
+    if (queryUris.length > 0) {
+      // Query string URIs take priority
       availableUris = queryUris
-
+      
       // Store the available URIs in state for later use
-      if (queryUris.length > 0 && this.state.availableUris.length === 0) {
+      if (this.state.availableUris.length === 0 || 
+          JSON.stringify(this.state.availableUris) !== JSON.stringify(queryUris)) {
         this.setState({ availableUris: queryUris })
       }
+    } else {
+      // Fall back to TypeRegistrations if no query URIs
+      availableUris = [...this.state.availableUris]
     }
 
     // Get the current URI (either the selected one or the first one)
