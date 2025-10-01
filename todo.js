@@ -598,6 +598,40 @@ class TodoApp extends Component {
     console.log('Todos cleared on logout, storage cache cleared')
   }
 
+  // Generate permalink for current todo list using query parameters
+  generatePermalink = async () => {
+    const availableUris = this.state.availableUris
+    const customTodosUrl = availableUris[this.state.currentUriIndex] || null
+
+    let permalinkUrl
+
+    if (customTodosUrl) {
+      // Use custom URI from TypeRegistrations or query params
+      permalinkUrl = `${window.location.origin}${window.location.pathname}?uri=${encodeURIComponent(customTodosUrl)}`
+    } else {
+      // Build URL using StorageConfig
+      try {
+        const url = await StorageConfig.buildUrl('public/todo/todo.json')
+        permalinkUrl = `${window.location.origin}${window.location.pathname}?uri=${encodeURIComponent(url)}`
+      } catch (error) {
+        console.error('Error building permalink:', error)
+        alert('Unable to generate permalink')
+        return
+      }
+    }
+
+    // Copy to clipboard and update address bar
+    try {
+      await navigator.clipboard.writeText(permalinkUrl)
+      window.history.pushState({}, '', permalinkUrl)
+      alert('Permalink copied to clipboard and address bar updated!')
+    } catch (err) {
+      // Fallback if clipboard API fails
+      window.history.pushState({}, '', permalinkUrl)
+      alert('Permalink created! (Copy from address bar)')
+    }
+  }
+
   /* -------------------- CALENDAR EXPORT FUNCTIONALITY -------------------- */
   // Generate ICS (iCalendar) content from todo items for calendar export
   generateIcsContent = () => {
@@ -1196,6 +1230,28 @@ class TodoApp extends Component {
                               />
                             </svg>
                             View File
+                          </button>
+                          <button
+                            onClick=${this.generatePermalink}
+                            class="ml-2 text-white rounded-full px-2.5 py-1 text-xs flex items-center transition-all hover:bg-opacity-90"
+                            style="background-color: var(--secondary);"
+                            title="Copy permalink to this todo list"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              class="h-3.5 w-3.5 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                              />
+                            </svg>
+                            Permalink
                           </button>
                           <button
                             onClick=${this.exportToIcs}
